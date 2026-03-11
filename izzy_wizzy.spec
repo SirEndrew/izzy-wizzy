@@ -2,7 +2,11 @@
 # PyInstaller spec for Izzy Wizzy
 # Build: pyinstaller izzy_wizzy.spec
 
+import sys
+
 block_cipher = None
+IS_MAC = sys.platform == 'darwin'
+IS_WIN = sys.platform == 'win32'
 
 a = Analysis(
     ['app.py'],
@@ -23,11 +27,11 @@ a = Analysis(
         'pypdfium2._library',
         'ctypes',
         'ctypes.util',
-        # pywebview backends (Windows uses edgechromium or mshtml)
         'webview',
         'webview.platforms.winforms',
         'webview.platforms.edgechromium',
-        'clr',
+        'webview.platforms.cocoa',
+        'webview.platforms.gtk',
     ],
     hookspath=[],
     runtime_hooks=[],
@@ -51,7 +55,23 @@ exe = EXE(
     upx=True,
     upx_exclude=[],
     runtime_tmpdir=None,
-    console=False,          # No console window
+    console=False,
     onefile=True,
-    icon='static/img/icon.ico',  # convert icon.svg → icon.ico beforehand
+    icon='static/img/icon.ico' if IS_WIN else ('static/img/icon.icns' if IS_MAC else None),
 )
+
+# На Mac дополнительно создаём .app bundle
+if IS_MAC:
+    app = BUNDLE(
+        exe,
+        name='IzzyWizzy.app',
+        icon='static/img/icon.icns',
+        bundle_identifier='ru.izzywizzy.app',
+        info_plist={
+            'NSPrincipalClass': 'NSApplication',
+            'NSHighResolutionCapable': True,
+            'CFBundleShortVersionString': '0.9B',
+            'CFBundleName': 'Izzy Wizzy',
+            'LSMinimumSystemVersion': '10.13.0',
+        },
+    )
