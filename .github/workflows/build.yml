@@ -1,0 +1,63 @@
+name: Build & Release
+
+# Запускается когда создаёшь новый Release на GitHub
+on:
+  release:
+    types: [created]
+
+jobs:
+
+  # ── Сборка для Windows ────────────────────────────────────────────────────
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build exe
+        run: pyinstaller izzy_wizzy.spec
+
+      - name: Upload to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/IzzyWizzy.exe
+
+  # ── Сборка для macOS ──────────────────────────────────────────────────────
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build app
+        run: pyinstaller izzy_wizzy.spec
+
+      - name: Zip app bundle
+        run: |
+          cd dist
+          zip -r IzzyWizzy-mac.zip IzzyWizzy.app
+
+      - name: Upload to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/IzzyWizzy-mac.zip
