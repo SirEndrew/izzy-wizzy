@@ -4,6 +4,7 @@ name: Build & Release
 on:
   release:
     types: [created]
+  workflow_dispatch:  # позволяет запустить вручную из вкладки Actions
 
 jobs:
 
