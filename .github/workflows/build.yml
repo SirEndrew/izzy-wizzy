@@ -29,6 +29,7 @@ jobs:
         run: pyinstaller izzy_wizzy.spec
 
       - name: Upload to Release
+        if: github.event_name == 'release'
         uses: softprops/action-gh-release@v2
         with:
           files: dist/IzzyWizzy.exe
@@ -59,6 +60,7 @@ jobs:
           zip -r IzzyWizzy-mac.zip IzzyWizzy.app
 
       - name: Upload to Release
+        if: github.event_name == 'release'
         uses: softprops/action-gh-release@v2
         with:
           files: dist/IzzyWizzy-mac.zip
