@@ -1,0 +1,233 @@
+{
+  "_created": "2026-03-19T20:30:40.137Z",
+  "_profText": "<b>Языки:</b> Общий, Гномий<br><b>Доспехи:</b> Лёгкие доспехи,Средние доспехи,Щиты; Тяжёлые доспехи<br><b>Оружие:</b> Простое оружие<br><b>Инструменты:</b> Набор для грима<br><b>Музыкальные инструменты:</b> Свирель",
+  "_saveBonus": {
+    "ЛОВ": 3,
+    "МДР": 2
+  },
+  "_saveOverride": {
+    "МДР": 12
+  },
+  "_skillBonus": {
+    "Восприятие": 3,
+    "Ловкость рук": 1
+  },
+  "_skillOverride": {},
+  "_spellAbilityOverride": "МДР",
+  "_spellAtkBonus": null,
+  "_spellAtkOverride": null,
+  "_spellPrepBonus": null,
+  "_spellPrepEnabled": true,
+  "_spellPrepOverride": null,
+  "_spellSaveBonus": null,
+  "_spellSaveOverride": null,
+  "_system": "DnD5e",
+  "_version": "2.1",
+  "abilities": {
+    "ИНТ": 13,
+    "ЛОВ": 18,
+    "МДР": 14,
+    "СИЛ": 13,
+    "ТЕЛ": 11,
+    "ХАР": 13
+  },
+  "abilitiesText": "Скорость: 25 фт. | Тёмное зрение: 60 фт.\n▶ Расовые черты (Гном)\nТёмное зрение 60 фут., Гномья хитрость\n▶ Черты подрасы (кусок)\nИллюзорная хитрость, Говорить с мелкими зверями\n▶ Черты класса (Жрец)\nИспользование заклинаний, Божественный домен\n▶ Особенность предыстории (Артист)\nВы всегда можете найти место для выступления. Обычно это таверна или постоялый двор, но это может быть цирк, театр или даже двор знатного господина. В этом месте вы получаете бесплатный постой и еду по скромным или комфортным стандартам (в зависимости от качества заведения), если вы выступаете каждый вечер. Кроме того, ваши выступления делают вас местной знаменитостью. Когда посторонние узнают вас в городе, в котором вы давали представление, они, скорее всего, будут к вам относиться хорошо.",
+  "abilityBases": {
+    "ИНТ": 11,
+    "ЛОВ": 12,
+    "МДР": 14,
+    "СИЛ": 13,
+    "ТЕЛ": 11,
+    "ХАР": 13
+  },
+  "ac": 10,
+  "acBase": 10,
+  "alignment": "Законный нейтральный",
+  "armorProf": "Лёгкие доспехи,Средние доспехи,Щиты; Тяжёлые доспехи",
+  "armorRestriction": "",
+  "attacksNotes": "",
+  "background": "entertainer",
+  "backgroundFeature": "Вы всегда можете найти место для выступления. Обычно это таверна или постоялый двор, но это может быть цирк, театр или даже двор знатного господина. В этом месте вы получаете бесплатный постой и еду по скромным или комфортным стандартам (в зависимости от качества заведения), если вы выступаете каждый вечер. Кроме того, ваши выступления делают вас местной знаменитостью. Когда посторонние узнают вас в городе, в котором вы давали представление, они, скорее всего, будут к вам относиться хорошо.",
+  "backgroundName": "Артист",
+  "carryBonus": 15,
+  "class": "cleric",
+  "classFeatures": "Использование заклинаний, Божественный домен",
+  "className": "Жрец",
+  "climbSpeed": 0,
+  "conditions": [],
+  "currency": {
+    "cp": 0,
+    "ep": 0,
+    "gp": 26,
+    "pp": 0,
+    "sp": 0
+  },
+  "darkvision": 60,
+  "deathSaves": {
+    "failures": [
+      false,
+      false,
+      false
+    ],
+    "successes": [
+      false,
+      false,
+      false
+    ]
+  },
+  "exhaustion": 0,
+  "fightingStyle": "",
+  "flySpeed": 0,
+  "halfProficiency": false,
+  "hasFeat": false,
+  "hitDie": 8,
+  "hpCurrent": 39,
+  "hpMax": 45,
+  "hpTemp": 23,
+  "initiative": 0,
+  "inspiration": false,
+  "inventory": [
+    {
+      "category": "Воинское оружие",
+      "costGp": 15,
+      "damageDice": "1к8",
+      "damageType": "Дробящий",
+      "description": "",
+      "id": "warhammer",
+      "itemClass": "weapon",
+      "name": "Боевой молот",
+      "properties": [
+        {
+          "altDamage": "1к10",
+          "id": "versatile",
+          "label": "Универсальное"
+        }
+      ],
+      "qty": 1,
+      "weight": 2
+    }
+  ],
+  "inventoryNotes": "",
+  "languages": [
+    "Общий",
+    "Гномий"
+  ],
+  "level": 8,
+  "name": "Нэра Светлый",
+  "noteBlocks": [
+    {
+      "collapsed": false,
+      "id": "nb_1",
+      "text": "",
+      "title": "Цели"
+    },
+    {
+      "collapsed": false,
+      "id": "nb_2",
+      "text": "",
+      "title": "Заметки"
+    }
+  ],
+  "notes": "",
+  "otherProf": "Набор для грима, Свирель",
+  "portrait": null,
+  "proficiencyBonus": 3,
+  "race": "gnome",
+  "raceName": "Гном",
+  "racialBonuses": {
+    "ИНТ": 2,
+    "ЛОВ": 1
+  },
+  "racialSkillChoice": null,
+  "racialTraits": "Тёмное зрение 60 фут., Гномья хитрость",
+  "remarkableAthlete": false,
+  "resources": [],
+  "savingThrows": [
+    "МДР",
+    "ХАР"
+  ],
+  "shieldEquipped": false,
+  "size": "Маленький",
+  "skillExpertise": {
+    "Акробатика": 1,
+    "Восприятие": 0,
+    "Выступление": 1,
+    "Религия": 1,
+    "Убеждение": 1
+  },
+  "skillProficiencies": [
+    "Акробатика",
+    "Выступление",
+    "Религия",
+    "Убеждение"
+  ],
+  "speed": 235,
+  "spellAbility": "МДР",
+  "spells": [
+    "Починка",
+    "Чудотворство",
+    "Свет",
+    "Очищение пищи и питья",
+    "Защита от энергии",
+    "Малое восстановление",
+    "Глухота/слепота",
+    "Маяк надежды",
+    "Притворная смерть",
+    "Послание",
+    "Слово сияния",
+    "Указание"
+  ],
+  "subclass": "собака",
+  "subclassFeatures": "",
+  "subrace": "forest",
+  "subraceName": "колбаса",
+  "subraceTraits": "Иллюзорная хитрость, Говорить с мелкими зверями",
+  "swimSpeed": 0,
+  "toolProf": "",
+  "usedSpellSlots": {},
+  "weaponProf": [
+    "Простое оружие"
+  ],
+  "weapons": [
+    {
+      "ability": "str",
+      "attackBonus": 32,
+      "damage": "3322",
+      "damageType": "Рубящий",
+      "isProf": true,
+      "name": "3в3в3",
+      "note": "",
+      "props": "",
+      "range": ""
+    },
+    {
+      "ability": "str",
+      "attackBonus": 0,
+      "damage": "1к8",
+      "damageType": "Дробящий",
+      "isProf": true,
+      "name": "Боевой молот",
+      "note": "",
+      "props": "Универсальное"
+    }
+  ],
+  "xp": 0,
+  "_initOverride": 12,
+  "_spellOverrides": {
+    "10": {
+      "name": "Слово сияния",
+      "level": 0,
+      "cast": "1 действие",
+      "range": "5 футов",
+      "duration": "Мгновенная",
+      "components": "В, М (священный символ)",
+      "dmg": "1к6+(ЛОВ)"
+    }
+  },
+  "_spellNotes": {
+    "10": ""
+  },
+  "_spellAbilities": {
+    "10": "МДР"
+  }
+}

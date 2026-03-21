@@ -1,0 +1,426 @@
+{
+  "_created": "2026-03-19T18:27:38.879Z",
+  "_profText": "<b>Языки:</b> Общий, Дварфийский, Змеиный, Гигантский<br><b>Доспехи:</b> Лёгкие доспехи<br><b>Оружие:</b> Простое оружие, Длинный меч, Рапира, Короткий меч, Ручной арбалет, Боевой топор, Боевой молот<br><b>Инструменты:</b> Инструменты кузнеца<br><b>Музыкальные инструменты:</b> Волынка, Флейта, Свирель",
+  "_saveBonus": {},
+  "_saveOverride": {},
+  "_spellAbilityOverride": "ХАР",
+  "_system": "DnD5e",
+  "_version": "2.1",
+  "abilities": {
+    "ИНТ": 12,
+    "ЛОВ": 18,
+    "МДР": 12,
+    "СИЛ": 16,
+    "ТЕЛ": 16,
+    "ХАР": 17
+  },
+  "abilitiesText": "Скорость: 25 фт.\n▶ Расовые черты (Дварф)\nТёмное зрение 60 фут., Дварфийская устойчивость, Дварфийское боевое обучение, Каменная смекалка\n▶ Черты класса (Бард)\nИспользование заклинаний, Дополнительные заклинания, Вдохновение барда (к6)\n▶ Особенность предыстории (Мудрец)\nЕсли вы пытаетесь изучить или вспомнить информацию, которой вы не обладаете, вы часто знаете, где и от кого её можно получить. Обычно это библиотека, скрипторий, университет, мудрец или другое образованное существо. Мастер может решить, что искомое знание является тайной и хранится в практически недоступном месте, или что оно вообще недоступно.",
+  "abilityBases": {
+    "ИНТ": 12,
+    "ЛОВ": 17,
+    "МДР": 11,
+    "СИЛ": 16,
+    "ТЕЛ": 14,
+    "ХАР": 17
+  },
+  "ac": 10,
+  "age": "",
+  "alignment": "Законный добрый",
+  "allies": "",
+  "appearance": "Внешность",
+  "armorProf": "Лёгкие доспехи",
+  "armorRestriction": "",
+  "attacksNotes": "",
+  "background": "sage",
+  "backgroundFeature": "Если вы пытаетесь изучить или вспомнить информацию, которой вы не обладаете, вы часто знаете, где и от кого её можно получить. Обычно это библиотека, скрипторий, университет, мудрец или другое образованное существо. Мастер может решить, что искомое знание является тайной и хранится в практически недоступном месте, или что оно вообще недоступно.",
+  "backgroundName": "Мудрец",
+  "backstory": "История персонажа",
+  "bonds": "Привязанности",
+  "class": "bard",
+  "classFeatures": "Использование заклинаний, Дополнительные заклинания, Вдохновение барда (к6)",
+  "className": "Бард",
+  "climbSpeed": 0,
+  "conditions": [],
+  "currency": {
+    "cp": 0,
+    "ep": 0,
+    "gp": 10,
+    "pp": 0,
+    "sp": 0
+  },
+  "darkvision": 0,
+  "deathSaves": {
+    "failures": [
+      false,
+      false,
+      false
+    ],
+    "successes": [
+      false,
+      false,
+      false
+    ]
+  },
+  "exhaustion": 0,
+  "eyes": "",
+  "fightingStyle": "",
+  "flaws": "Слабости",
+  "flySpeed": 0,
+  "hair": "",
+  "halfProficiency": false,
+  "hasFeat": false,
+  "height": "",
+  "hitDie": 8,
+  "hpCurrent": 19,
+  "hpMax": 19,
+  "hpTemp": 0,
+  "ideals": "Идеалы",
+  "initiative": 0,
+  "inspiration": false,
+  "inventory": [
+    {
+      "category": "Воинское оружие",
+      "costGp": 15,
+      "damageDice": "1к8",
+      "damageType": "Рубящий",
+      "description": "",
+      "id": "longsword",
+      "itemClass": "weapon",
+      "name": "Длинный меч",
+      "properties": [
+        {
+          "altDamage": "1к10",
+          "id": "versatile",
+          "label": "Универсальное"
+        }
+      ],
+      "qty": 1,
+      "subcategory": "Воинское рукопашное",
+      "weight": 3
+    },
+    {
+      "capacity": "12 кубических футов/300 фунтов (150 кг.)",
+      "category": "Прочее",
+      "costGp": 5,
+      "description": "",
+      "id": "chest",
+      "itemClass": "gear",
+      "name": "Сундук",
+      "qty": 1,
+      "weight": 25
+    },
+    {
+      "capacity": null,
+      "category": "Прочее",
+      "costGp": 1,
+      "description": "В этом цилиндрическом кожаном тубусе может храниться до десяти скрученных листов бумаги или пять скрученных листов пергамента.",
+      "id": "case_map_scroll",
+      "itemClass": "gear",
+      "name": "Контейнер для карт и свитков",
+      "qty": 2,
+      "weight": 1
+    },
+    {
+      "capacity": null,
+      "category": "Прочее",
+      "costGp": 15,
+      "description": "",
+      "id": "clothes_fine",
+      "itemClass": "gear",
+      "name": "Одежда, отличная",
+      "qty": 1,
+      "weight": 6
+    },
+    {
+      "capacity": null,
+      "category": "Прочее",
+      "costGp": 10,
+      "description": "",
+      "id": "ink_bottle",
+      "itemClass": "gear",
+      "name": "Чернила (бутылочка 30 грамм)",
+      "qty": 1,
+      "weight": 0
+    },
+    {
+      "capacity": null,
+      "category": "Прочее",
+      "costGp": 0.02,
+      "description": "",
+      "id": "quill",
+      "itemClass": "gear",
+      "name": "Писчее перо",
+      "qty": 1,
+      "weight": 0
+    },
+    {
+      "capacity": null,
+      "category": "Прочее",
+      "costGp": 0.5,
+      "description": "Лампа испускает яркий свет в пределах 15 футов и тусклый свет в пределах еще 30 футов. Зажжённая лампа горит 6 часов от одной фляги (1 пинта [0,5 литра]) масла.",
+      "id": "lamp",
+      "itemClass": "gear",
+      "name": "Лампа",
+      "qty": 1,
+      "weight": 1
+    },
+    {
+      "capacity": null,
+      "category": "Прочее",
+      "costGp": 0.1,
+      "description": "Обычно масло продаётся в глиняных флягах по 1 пинте (0,5 литра). Вы можете действием облить маслом из фляги существо, находящееся в пределах 5 футов, или кинуть её на 20 футов, ломая при ударе. Совершите дальнобойную атаку по целевому существу или предмету, считая масло импровизированным оружием. При попадании цель покрывается маслом. Если цель получает урон огнём, пока масло не высохло (1 минута), она получает дополнительный урон огнём 5 от горящего масла. Вы можете также вылить фляжку масла на землю, покрыв площадь 5 × 5 футов, при условии, что пол ровный. Если теперь масло поджечь, оно горит 2 раунда и причиняет урон огнём 5 всем существам, входящим в эту область или оканчивающим в ней ход. Существо может получить этот урон только один раз за ход.",
+      "id": "flask_oil",
+      "itemClass": "gear",
+      "name": "Масло (фляга)",
+      "qty": 2,
+      "weight": 1
+    },
+    {
+      "capacity": null,
+      "category": "Прочее",
+      "costGp": 0.2,
+      "description": "",
+      "id": "paper_sheet",
+      "itemClass": "gear",
+      "name": "Бумага (один лист)",
+      "qty": 5,
+      "weight": 0
+    },
+    {
+      "capacity": null,
+      "category": "Прочее",
+      "costGp": 5,
+      "description": "",
+      "id": "perfume_vial",
+      "itemClass": "gear",
+      "name": "Духи (флакон)",
+      "qty": 1,
+      "weight": 0
+    },
+    {
+      "capacity": null,
+      "category": "Прочее",
+      "costGp": 0.5,
+      "description": "",
+      "id": "sealing_wax",
+      "itemClass": "gear",
+      "name": "Воск",
+      "qty": 1,
+      "weight": 0
+    },
+    {
+      "capacity": null,
+      "category": "Прочее",
+      "costGp": 0.02,
+      "description": "",
+      "id": "soap",
+      "itemClass": "gear",
+      "name": "Мыло",
+      "qty": 1,
+      "weight": 0
+    },
+    {
+      "category": "Музыкальные инструменты",
+      "categoryId": "musical",
+      "costGp": 30,
+      "description": "",
+      "id": "instrument_lyre",
+      "itemClass": "tool",
+      "name": "Лира",
+      "qty": 1,
+      "weight": 2
+    },
+    {
+      "ac": "11+[ЛОВ]",
+      "category": "Лёгкие доспехи",
+      "costGp": 10,
+      "description": "",
+      "id": "leather",
+      "itemClass": "armor",
+      "name": "Кожаный",
+      "qty": 1,
+      "stealthDisadv": false,
+      "strReq": null,
+      "weight": 10
+    },
+    {
+      "category": "Простое оружие",
+      "costGp": 2,
+      "damageDice": "1к4",
+      "damageType": "Колющий",
+      "description": "",
+      "id": "dagger",
+      "itemClass": "weapon",
+      "name": "Кинжал",
+      "properties": [
+        {
+          "id": "light",
+          "label": "Лёгкое"
+        },
+        {
+          "id": "finesse",
+          "label": "Фехтовальное"
+        },
+        {
+          "id": "thrown",
+          "label": "Метательное",
+          "range": "20/60"
+        }
+      ],
+      "qty": 1,
+      "subcategory": "Простое рукопашное",
+      "weight": 1
+    },
+    {
+      "capacity": null,
+      "category": "Прочее",
+      "costGp": 10,
+      "description": "",
+      "id": "ink_bottle",
+      "itemClass": "gear",
+      "name": "Чернила (бутылочка 30 грамм)",
+      "qty": 1,
+      "weight": 0
+    },
+    {
+      "capacity": null,
+      "category": "Прочее",
+      "costGp": 0.02,
+      "description": "",
+      "id": "quill",
+      "itemClass": "gear",
+      "name": "Писчее перо",
+      "qty": 1,
+      "weight": 0
+    },
+    {
+      "capacity": null,
+      "category": "Прочее",
+      "costGp": null,
+      "description": "",
+      "id": "small_knife",
+      "itemClass": "gear",
+      "name": "Небольшой нож",
+      "qty": 1,
+      "weight": 0
+    },
+    {
+      "costGp": 0,
+      "description": "",
+      "id": "letter_dead_colleague",
+      "itemClass": "special",
+      "name": "Письмо от мёртвого коллеги с вопросом, на который вы пока не можете ответить",
+      "qty": 1,
+      "weight": 0
+    },
+    {
+      "capacity": null,
+      "category": "Прочее",
+      "costGp": 0.5,
+      "description": "",
+      "id": "clothes_common",
+      "itemClass": "gear",
+      "name": "Одежда, обычная",
+      "qty": 1,
+      "weight": 3
+    },
+    {
+      "capacity": "0,2 кубических фута/6 фунтов (3 кг.)",
+      "category": "Прочее",
+      "costGp": 0.5,
+      "description": "В кожаном или тканевом кошеле поместится 20 снарядов для пращи или 50 иголок для духовой трубки, а также другие вещи. Кошель с отделениями для хранения компонентов заклинаний называется мешочком с компонентами (описывается ниже).",
+      "id": "pouch",
+      "itemClass": "gear",
+      "name": "Кошель",
+      "qty": 1,
+      "weight": 1
+    }
+  ],
+  "inventoryNotes": "",
+  "languages": [
+    "Общий",
+    "Дварфийский",
+    "Змеиный",
+    "Гигантский"
+  ],
+  "level": 1,
+  "name": "а4а4а4а",
+  "noteBlocks": [
+    {
+      "collapsed": false,
+      "id": "nb_1",
+      "text": "",
+      "title": "Цели"
+    },
+    {
+      "collapsed": false,
+      "id": "nb_2",
+      "text": "",
+      "title": "Заметки"
+    }
+  ],
+  "notes": "",
+  "otherProf": "Волынка, Флейта, Свирель, Инструменты кузнеца",
+  "portrait": null,
+  "proficiencyBonus": 2,
+  "race": "dwarf",
+  "raceName": "Дварф",
+  "racialBonuses": {
+    "МДР": 1,
+    "ТЕЛ": 2
+  },
+  "racialSkillChoice": null,
+  "racialTraits": "Тёмное зрение 60 фут., Дварфийская устойчивость, Дварфийское боевое обучение, Каменная смекалка",
+  "remarkableAthlete": false,
+  "resources": [],
+  "savingThrows": [
+    "ЛОВ",
+    "ХАР"
+  ],
+  "size": "Средний",
+  "skillExpertise": {
+    "История": 1,
+    "Ловкость рук": 1,
+    "Магия": 1,
+    "Природа": 1,
+    "Проницательность": 1
+  },
+  "skillProficiencies": [
+    "История",
+    "Ловкость рук",
+    "Магия",
+    "Природа",
+    "Проницательность"
+  ],
+  "skin": "",
+  "speed": 25,
+  "spellAbility": "ХАР",
+  "spells": [
+    "Меткий удар",
+    "Злая насмешка",
+    "Дружба с животными",
+    "Безмолвный образ",
+    "Маскировка",
+    "Невидимое письмо"
+  ],
+  "subclass": "Коллегия доблести",
+  "subclassFeatures": "",
+  "subrace": "hill",
+  "subraceName": "Холмовой дварф",
+  "swimSpeed": 0,
+  "toolProf": "",
+  "traits": "Черты Характера",
+  "usedSpellSlots": {},
+  "weaponProf": [
+    "Простое оружие",
+    "Длинный меч",
+    "Рапира",
+    "Короткий меч",
+    "Ручной арбалет",
+    "Боевой топор",
+    "Боевой молот"
+  ],
+  "weapons": [],
+  "weight": "",
+  "xp": 0
+}

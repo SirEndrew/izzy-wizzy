@@ -1,0 +1,421 @@
+{
+  "name": "Пука",
+  "_system": "DnD5e",
+  "_version": "2.1",
+  "_created": "2026-03-07T22:30:27.158Z",
+  "race": "halfling",
+  "raceName": "Полурослик",
+  "subrace": "stout",
+  "subraceName": "Коренастый",
+  "class": "barbarian",
+  "className": "Варвар",
+  "subclass": "",
+  "fightingStyle": "",
+  "background": "sailor",
+  "backgroundName": "Моряк",
+  "level": 3,
+  "xp": 0,
+  "alignment": "Нейтральный добрый",
+  "size": "Маленький",
+  "age": "",
+  "height": "",
+  "weight": "",
+  "eyes": "",
+  "skin": "",
+  "hair": "",
+  "appearance": "",
+  "backstory": "",
+  "traits": "",
+  "ideals": "",
+  "bonds": "",
+  "flaws": "",
+  "allies": "",
+  "abilities": {
+    "СИЛ": 15,
+    "ЛОВ": 16,
+    "ТЕЛ": 14,
+    "ИНТ": 12,
+    "МДР": 10,
+    "ХАР": 8
+  },
+  "abilityBases": {
+    "СИЛ": 15,
+    "ЛОВ": 14,
+    "ТЕЛ": 13,
+    "ИНТ": 12,
+    "МДР": 10,
+    "ХАР": 8
+  },
+  "racialBonuses": {
+    "ЛОВ": 2,
+    "ТЕЛ": 1
+  },
+  "proficiencyBonus": 2,
+  "hpMax": 32,
+  "hpCurrent": 32,
+  "hpTemp": 0,
+  "hitDie": 12,
+  "ac": 10,
+  "speed": 25,
+  "flySpeed": 0,
+  "swimSpeed": 0,
+  "climbSpeed": 0,
+  "darkvision": 0,
+  "initiative": 0,
+  "savingThrows": [
+    "СИЛ",
+    "ТЕЛ"
+  ],
+  "armorProf": "Лёгкие доспехи, Средние доспехи, Щиты",
+  "armorRestriction": "",
+  "weaponProf": [
+    "Простое оружие",
+    "Воинское оружие"
+  ],
+  "toolProf": "",
+  "otherProf": "Инструменты навигатора, Транспортное средство (водное)",
+  "hasFeat": false,
+  "racialSkillChoice": null,
+  "skillProficiencies": [
+    "Атлетика",
+    "Восприятие",
+    "Природа",
+    "Уход за животными"
+  ],
+  "skillExpertise": {
+    "Атлетика": 1,
+    "Восприятие": 1,
+    "Природа": 1,
+    "Уход за животными": 1
+  },
+  "languages": [
+    "Общий",
+    "Язык Полуросликов"
+  ],
+  "spellAbility": null,
+  "spells": [],
+  "usedSpellSlots": {},
+  "weapons": [
+    {
+      "name": "Лёгкий арбалет",
+      "damage": "1к8",
+      "damageType": "Колющий",
+      "ability": "dex",
+      "isProf": true,
+      "attackBonus": 0,
+      "note": ""
+    }
+  ],
+  "inventory": [
+    {
+      "id": "battleaxe",
+      "name": "Боевой топор",
+      "qty": 1,
+      "weight": 4,
+      "costGp": 10,
+      "itemClass": "weapon",
+      "description": "",
+      "damageDice": "1к8",
+      "damageType": "Рубящий",
+      "properties": [
+        {
+          "id": "versatile",
+          "label": "Универсальное",
+          "altDamage": "1к10"
+        }
+      ],
+      "category": "Воинское оружие",
+      "subcategory": "Воинское рукопашное"
+    },
+    {
+      "id": "handaxe",
+      "name": "Ручной топор",
+      "qty": 2,
+      "weight": 2,
+      "costGp": 5,
+      "itemClass": "weapon",
+      "description": "",
+      "damageDice": "1к6",
+      "damageType": "Рубящий",
+      "properties": [
+        {
+          "id": "light",
+          "label": "Лёгкое"
+        }
+      ],
+      "category": "Простое оружие",
+      "subcategory": "Простое рукопашное"
+    },
+    {
+      "id": "javelin",
+      "name": "Метательное копьё",
+      "qty": 4,
+      "weight": 2,
+      "costGp": 0.5,
+      "itemClass": "weapon",
+      "description": "",
+      "damageDice": "1к6",
+      "damageType": "Колющий",
+      "properties": [
+        {
+          "id": "thrown",
+          "label": "Метательное",
+          "range": "30/120"
+        }
+      ],
+      "category": "Простое оружие",
+      "subcategory": "Простое рукопашное"
+    },
+    {
+      "id": "backpack",
+      "name": "Рюкзак",
+      "qty": 1,
+      "weight": 5,
+      "costGp": 2,
+      "itemClass": "gear",
+      "description": "",
+      "category": "Прочее",
+      "capacity": "1 кубический фут/30 фунтов (15 кг.)"
+    },
+    {
+      "id": "bedroll",
+      "name": "Спальник",
+      "qty": 1,
+      "weight": 7,
+      "costGp": 1,
+      "itemClass": "gear",
+      "description": "",
+      "category": "Прочее",
+      "capacity": null
+    },
+    {
+      "id": "mess_kit",
+      "name": "Столовый набор",
+      "qty": 1,
+      "weight": 1,
+      "costGp": 0.2,
+      "itemClass": "gear",
+      "description": "В этой небольшой коробке находится чашка и простые столовые приборы. Коробка раскрывается, и одна сторона может использоваться как сковорода, а другая — как тарелка или неглубокая миска.",
+      "category": "Прочее",
+      "capacity": null
+    },
+    {
+      "id": "tinderbox",
+      "name": "Трутница",
+      "qty": 1,
+      "weight": 1,
+      "costGp": 0.5,
+      "itemClass": "gear",
+      "description": "В этом небольшом контейнере находится кремень, кресало и трут (обычно это сухая тряпка, вымоченная в масле), используемые для разжигания огня. Использование его для разжигания факела — или чего-нибудь другого, легковоспламеняющегося — требует одного действия. Разжигание другого огня требует 1 минуты.",
+      "category": "Прочее",
+      "capacity": null
+    },
+    {
+      "id": "torch",
+      "name": "Факел",
+      "qty": 10,
+      "weight": 1,
+      "costGp": 0.01,
+      "itemClass": "gear",
+      "description": "Факел горит 1 час, испуская яркий свет в пределах 20 футов и тусклый свет в пределах еще 20 футов. Если вы совершаете рукопашную атаку горящим факелом и попадаете, он причиняет урон огнём 1.",
+      "category": "Прочее",
+      "capacity": null
+    },
+    {
+      "id": "rations_1day",
+      "name": "Рационы (1 день)",
+      "qty": 10,
+      "weight": 2,
+      "costGp": 0.5,
+      "itemClass": "gear",
+      "description": "Рационы состоят из обезвоженной пищи, подходящей для путешествий, включая вяленое мясо, сухофрукты, галеты и орехи.",
+      "category": "Прочее",
+      "capacity": null
+    },
+    {
+      "id": "waterskin",
+      "name": "Бурдюк",
+      "qty": 1,
+      "weight": 5,
+      "costGp": 0.2,
+      "itemClass": "gear",
+      "description": "",
+      "category": "Прочее",
+      "capacity": "4 пинты (2 лит.)"
+    },
+    {
+      "id": "rope_hempen_50ft",
+      "name": "Верёвка пеньковая (50 футов)",
+      "qty": 1,
+      "weight": 10,
+      "costGp": 1,
+      "itemClass": "gear",
+      "description": "У верёвки, сделанной из пеньки или шёлка, 2 хита, и её можно порвать проверкой Силы Сл 17.",
+      "category": "Прочее",
+      "capacity": null
+    },
+    {
+      "id": "club",
+      "name": "Кофель-нагель",
+      "qty": 1,
+      "weight": 2,
+      "costGp": 0.1,
+      "itemClass": "weapon",
+      "description": "",
+      "damageDice": "1к4",
+      "damageType": "Дробящий",
+      "properties": [
+        {
+          "id": "light",
+          "label": "Лёгкое"
+        }
+      ],
+      "category": "Простое оружие",
+      "subcategory": "Простое рукопашное"
+    },
+    {
+      "id": "rope_silk_50ft",
+      "name": "Верёвка, шёлковая (50 футов)",
+      "qty": 1,
+      "weight": 5,
+      "costGp": 10,
+      "itemClass": "gear",
+      "description": "У верёвки, сделанной из пеньки или шёлка, 2 хита, и её можно порвать проверкой Силы Сл 17.",
+      "category": "Прочее",
+      "capacity": null
+    },
+    {
+      "id": "talisman",
+      "name": "Талисман",
+      "qty": 1,
+      "weight": 0,
+      "costGp": 0,
+      "itemClass": "special",
+      "description": ""
+    },
+    {
+      "id": "clothes_common",
+      "name": "Одежда, обычная",
+      "qty": 1,
+      "weight": 3,
+      "costGp": 0.5,
+      "itemClass": "gear",
+      "description": "",
+      "category": "Прочее",
+      "capacity": null
+    },
+    {
+      "id": "pouch",
+      "name": "Кошель",
+      "qty": 1,
+      "weight": 1,
+      "costGp": 0.5,
+      "itemClass": "gear",
+      "description": "В кожаном или тканевом кошеле поместится 20 снарядов для пращи или 50 иголок для духовой трубки, а также другие вещи. Кошель с отделениями для хранения компонентов заклинаний называется мешочком с компонентами (описывается ниже).",
+      "category": "Прочее",
+      "capacity": "0,2 кубических фута/6 фунтов (3 кг.)"
+    },
+    {
+      "id": "crossbow_light",
+      "name": "Лёгкий арбалет",
+      "qty": 1,
+      "weight": 5,
+      "costGp": 25,
+      "itemClass": "weapon",
+      "description": "",
+      "damageDice": "1к8",
+      "damageType": "Колющий",
+      "properties": [
+        {
+          "id": "ammunition",
+          "label": "Боеприпас",
+          "range": "80/320"
+        },
+        {
+          "id": "two-handed",
+          "label": "Двуручное"
+        },
+        {
+          "id": "loading",
+          "label": "Перезарядка"
+        }
+      ],
+      "category": "Простое оружие"
+    },
+    {
+      "id": "light_hammer",
+      "name": "Лёгкий молот",
+      "qty": 1,
+      "weight": 2,
+      "costGp": 2,
+      "itemClass": "weapon",
+      "description": "",
+      "damageDice": "1к4",
+      "damageType": "Дробящий",
+      "properties": [
+        {
+          "id": "light",
+          "label": "Лёгкое"
+        }
+      ],
+      "category": "Простое оружие"
+    },
+    {
+      "id": "trident",
+      "name": "Трезубец",
+      "qty": 1,
+      "weight": 4,
+      "costGp": 5,
+      "itemClass": "weapon",
+      "description": "",
+      "damageDice": "1к6",
+      "damageType": "Колющий",
+      "properties": [
+        {
+          "id": "other",
+          "label": "Метательное (дис.. 20/60)"
+        },
+        {
+          "id": "versatile",
+          "label": "Универсальное",
+          "altDamage": "1к8"
+        }
+      ],
+      "category": "Воинское оружие"
+    }
+  ],
+  "currency": {
+    "gp": 10,
+    "sp": 0,
+    "cp": 0,
+    "ep": 0,
+    "pp": 0
+  },
+  "racialTraits": "Везение, Храбрость, Проворность",
+  "classFeatures": "Ярость, Бездоспешная защита (10+Ловк+Тел), Безрассудная атака, Чутьё опасности",
+  "subclassFeatures": "",
+  "backgroundFeature": "Если понадобится, вы можете получить бесплатную поездку на паруснике для себя и своих спутников. Это может быть ваш старый корабль, или другой корабль, с которым вы находитесь в хороших отношениях (возможно, им командует ваш бывший напарник). В обмен на бесплатную поездку от вас и ваших спутников ожидают посильную помощь экипажу во время плавания.",
+  "inspiration": false,
+  "conditions": [],
+  "deathSaves": {
+    "successes": [
+      false,
+      false,
+      false
+    ],
+    "failures": [
+      false,
+      false,
+      false
+    ]
+  },
+  "notes": "",
+  "resources": [],
+  "halfProficiency": false,
+  "remarkableAthlete": false,
+  "portrait": null,
+  "abilitiesText": "Скорость: 25 фт.\n▶ Расовые черты (Полурослик)\nВезение, Храбрость, Проворность\n▶ Черты класса (Варвар)\nЯрость, Бездоспешная защита (10+Ловк+Тел), Безрассудная атака, Чутьё опасности\n▶ Особенность предыстории (Моряк)\nЕсли понадобится, вы можете получить бесплатную поездку на паруснике для себя и своих спутников. Это может быть ваш старый корабль, или другой корабль, с которым вы находитесь в хороших отношениях (возможно, им командует ваш бывший напарник). В обмен на бесплатную поездку от вас и ваших спутников ожидают посильную помощь экипажу во время плавания.",
+  "exhaustion": 0,
+  "_profText": "Языки: Общий, Язык Полуросликов\nДоспехи: Лёгкие доспехи, Средние доспехи, Щиты\nОружие: Простое оружие, Воинское оружие\nИнструменты: Инструменты навигатора\nПрочее: Транспортное средство (водное)",
+  "attacksNotes": ""
+}

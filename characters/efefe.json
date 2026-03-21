@@ -1,0 +1,399 @@
+{
+  "_created": "2026-03-06T18:12:08.957Z",
+  "_system": "DnD5e",
+  "_version": "2.1",
+  "abilities": {
+    "ИНТ": 12,
+    "ЛОВ": 14,
+    "МДР": 11,
+    "СИЛ": 15,
+    "ТЕЛ": 15,
+    "ХАР": 8
+  },
+  "abilityBases": {
+    "ИНТ": 12,
+    "ЛОВ": 14,
+    "МДР": 10,
+    "СИЛ": 15,
+    "ТЕЛ": 13,
+    "ХАР": 8
+  },
+  "ac": 10,
+  "age": "",
+  "alignment": "",
+  "allies": "",
+  "appearance": "",
+  "armorProf": "Лёгкие доспехи",
+  "armorRestriction": "",
+  "background": "folk_hero",
+  "backgroundFeature": "Вы сами из простого народа, и потому легко находите с ними общий язык. Вы можете найти место, чтобы спрятаться, отдохнуть или подлечиться среди обывателей, если только вы не угрожаете им. Они укроют вас от представителей закона и тех, кто ищет вас, но своими жизнями за вас они рисковать не будут.",
+  "backgroundName": "Народный герой",
+  "backstory": "",
+  "bonds": "",
+  "class": "rogue",
+  "classFeatures": "Мастерство (×2 бонус в 2 навыках), Скрытная атака (к6), Воровской жаргон, Хитрое действие",
+  "className": "Плут",
+  "climbSpeed": 0,
+  "conditions": [],
+  "currency": {
+    "cp": 0,
+    "ep": 0,
+    "gp": 10,
+    "pp": 0,
+    "sp": 0
+  },
+  "darkvision": 0,
+  "deathSaves": {
+    "failures": [
+      false,
+      false,
+      false
+    ],
+    "successes": [
+      false,
+      false,
+      false
+    ]
+  },
+  "eyes": "",
+  "fightingStyle": "",
+  "flaws": "",
+  "flySpeed": 0,
+  "hair": "",
+  "halfProficiency": false,
+  "hasFeat": false,
+  "height": "",
+  "hitDie": 8,
+  "hpCurrent": 10,
+  "hpMax": 10,
+  "hpTemp": 0,
+  "ideals": "",
+  "initiative": 0,
+  "inspiration": false,
+  "inventory": [
+    {
+      "category": "Воинское оружие",
+      "costGp": 25,
+      "damageDice": "1к8",
+      "damageType": "Колющий",
+      "description": "",
+      "id": "rapier",
+      "itemClass": "weapon",
+      "name": "Рапира",
+      "properties": [
+        {
+          "id": "finesse",
+          "label": "Фехтовальное"
+        }
+      ],
+      "qty": 1,
+      "subcategory": "Воинское рукопашное",
+      "weight": 2
+    },
+    {
+      "category": "Простое оружие",
+      "costGp": 25,
+      "damageDice": "1к6",
+      "damageType": "Колющий",
+      "description": "",
+      "id": "shortbow",
+      "itemClass": "weapon",
+      "name": "Короткий лук",
+      "properties": [
+        {
+          "id": "ammunition",
+          "label": "Боеприпас",
+          "range": "80/320"
+        },
+        {
+          "id": "two-handed",
+          "label": "Двуручное"
+        }
+      ],
+      "qty": 1,
+      "subcategory": "Простое дальнобойное",
+      "weight": 2
+    },
+    {
+      "capacity": null,
+      "category": "Боеприпасы",
+      "costGp": 1,
+      "description": "",
+      "id": "arrows_20",
+      "itemClass": "gear",
+      "name": "Стрелы (20)",
+      "qty": 1,
+      "weight": 1
+    },
+    {
+      "capacity": null,
+      "category": "Прочее",
+      "costGp": 1,
+      "description": "В колчан помещается 20 стрел.",
+      "id": "quiver",
+      "itemClass": "gear",
+      "name": "Колчан",
+      "qty": 1,
+      "weight": 1
+    },
+    {
+      "capacity": "1 кубический фут/30 фунтов (15 кг.)",
+      "category": "Прочее",
+      "costGp": 2,
+      "description": "",
+      "id": "backpack",
+      "itemClass": "gear",
+      "name": "Рюкзак",
+      "qty": 1,
+      "weight": 5
+    },
+    {
+      "capacity": null,
+      "category": "Прочее",
+      "costGp": 1,
+      "description": "",
+      "id": "bedroll",
+      "itemClass": "gear",
+      "name": "Спальник",
+      "qty": 1,
+      "weight": 7
+    },
+    {
+      "capacity": null,
+      "category": "Прочее",
+      "costGp": 0.2,
+      "description": "В этой небольшой коробке находится чашка и простые столовые приборы. Коробка раскрывается, и одна сторона может использоваться как сковорода, а другая — как тарелка или неглубокая миска.",
+      "id": "mess_kit",
+      "itemClass": "gear",
+      "name": "Столовый набор",
+      "qty": 1,
+      "weight": 1
+    },
+    {
+      "capacity": null,
+      "category": "Прочее",
+      "costGp": 0.5,
+      "description": "В этом небольшом контейнере находится кремень, кресало и трут (обычно это сухая тряпка, вымоченная в масле), используемые для разжигания огня. Использование его для разжигания факела — или чего-нибудь другого, легковоспламеняющегося — требует одного действия. Разжигание другого огня требует 1 минуты.",
+      "id": "tinderbox",
+      "itemClass": "gear",
+      "name": "Трутница",
+      "qty": 1,
+      "weight": 1
+    },
+    {
+      "capacity": null,
+      "category": "Прочее",
+      "costGp": 0.01,
+      "description": "Факел горит 1 час, испуская яркий свет в пределах 20 футов и тусклый свет в пределах еще 20 футов. Если вы совершаете рукопашную атаку горящим факелом и попадаете, он причиняет урон огнём 1.",
+      "id": "torch",
+      "itemClass": "gear",
+      "name": "Факел",
+      "qty": 10,
+      "weight": 1
+    },
+    {
+      "capacity": null,
+      "category": "Прочее",
+      "costGp": 0.5,
+      "description": "Рационы состоят из обезвоженной пищи, подходящей для путешествий, включая вяленое мясо, сухофрукты, галеты и орехи.",
+      "id": "rations_1day",
+      "itemClass": "gear",
+      "name": "Рационы (1 день)",
+      "qty": 10,
+      "weight": 2
+    },
+    {
+      "capacity": "4 пинты (2 лит.)",
+      "category": "Прочее",
+      "costGp": 0.2,
+      "description": "",
+      "id": "waterskin",
+      "itemClass": "gear",
+      "name": "Бурдюк",
+      "qty": 1,
+      "weight": 5
+    },
+    {
+      "capacity": null,
+      "category": "Прочее",
+      "costGp": 1,
+      "description": "У верёвки, сделанной из пеньки или шёлка, 2 хита, и её можно порвать проверкой Силы Сл 17.",
+      "id": "rope_hempen_50ft",
+      "itemClass": "gear",
+      "name": "Верёвка пеньковая (50 футов)",
+      "qty": 1,
+      "weight": 10
+    },
+    {
+      "ac": "11 + мод. Ловк.",
+      "category": "Лёгкие доспехи",
+      "costGp": 10,
+      "description": "",
+      "id": "leather",
+      "itemClass": "armor",
+      "name": "Кожаный",
+      "qty": 1,
+      "stealthDisadv": false,
+      "strReq": null,
+      "weight": 10
+    },
+    {
+      "category": "Простое оружие",
+      "costGp": 2,
+      "damageDice": "1к4",
+      "damageType": "Колющий",
+      "description": "",
+      "id": "dagger",
+      "itemClass": "weapon",
+      "name": "Кинжал",
+      "properties": [
+        {
+          "id": "light",
+          "label": "Лёгкое"
+        },
+        {
+          "id": "finesse",
+          "label": "Фехтовальное"
+        }
+      ],
+      "qty": 2,
+      "subcategory": "Простое рукопашное",
+      "weight": 1
+    },
+    {
+      "category": "Прочие инструменты",
+      "categoryId": "other",
+      "costGp": 25,
+      "description": "",
+      "id": "tools_thieves",
+      "itemClass": "tool",
+      "name": "Воровские инструменты",
+      "qty": 1,
+      "weight": 1
+    },
+    {
+      "category": "Ремесленные инструменты",
+      "categoryId": "artisan",
+      "costGp": 50,
+      "description": "",
+      "id": "tools_alchemist",
+      "itemClass": "tool",
+      "name": "Инструменты алхимика",
+      "qty": 1,
+      "weight": 8
+    },
+    {
+      "capacity": null,
+      "category": "Прочее",
+      "costGp": 2,
+      "description": "",
+      "id": "shovel",
+      "itemClass": "gear",
+      "name": "Лопата",
+      "qty": 1,
+      "weight": 5
+    },
+    {
+      "capacity": "1 галлон (3,75 лит.)",
+      "category": "Прочее",
+      "costGp": 2,
+      "description": "",
+      "id": "pot_iron",
+      "itemClass": "gear",
+      "name": "Горшок, железный",
+      "qty": 1,
+      "weight": 10
+    },
+    {
+      "capacity": null,
+      "category": "Прочее",
+      "costGp": 0.5,
+      "description": "",
+      "id": "clothes_common",
+      "itemClass": "gear",
+      "name": "Одежда, обычная",
+      "qty": 1,
+      "weight": 3
+    },
+    {
+      "capacity": "0,2 кубических фута/6 фунтов (3 кг.)",
+      "category": "Прочее",
+      "costGp": 0.5,
+      "description": "В кожаном или тканевом кошеле поместится 20 снарядов для пращи или 50 иголок для духовой трубки, а также другие вещи. Кошель с отделениями для хранения компонентов заклинаний называется мешочком с компонентами (описывается ниже).",
+      "id": "pouch",
+      "itemClass": "gear",
+      "name": "Кошель",
+      "qty": 1,
+      "weight": 1
+    }
+  ],
+  "languages": [
+    "Общий",
+    "Дварфийский"
+  ],
+  "level": 1,
+  "name": "efefe",
+  "notes": "",
+  "otherProf": "Транспортное средство (наземное), Инструменты стеклодува, Инструменты кузнеца",
+  "portrait": null,
+  "proficiencyBonus": 2,
+  "race": "dwarf",
+  "raceName": "Дварф",
+  "racialBonuses": {
+    "МДР": 1,
+    "ТЕЛ": 2
+  },
+  "racialSkillChoice": null,
+  "racialTraits": "Тёмное зрение 60 фут., Дварфийская устойчивость, Дварфийское боевое обучение, Каменная смекалка",
+  "remarkableAthlete": false,
+  "resources": [],
+  "savingThrows": [
+    "ЛОВ",
+    "ИНТ"
+  ],
+  "size": "Средний",
+  "skillExpertise": {
+    "Выживание": 1,
+    "Уход за животными": 1,
+    "Акробатика": 1,
+    "Ловкость рук": 1,
+    "Скрытность": 1,
+    "Расследование": 1
+  },
+  "skillProficiencies": [
+    "Выживание",
+    "Уход за животными",
+    "Акробатика",
+    "Ловкость рук",
+    "Скрытность",
+    "Расследование"
+  ],
+  "skin": "",
+  "speed": 25,
+  "spellAbility": null,
+  "spells": [],
+  "subclass": "",
+  "subclassFeatures": "",
+  "subrace": "hill",
+  "subraceName": "Холмовой дварф",
+  "swimSpeed": 0,
+  "toolProf": "Воровские инструменты",
+  "traits": "",
+  "usedSpellSlots": {},
+  "weaponProf": [
+    "Простое оружие",
+    "Ручной арбалет",
+    "Длинный меч",
+    "Рапира",
+    "Короткий меч",
+    "Боевой топор",
+    "Боевой молот"
+  ],
+  "weapons": [],
+  "weight": "",
+  "xp": 0,
+  "abilitiesText": "Скорость: 25 фт.\n▶ Расовые черты (Дварф)\nТёмное зрение 60 фут., Дварфийская устойчивость, Дварфийское боевое обучение, Каменная смекалка\n▶ Черты класса (Плут)\nМастерство (×2 бонус в 2 навыках), Скрытная атака (к6), Воровской жаргон, Хитрое действие\n▶ Особенность предыстории (Народный герой)\nВы сами из простого народа, и потому легко находите с ними общий язык. Вы можете найти место, чтобы спрятаться, отдохнуть или подлечиться среди обывателей, если только вы не угрожаете им. Они укроют вас от представителей закона и тех, кто ищет вас, но своими жизнями за вас они рисковать не будут.",
+  "exhaustion": 0,
+  "_profText": "Языки: Общий, Дварфийский\nДоспехи: Лёгкие доспехи\nОружие: Простое оружие, Ручной арбалет, Длинный меч, Рапира, Короткий меч, Боевой топор, Боевой молот\nИнструменты: Воровские инструменты, Инструменты стеклодува, Инструменты кузнеца\nПрочее: Транспортное средство (наземное)",
+  "attacksNotes": ""
+}

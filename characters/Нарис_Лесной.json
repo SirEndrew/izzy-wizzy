@@ -1,0 +1,308 @@
+{
+  "name": "Нарис Лесной",
+  "_system": "DnD5e",
+  "_version": "2.1",
+  "_created": "2026-03-07T09:29:40.399Z",
+  "race": "halfling",
+  "raceName": "Полурослик",
+  "subrace": "lightfoot",
+  "subraceName": "Легконогий",
+  "class": "monk",
+  "className": "Монах",
+  "subclass": "Путь четырёх стихий",
+  "fightingStyle": "",
+  "background": "noble",
+  "backgroundName": "Благородный",
+  "level": 5,
+  "xp": 0,
+  "alignment": "Нейтральный добрый",
+  "size": "Маленький",
+  "abilities": {
+    "СИЛ": 15,
+    "ЛОВ": 15,
+    "ТЕЛ": 12,
+    "ИНТ": 12,
+    "МДР": 10,
+    "ХАР": 10
+  },
+  "abilityBases": {
+    "СИЛ": 15,
+    "ЛОВ": 13,
+    "ТЕЛ": 12,
+    "ИНТ": 12,
+    "МДР": 10,
+    "ХАР": 9
+  },
+  "racialBonuses": {
+    "ЛОВ": 2,
+    "ХАР": 1
+  },
+  "proficiencyBonus": 3,
+  "hpMax": 33,
+  "hpCurrent": 33,
+  "hpTemp": 0,
+  "hitDie": 8,
+  "ac": 10,
+  "speed": 25,
+  "flySpeed": 0,
+  "swimSpeed": 0,
+  "climbSpeed": 0,
+  "darkvision": 0,
+  "initiative": 0,
+  "savingThrows": [
+    "СИЛ",
+    "ЛОВ"
+  ],
+  "armorProf": "",
+  "weaponProf": [
+    "Простое оружие",
+    "Короткий меч"
+  ],
+  "toolProf": "",
+  "otherProf": "Карты, Инструменты художника",
+  "racialSkillChoice": null,
+  "hasFeat": false,
+  "skillProficiencies": [
+    "История",
+    "Убеждение",
+    "Проницательность",
+    "Атлетика"
+  ],
+  "skillExpertise": {
+    "История": 1,
+    "Убеждение": 1,
+    "Проницательность": 1,
+    "Атлетика": 1
+  },
+  "languages": [
+    "Общий",
+    "Язык Полуросликов",
+    "Ведалкенский"
+  ],
+  "spellAbility": null,
+  "spells": [],
+  "usedSpellSlots": {},
+  "weapons": [],
+  "inventory": [
+    {
+      "id": "quarterstaff",
+      "name": "Боевой посох",
+      "qty": 1,
+      "weight": 4,
+      "costGp": 0.2,
+      "itemClass": "weapon",
+      "description": "",
+      "damageDice": "1к6",
+      "damageType": "Дробящий",
+      "properties": [
+        {
+          "id": "versatile",
+          "label": "Универсальное",
+          "altDamage": "1к8"
+        }
+      ],
+      "category": "Простое оружие",
+      "subcategory": "Простое рукопашное"
+    },
+    {
+      "id": "backpack",
+      "name": "Рюкзак",
+      "qty": 1,
+      "weight": 5,
+      "costGp": 2,
+      "itemClass": "gear",
+      "description": "",
+      "category": "Прочее",
+      "capacity": "1 кубический фут/30 фунтов (15 кг.)"
+    },
+    {
+      "id": "crowbar",
+      "name": "Ломик",
+      "qty": 1,
+      "weight": 5,
+      "costGp": 2,
+      "itemClass": "gear",
+      "description": "Использование ломика позволяет совершать проверки Силы с преимуществом, если рычаг должен помочь.",
+      "category": "Прочее",
+      "capacity": null
+    },
+    {
+      "id": "hammer",
+      "name": "Молоток",
+      "qty": 1,
+      "weight": 3,
+      "costGp": 1,
+      "itemClass": "gear",
+      "description": "",
+      "category": "Прочее",
+      "capacity": null
+    },
+    {
+      "id": "piton",
+      "name": "Шлямбур",
+      "qty": 10,
+      "weight": 0.25,
+      "costGp": 0.05,
+      "itemClass": "gear",
+      "description": "",
+      "category": "Прочее",
+      "capacity": null
+    },
+    {
+      "id": "torch",
+      "name": "Факел",
+      "qty": 10,
+      "weight": 1,
+      "costGp": 0.01,
+      "itemClass": "gear",
+      "description": "Факел горит 1 час, испуская яркий свет в пределах 20 футов и тусклый свет в пределах еще 20 футов. Если вы совершаете рукопашную атаку горящим факелом и попадаете, он причиняет урон огнём 1.",
+      "category": "Прочее",
+      "capacity": null
+    },
+    {
+      "id": "tinderbox",
+      "name": "Трутница",
+      "qty": 1,
+      "weight": 1,
+      "costGp": 0.5,
+      "itemClass": "gear",
+      "description": "В этом небольшом контейнере находится кремень, кресало и трут (обычно это сухая тряпка, вымоченная в масле), используемые для разжигания огня. Использование его для разжигания факела — или чего-нибудь другого, легковоспламеняющегося — требует одного действия. Разжигание другого огня требует 1 минуты.",
+      "category": "Прочее",
+      "capacity": null
+    },
+    {
+      "id": "rations_1day",
+      "name": "Рационы (1 день)",
+      "qty": 10,
+      "weight": 2,
+      "costGp": 0.5,
+      "itemClass": "gear",
+      "description": "Рационы состоят из обезвоженной пищи, подходящей для путешествий, включая вяленое мясо, сухофрукты, галеты и орехи.",
+      "category": "Прочее",
+      "capacity": null
+    },
+    {
+      "id": "waterskin",
+      "name": "Бурдюк",
+      "qty": 1,
+      "weight": 5,
+      "costGp": 0.2,
+      "itemClass": "gear",
+      "description": "",
+      "category": "Прочее",
+      "capacity": "4 пинты (2 лит.)"
+    },
+    {
+      "id": "rope_hempen_50ft",
+      "name": "Верёвка пеньковая (50 футов)",
+      "qty": 1,
+      "weight": 10,
+      "costGp": 1,
+      "itemClass": "gear",
+      "description": "У верёвки, сделанной из пеньки или шёлка, 2 хита, и её можно порвать проверкой Силы Сл 17.",
+      "category": "Прочее",
+      "capacity": null
+    },
+    {
+      "id": "dart",
+      "name": "Дротик",
+      "qty": 10,
+      "weight": 0.25,
+      "costGp": 0.05,
+      "itemClass": "weapon",
+      "description": "",
+      "damageDice": "1к4",
+      "damageType": "Колющий",
+      "properties": [
+        {
+          "id": "thrown",
+          "label": "Метательное",
+          "range": "20/60"
+        },
+        {
+          "id": "finesse",
+          "label": "Фехтовальное"
+        }
+      ],
+      "category": "Простое оружие",
+      "subcategory": "Простое дальнобойное"
+    },
+    {
+      "id": "clothes_fine",
+      "name": "Одежда, отличная",
+      "qty": 1,
+      "weight": 6,
+      "costGp": 15,
+      "itemClass": "gear",
+      "description": "",
+      "category": "Прочее",
+      "capacity": null
+    },
+    {
+      "id": "signet_ring",
+      "name": "Кольцо-печатка",
+      "qty": 1,
+      "weight": 0,
+      "costGp": 5,
+      "itemClass": "gear",
+      "description": "",
+      "category": "Прочее",
+      "capacity": null
+    },
+    {
+      "id": "genealogy_scroll",
+      "name": "Свиток с генеалогическим древом",
+      "qty": 1,
+      "weight": 0,
+      "costGp": 0,
+      "itemClass": "special",
+      "description": ""
+    },
+    {
+      "id": "pouch",
+      "name": "Кошель",
+      "qty": 1,
+      "weight": 1,
+      "costGp": 0.5,
+      "itemClass": "gear",
+      "description": "В кожаном или тканевом кошеле поместится 20 снарядов для пращи или 50 иголок для духовой трубки, а также другие вещи. Кошель с отделениями для хранения компонентов заклинаний называется мешочком с компонентами (описывается ниже).",
+      "category": "Прочее",
+      "capacity": "0,2 кубических фута/6 фунтов (3 кг.)"
+    }
+  ],
+  "currency": {
+    "gp": 25,
+    "sp": 0,
+    "cp": 0,
+    "ep": 0,
+    "pp": 0
+  },
+  "racialTraits": "Везение, Храбрость, Проворность",
+  "classFeatures": "Боевые искусства (к4), Очки ки (= уровню), Незащищённое движение",
+  "armorRestriction": "",
+  "subclassFeatures": "",
+  "backgroundFeature": "Благодаря знатному происхождению, другие хорошо к вам относятся. Вас принимают в высшем обществе, и считается, что у вас есть право посещать любые места. Обыватели изо всех сил стараются сделать вам приятно и избежать вашего гнева, а другие высокородные считают вас своей ровней. Если нужно, вы можете получить аудиенцию местного дворянина.",
+  "inspiration": false,
+  "conditions": [],
+  "deathSaves": {
+    "successes": [
+      false,
+      false,
+      false
+    ],
+    "failures": [
+      false,
+      false,
+      false
+    ]
+  },
+  "notes": "",
+  "resources": [],
+  "halfProficiency": false,
+  "remarkableAthlete": false,
+  "portrait": null,
+  "abilitiesText": "Скорость: 25 фт.\n▶ Расовые черты (Полурослик)\nВезение, Храбрость, Проворность\n▶ Черты класса (Монах)\nБоевые искусства (к4), Очки ки (= уровню), Незащищённое движение\n▶ Особенность предыстории (Благородный)\nБлагодаря знатному происхождению, другие хорошо к вам относятся. Вас принимают в высшем обществе, и считается, что у вас есть право посещать любые места. Обыватели изо всех сил стараются сделать вам приятно и избежать вашего гнева, а другие высокородные считают вас своей ровней. Если нужно, вы можете получить аудиенцию местного дворянина.",
+  "exhaustion": 0,
+  "_profText": "Языки: Общий, Язык Полуросликов, Ведалкенский\nОружие: Простое оружие, Короткий меч\nИнструменты: Карты, Инструменты художника",
+  "attacksNotes": ""
+}

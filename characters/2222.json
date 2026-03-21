@@ -1,0 +1,370 @@
+{
+  "name": "2222",
+  "_system": "DnD5e",
+  "_version": "2.1",
+  "_created": "2026-03-06T23:22:12.319Z",
+  "race": "gnome",
+  "raceName": "Гном",
+  "subrace": "forest",
+  "subraceName": "Лесной гном",
+  "class": "sorcerer",
+  "className": "Чародей",
+  "subclass": "",
+  "fightingStyle": "",
+  "background": "soldier",
+  "backgroundName": "Солдат",
+  "level": 1,
+  "xp": 0,
+  "alignment": "",
+  "size": "Маленький",
+  "age": "",
+  "height": "",
+  "weight": "",
+  "eyes": "",
+  "skin": "",
+  "hair": "",
+  "appearance": "",
+  "backstory": "",
+  "traits": "",
+  "ideals": "",
+  "bonds": "",
+  "flaws": "",
+  "allies": "",
+  "abilities": {
+    "СИЛ": 16,
+    "ЛОВ": 16,
+    "ТЕЛ": 14,
+    "ИНТ": 14,
+    "МДР": 10,
+    "ХАР": 7
+  },
+  "abilityBases": {
+    "СИЛ": 16,
+    "ЛОВ": 15,
+    "ТЕЛ": 14,
+    "ИНТ": 12,
+    "МДР": 10,
+    "ХАР": 7
+  },
+  "racialBonuses": {
+    "ИНТ": 2,
+    "ЛОВ": 1
+  },
+  "proficiencyBonus": 2,
+  "hpMax": 8,
+  "hpCurrent": 8,
+  "hpTemp": 0,
+  "hitDie": 6,
+  "ac": 10,
+  "speed": 25,
+  "flySpeed": 0,
+  "swimSpeed": 0,
+  "climbSpeed": 0,
+  "darkvision": 60,
+  "initiative": 0,
+  "savingThrows": [
+    "ТЕЛ",
+    "ХАР"
+  ],
+  "armorProf": "",
+  "armorRestriction": "",
+  "weaponProf": [
+    "Кинжал",
+    "Дротик",
+    "Праща",
+    "Боевой посох",
+    "Лёгкий арбалет"
+  ],
+  "toolProf": "",
+  "otherProf": "Транспортное средство (наземное), Карты",
+  "hasFeat": false,
+  "racialSkillChoice": null,
+  "skillProficiencies": [
+    "Атлетика",
+    "Запугивание",
+    "Магия",
+    "Религия"
+  ],
+  "skillExpertise": {},
+  "languages": [
+    "Общий",
+    "Гномий"
+  ],
+  "spellAbility": "ХАР",
+  "spells": [
+    "Волшебная рука",
+    "Брызги кислоты",
+    "Дружба",
+    "Защита от оружия",
+    "Волшебная стрела",
+    "Луч болезни"
+  ],
+  "usedSpellSlots": {},
+  "weapons": [],
+  "inventory": [
+    {
+      "id": "crossbow_light",
+      "name": "Лёгкий арбалет",
+      "qty": 1,
+      "weight": 5,
+      "costGp": 25,
+      "itemClass": "weapon",
+      "description": "",
+      "damageDice": "1к8",
+      "damageType": "Колющий",
+      "properties": [
+        {
+          "id": "ammunition",
+          "label": "Боеприпас",
+          "range": "80/320"
+        },
+        {
+          "id": "two-handed",
+          "label": "Двуручное"
+        },
+        {
+          "id": "loading",
+          "label": "Перезарядка"
+        }
+      ],
+      "category": "Простое оружие",
+      "subcategory": "Простое дальнобойное"
+    },
+    {
+      "id": "crossbow_bolts_20",
+      "name": "Арбалетные болты (20)",
+      "qty": 1,
+      "weight": 1.5,
+      "costGp": 1,
+      "itemClass": "gear",
+      "description": "В этот деревянный контейнер помещаются 20 арбалетных болтов.",
+      "category": "Боеприпасы",
+      "capacity": null
+    },
+    {
+      "id": "case_crossbow_bolts",
+      "name": "Контейнер для арбалетных болтов",
+      "qty": 1,
+      "weight": 1,
+      "costGp": 1,
+      "itemClass": "gear",
+      "description": "В этот деревянный контейнер помещаются 20 арбалетных болтов.",
+      "category": "Прочее",
+      "capacity": null
+    },
+    {
+      "id": "arcane_wand",
+      "name": "Волшебная палочка",
+      "qty": 1,
+      "weight": 1,
+      "costGp": 10,
+      "itemClass": "gear",
+      "description": "",
+      "category": "Магическая фокусировка",
+      "capacity": null
+    },
+    {
+      "id": "backpack",
+      "name": "Рюкзак",
+      "qty": 1,
+      "weight": 5,
+      "costGp": 2,
+      "itemClass": "gear",
+      "description": "",
+      "category": "Прочее",
+      "capacity": "1 кубический фут/30 фунтов (15 кг.)"
+    },
+    {
+      "id": "crowbar",
+      "name": "Ломик",
+      "qty": 1,
+      "weight": 5,
+      "costGp": 2,
+      "itemClass": "gear",
+      "description": "Использование ломика позволяет совершать проверки Силы с преимуществом, если рычаг должен помочь.",
+      "category": "Прочее",
+      "capacity": null
+    },
+    {
+      "id": "hammer",
+      "name": "Молоток",
+      "qty": 1,
+      "weight": 3,
+      "costGp": 1,
+      "itemClass": "gear",
+      "description": "",
+      "category": "Прочее",
+      "capacity": null
+    },
+    {
+      "id": "piton",
+      "name": "Шлямбур",
+      "qty": 10,
+      "weight": 0.25,
+      "costGp": 0.05,
+      "itemClass": "gear",
+      "description": "",
+      "category": "Прочее",
+      "capacity": null
+    },
+    {
+      "id": "torch",
+      "name": "Факел",
+      "qty": 10,
+      "weight": 1,
+      "costGp": 0.01,
+      "itemClass": "gear",
+      "description": "Факел горит 1 час, испуская яркий свет в пределах 20 футов и тусклый свет в пределах еще 20 футов. Если вы совершаете рукопашную атаку горящим факелом и попадаете, он причиняет урон огнём 1.",
+      "category": "Прочее",
+      "capacity": null
+    },
+    {
+      "id": "tinderbox",
+      "name": "Трутница",
+      "qty": 1,
+      "weight": 1,
+      "costGp": 0.5,
+      "itemClass": "gear",
+      "description": "В этом небольшом контейнере находится кремень, кресало и трут (обычно это сухая тряпка, вымоченная в масле), используемые для разжигания огня. Использование его для разжигания факела — или чего-нибудь другого, легковоспламеняющегося — требует одного действия. Разжигание другого огня требует 1 минуты.",
+      "category": "Прочее",
+      "capacity": null
+    },
+    {
+      "id": "rations_1day",
+      "name": "Рационы (1 день)",
+      "qty": 10,
+      "weight": 2,
+      "costGp": 0.5,
+      "itemClass": "gear",
+      "description": "Рационы состоят из обезвоженной пищи, подходящей для путешествий, включая вяленое мясо, сухофрукты, галеты и орехи.",
+      "category": "Прочее",
+      "capacity": null
+    },
+    {
+      "id": "waterskin",
+      "name": "Бурдюк",
+      "qty": 1,
+      "weight": 5,
+      "costGp": 0.2,
+      "itemClass": "gear",
+      "description": "",
+      "category": "Прочее",
+      "capacity": "4 пинты (2 лит.)"
+    },
+    {
+      "id": "rope_hempen_50ft",
+      "name": "Верёвка пеньковая (50 футов)",
+      "qty": 1,
+      "weight": 10,
+      "costGp": 1,
+      "itemClass": "gear",
+      "description": "У верёвки, сделанной из пеньки или шёлка, 2 хита, и её можно порвать проверкой Силы Сл 17.",
+      "category": "Прочее",
+      "capacity": null
+    },
+    {
+      "id": "dagger",
+      "name": "Кинжал",
+      "qty": 2,
+      "weight": 1,
+      "costGp": 2,
+      "itemClass": "weapon",
+      "description": "",
+      "damageDice": "1к4",
+      "damageType": "Колющий",
+      "properties": [
+        {
+          "id": "light",
+          "label": "Лёгкое"
+        },
+        {
+          "id": "finesse",
+          "label": "Фехтовальное"
+        }
+      ],
+      "category": "Простое оружие",
+      "subcategory": "Простое рукопашное"
+    },
+    {
+      "id": "honorary_badge",
+      "name": "Знак отличия",
+      "qty": 1,
+      "weight": 0,
+      "costGp": 0,
+      "itemClass": "special",
+      "description": ""
+    },
+    {
+      "id": "enemy_trophy",
+      "name": "Трофей с убитого врага",
+      "qty": 1,
+      "weight": 0,
+      "costGp": 0,
+      "itemClass": "special",
+      "description": ""
+    },
+    {
+      "id": "game_cards",
+      "name": "Карты",
+      "qty": 1,
+      "weight": 0,
+      "costGp": 0.5,
+      "itemClass": "tool",
+      "description": "",
+      "category": "Игровые наборы",
+      "categoryId": "gaming"
+    },
+    {
+      "id": "clothes_common",
+      "name": "Одежда, обычная",
+      "qty": 1,
+      "weight": 3,
+      "costGp": 0.5,
+      "itemClass": "gear",
+      "description": "",
+      "category": "Прочее",
+      "capacity": null
+    },
+    {
+      "id": "pouch",
+      "name": "Кошель",
+      "qty": 1,
+      "weight": 1,
+      "costGp": 0.5,
+      "itemClass": "gear",
+      "description": "В кожаном или тканевом кошеле поместится 20 снарядов для пращи или 50 иголок для духовой трубки, а также другие вещи. Кошель с отделениями для хранения компонентов заклинаний называется мешочком с компонентами (описывается ниже).",
+      "category": "Прочее",
+      "capacity": "0,2 кубических фута/6 фунтов (3 кг.)"
+    }
+  ],
+  "currency": {
+    "gp": 10,
+    "sp": 0,
+    "cp": 0,
+    "ep": 0,
+    "pp": 0
+  },
+  "racialTraits": "Тёмное зрение 60 фут., Гномья хитрость",
+  "classFeatures": "Чародейский исток, Чародейские очки, Метамагия",
+  "subclassFeatures": "",
+  "backgroundFeature": "Будучи солдатом, вы заслужили звание. Солдаты, верные военной организации, которой вы раньше принадлежали, всё еще признают вашу власть и влияние, и они подчиняются вам, если их звание ниже вашего. С помощью своего звания вы можете оказывать влияние на других солдат и брать во временное пользование простое снаряжение или лошадей.",
+  "inspiration": false,
+  "conditions": [],
+  "deathSaves": {
+    "successes": [
+      false,
+      false,
+      false
+    ],
+    "failures": [
+      false,
+      false,
+      false
+    ]
+  },
+  "notes": "",
+  "resources": [],
+  "halfProficiency": false,
+  "remarkableAthlete": false,
+  "portrait": null
+}

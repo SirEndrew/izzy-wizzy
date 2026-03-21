@@ -1,0 +1,308 @@
+{
+  "_created": "2026-03-10T12:54:24.523Z",
+  "_profText": "Языки: Общий, Воронечный, Эльфийский, Квори",
+  "_spellAbilityOverride": "ИНТ",
+  "_system": "DnD5e",
+  "_version": "2.1",
+  "abilities": {
+    "ИНТ": 14,
+    "ЛОВ": 15,
+    "МДР": 12,
+    "СИЛ": 18,
+    "ТЕЛ": 13,
+    "ХАР": 12
+  },
+  "abilitiesText": "Скорость: 40 фт.\n▶ Расовые черты (Кентавр (MPMM))\nРазбег, Лошадиное телосложение, Копыта, Близость с природой\n▶ Черты класса (Неупокоенная душа)\nДуховная связь, Зов фантома, Призрачная форма\n▶ Особенность предыстории (Астральный бродяга)\nВы получаете черту «Посвящённый в магию» из «Книги Игрока» и должны выбрать жреца для этой черты. В Астральном море вы пересеклись со странствующим божеством. Встреча была короткой и ненасильственной, но произвела на вас неизгладимое впечатление.",
+  "abilityBases": {
+    "ИНТ": 12,
+    "ЛОВ": 15,
+    "МДР": 12,
+    "СИЛ": 18,
+    "ТЕЛ": 13,
+    "ХАР": 11
+  },
+  "ac": 10,
+  "age": "150",
+  "alignment": "Хаотичный нейтральный",
+  "allies": "",
+  "appearance": "Красивый",
+  "armorProf": "",
+  "armorRestriction": "",
+  "attacksNotes": "",
+  "background": "astral_drifter",
+  "backgroundFeature": "Вы получаете черту «Посвящённый в магию» из «Книги Игрока» и должны выбрать жреца для этой черты. В Астральном море вы пересеклись со странствующим божеством. Встреча была короткой и ненасильственной, но произвела на вас неизгладимое впечатление.",
+  "backgroundName": "Астральный бродяга",
+  "backstory": "",
+  "bonds": "",
+  "class": "the-lingering-soul",
+  "classFeatures": "Духовная связь, Зов фантома, Призрачная форма",
+  "className": "Неупокоенная душа",
+  "climbSpeed": 0,
+  "conditions": [],
+  "currency": {
+    "cp": 0,
+    "ep": 0,
+    "gp": 10,
+    "pp": 0,
+    "sp": 0
+  },
+  "darkvision": 0,
+  "deathSaves": {
+    "failures": [
+      false,
+      false,
+      false
+    ],
+    "successes": [
+      false,
+      false,
+      false
+    ]
+  },
+  "exhaustion": 0,
+  "eyes": "",
+  "fightingStyle": "",
+  "flaws": "",
+  "flySpeed": 0,
+  "hair": "",
+  "halfProficiency": false,
+  "hasFeat": false,
+  "height": "210",
+  "hitDie": 6,
+  "hpCurrent": 7,
+  "hpMax": 7,
+  "hpTemp": 0,
+  "ideals": "",
+  "initiative": 0,
+  "inspiration": false,
+  "inventory": [
+    {
+      "costGp": 0,
+      "description": "",
+      "id": "trinket",
+      "itemClass": "special",
+      "name": "Безделушка",
+      "qty": 1,
+      "weight": 0
+    },
+    {
+      "capacity": "1 кубический фут/30 фунтов (15 кг.)",
+      "category": "Прочее",
+      "costGp": 2,
+      "description": "",
+      "id": "backpack",
+      "itemClass": "gear",
+      "name": "Рюкзак",
+      "qty": 1,
+      "weight": 5
+    },
+    {
+      "capacity": null,
+      "category": "Прочее",
+      "costGp": 1,
+      "description": "",
+      "id": "bedroll",
+      "itemClass": "gear",
+      "name": "Спальник",
+      "qty": 1,
+      "weight": 7
+    },
+    {
+      "capacity": null,
+      "category": "Прочее",
+      "costGp": 0.2,
+      "description": "В этой небольшой коробке находится чашка и простые столовые приборы. Коробка раскрывается, и одна сторона может использоваться как сковорода, а другая — как тарелка или неглубокая миска.",
+      "id": "mess_kit",
+      "itemClass": "gear",
+      "name": "Столовый набор",
+      "qty": 1,
+      "weight": 1
+    },
+    {
+      "capacity": null,
+      "category": "Прочее",
+      "costGp": 0.5,
+      "description": "В этом небольшом контейнере находится кремень, кресало и трут (обычно это сухая тряпка, вымоченная в масле), используемые для разжигания огня. Использование его для разжигания факела — или чего-нибудь другого, легковоспламеняющегося — требует одного действия. Разжигание другого огня требует 1 минуты.",
+      "id": "tinderbox",
+      "itemClass": "gear",
+      "name": "Трутница",
+      "qty": 1,
+      "weight": 1
+    },
+    {
+      "capacity": null,
+      "category": "Прочее",
+      "costGp": 0.01,
+      "description": "Факел горит 1 час, испуская яркий свет в пределах 20 футов и тусклый свет в пределах еще 20 футов. Если вы совершаете рукопашную атаку горящим факелом и попадаете, он причиняет урон огнём 1.",
+      "id": "torch",
+      "itemClass": "gear",
+      "name": "Факел",
+      "qty": 10,
+      "weight": 1
+    },
+    {
+      "capacity": null,
+      "category": "Прочее",
+      "costGp": 0.5,
+      "description": "Рационы состоят из обезвоженной пищи, подходящей для путешествий, включая вяленое мясо, сухофрукты, галеты и орехи.",
+      "id": "rations_1day",
+      "itemClass": "gear",
+      "name": "Рационы (1 день)",
+      "qty": 10,
+      "weight": 2
+    },
+    {
+      "capacity": "4 пинты (2 лит.)",
+      "category": "Прочее",
+      "costGp": 0.2,
+      "description": "",
+      "id": "waterskin",
+      "itemClass": "gear",
+      "name": "Бурдюк",
+      "qty": 1,
+      "weight": 5
+    },
+    {
+      "capacity": null,
+      "category": "Прочее",
+      "costGp": 1,
+      "description": "У верёвки, сделанной из пеньки или шёлка, 2 хита, и её можно порвать проверкой Силы Сл 17.",
+      "id": "rope_hempen_50ft",
+      "itemClass": "gear",
+      "name": "Верёвка пеньковая (50 футов)",
+      "qty": 1,
+      "weight": 10
+    },
+    {
+      "capacity": null,
+      "category": "Прочее",
+      "costGp": 2,
+      "description": "",
+      "id": "clothes_travelers",
+      "itemClass": "gear",
+      "name": "Одежда, дорожная",
+      "qty": 1,
+      "weight": 4
+    },
+    {
+      "costGp": 0,
+      "description": "",
+      "id": "diary",
+      "itemClass": "special",
+      "name": "Дневник",
+      "qty": 1,
+      "weight": 0
+    },
+    {
+      "costGp": 0,
+      "description": "",
+      "id": "ink_pen",
+      "itemClass": "special",
+      "name": "Чернильная ручка",
+      "qty": 1,
+      "weight": 0
+    },
+    {
+      "capacity": null,
+      "category": "Прочее",
+      "costGp": 10,
+      "description": "",
+      "id": "ink_bottle",
+      "itemClass": "gear",
+      "name": "Чернила (бутылочка 30 грамм)",
+      "qty": 1,
+      "weight": 0
+    },
+    {
+      "capacity": "0,2 кубических фута/6 фунтов (3 кг.)",
+      "category": "Прочее",
+      "costGp": 0.5,
+      "description": "В кожаном или тканевом кошеле поместится 20 снарядов для пращи или 50 иголок для духовой трубки, а также другие вещи. Кошель с отделениями для хранения компонентов заклинаний называется мешочком с компонентами (описывается ниже).",
+      "id": "pouch",
+      "itemClass": "gear",
+      "name": "Кошель",
+      "qty": 1,
+      "weight": 1
+    }
+  ],
+  "inventoryNotes": "",
+  "languages": [
+    "Общий",
+    "Воронечный",
+    "Эльфийский",
+    "Квори"
+  ],
+  "level": 1,
+  "name": "Кузьма",
+  "noteBlocks": [
+    {
+      "collapsed": false,
+      "id": "nb_2",
+      "text": "",
+      "title": "Заметки"
+    },
+    {
+      "collapsed": false,
+      "id": "nb_1",
+      "text": "",
+      "title": "Цели"
+    }
+  ],
+  "notes": "",
+  "otherProf": "",
+  "portrait": null,
+  "proficiencyBonus": 2,
+  "race": "centaur_mpmm",
+  "raceName": "Кентавр (MPMM)",
+  "racialBonuses": {
+    "ИНТ": 2,
+    "ХАР": 1
+  },
+  "racialSkillChoice": null,
+  "racialTraits": "Разбег, Лошадиное телосложение, Копыта, Близость с природой",
+  "remarkableAthlete": false,
+  "resources": [],
+  "savingThrows": [
+    "ТЕЛ"
+  ],
+  "size": "Большой",
+  "skillExpertise": {
+    "Запугивание": 1,
+    "Ловкость рук": 1,
+    "Проницательность": 1,
+    "Расследование": 1,
+    "Религия": 1
+  },
+  "skillProficiencies": [
+    "Запугивание",
+    "Ловкость рук",
+    "Проницательность",
+    "Расследование",
+    "Религия"
+  ],
+  "skin": "",
+  "speed": 40,
+  "spellAbility": "ИНТ",
+  "spells": [],
+  "subclass": "",
+  "subclassFeatures": "",
+  "subrace": "",
+  "subraceName": "",
+  "swimSpeed": 0,
+  "toolProf": "",
+  "traits": "",
+  "usedSpellSlots": {},
+  "weaponProf": [],
+  "weapons": [
+    {
+      "ability": "str",
+      "attackBonus": 0,
+      "damage": "1к6",
+      "damageType": "рубящий",
+      "isProf": true,
+      "name": "бумеранг"
+    }
+  ],
+  "weight": "85",
+  "xp": 0
+}

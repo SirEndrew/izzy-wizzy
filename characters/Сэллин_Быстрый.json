@@ -1,0 +1,357 @@
+{
+  "name": "Сэллин Быстрый",
+  "_system": "DnD5e",
+  "_version": "2.1",
+  "_created": "2026-03-07T09:32:56.692Z",
+  "race": "human",
+  "raceName": "Человек",
+  "subrace": "standard",
+  "subraceName": "Стандартный",
+  "class": "warlock",
+  "className": "Колдун",
+  "subclass": "Великий Древний",
+  "fightingStyle": "",
+  "background": "soldier",
+  "backgroundName": "Солдат",
+  "level": 3,
+  "xp": 0,
+  "alignment": "Законный добрый",
+  "size": "Средний",
+  "abilities": {
+    "СИЛ": 13,
+    "ЛОВ": 11,
+    "ТЕЛ": 10,
+    "ИНТ": 9,
+    "МДР": 17,
+    "ХАР": 17
+  },
+  "abilityBases": {
+    "СИЛ": 12,
+    "ЛОВ": 10,
+    "ТЕЛ": 9,
+    "ИНТ": 8,
+    "МДР": 16,
+    "ХАР": 16
+  },
+  "racialBonuses": {
+    "СИЛ": 1,
+    "ЛОВ": 1,
+    "ТЕЛ": 1,
+    "ИНТ": 1,
+    "МДР": 1,
+    "ХАР": 1
+  },
+  "proficiencyBonus": 2,
+  "hpMax": 18,
+  "hpCurrent": 18,
+  "hpTemp": 0,
+  "hitDie": 8,
+  "ac": 10,
+  "speed": 30,
+  "flySpeed": 0,
+  "swimSpeed": 0,
+  "climbSpeed": 0,
+  "darkvision": 0,
+  "initiative": 0,
+  "savingThrows": [
+    "МДР",
+    "ХАР"
+  ],
+  "armorProf": "Лёгкие доспехи",
+  "weaponProf": [
+    "Простое оружие"
+  ],
+  "toolProf": "",
+  "otherProf": "Транспортное средство (наземное), Драконьи шахматы",
+  "racialSkillChoice": null,
+  "hasFeat": false,
+  "skillProficiencies": [
+    "Атлетика",
+    "Запугивание",
+    "Обман",
+    "Природа"
+  ],
+  "skillExpertise": {
+    "Атлетика": 1,
+    "Запугивание": 1,
+    "Обман": 1,
+    "Природа": 1
+  },
+  "languages": [
+    "Общий",
+    "Примордиальный"
+  ],
+  "spellAbility": "ХАР",
+  "spells": [
+    "Мистический заряд",
+    "Дружба",
+    "Очарование личности",
+    "Дребезги",
+    "Удержание личности",
+    "Облако кинжалов"
+  ],
+  "usedSpellSlots": {},
+  "weapons": [],
+  "inventory": [
+    {
+      "id": "crossbow_light",
+      "name": "Лёгкий арбалет",
+      "qty": 1,
+      "weight": 5,
+      "costGp": 25,
+      "itemClass": "weapon",
+      "description": "",
+      "damageDice": "1к8",
+      "damageType": "Колющий",
+      "properties": [
+        {
+          "id": "ammunition",
+          "label": "Боеприпас",
+          "range": "80/320"
+        },
+        {
+          "id": "two-handed",
+          "label": "Двуручное"
+        },
+        {
+          "id": "loading",
+          "label": "Перезарядка"
+        }
+      ],
+      "category": "Простое оружие",
+      "subcategory": "Простое дальнобойное"
+    },
+    {
+      "id": "crossbow_bolts_20",
+      "name": "Арбалетные болты (20)",
+      "qty": 1,
+      "weight": 1.5,
+      "costGp": 1,
+      "itemClass": "ammo",
+      "description": "В этот деревянный контейнер помещаются 20 арбалетных болтов.",
+      "stackSize": 20,
+      "category": "Боеприпасы"
+    },
+    {
+      "id": "case_crossbow_bolts",
+      "name": "Контейнер для арбалетных болтов",
+      "qty": 1,
+      "weight": 1,
+      "costGp": 1,
+      "itemClass": "gear",
+      "description": "В этот деревянный контейнер помещаются 20 арбалетных болтов.",
+      "category": "Прочее",
+      "capacity": null
+    },
+    {
+      "id": "component_pouch",
+      "name": "Мешочек с компонентами",
+      "qty": 1,
+      "weight": 2,
+      "costGp": 25,
+      "itemClass": "gear",
+      "description": "Мешочек с компонентами это маленький водонепроницаемый кожаный поясной кошель с отделениями для хранения материальных компонентов и других особых предметов, нужных для накладывания заклинаний, если только у этих компонентов не указана стоимость (смотрите описание заклинания).",
+      "category": "Прочее",
+      "capacity": null
+    },
+    {
+      "id": "backpack",
+      "name": "Рюкзак",
+      "qty": 1,
+      "weight": 5,
+      "costGp": 2,
+      "itemClass": "gear",
+      "description": "",
+      "category": "Прочее",
+      "capacity": "1 кубический фут/30 фунтов (15 кг.)"
+    },
+    {
+      "id": "book",
+      "name": "Книга",
+      "qty": 1,
+      "weight": 5,
+      "costGp": 25,
+      "itemClass": "gear",
+      "description": "В книге могут быть стихи, документальные сведения, информация о чём-либо, диаграммы и заметки о гномьих приспособлениях, или что угодно другое, представленное текстом и картинками. Книга с заклинаниями — другое дело (описана ниже).",
+      "category": "Прочее",
+      "capacity": null
+    },
+    {
+      "id": "ink_bottle",
+      "name": "Чернила (бутылочка 30 грамм)",
+      "qty": 1,
+      "weight": 0,
+      "costGp": 10,
+      "itemClass": "gear",
+      "description": "",
+      "category": "Прочее",
+      "capacity": null
+    },
+    {
+      "id": "quill",
+      "name": "Писчее перо",
+      "qty": 1,
+      "weight": 0,
+      "costGp": 0.02,
+      "itemClass": "gear",
+      "description": "",
+      "category": "Прочее",
+      "capacity": null
+    },
+    {
+      "id": "parchment_sheet",
+      "name": "Пергамент (один лист)",
+      "qty": 10,
+      "weight": 0,
+      "costGp": 0.1,
+      "itemClass": "gear",
+      "description": "",
+      "category": "Прочее",
+      "capacity": null
+    },
+    {
+      "id": "sand_pouch",
+      "name": "Сумочка с песком",
+      "qty": 1,
+      "weight": 0,
+      "costGp": null,
+      "itemClass": "gear",
+      "description": "",
+      "category": "Прочее",
+      "capacity": null
+    },
+    {
+      "id": "small_knife",
+      "name": "Небольшой нож",
+      "qty": 1,
+      "weight": 0,
+      "costGp": null,
+      "itemClass": "gear",
+      "description": "",
+      "category": "Прочее",
+      "capacity": null
+    },
+    {
+      "id": "leather",
+      "name": "Кожаный",
+      "qty": 1,
+      "weight": 10,
+      "costGp": 10,
+      "itemClass": "armor",
+      "description": "",
+      "ac": "11 + мод. Ловк.",
+      "stealthDisadv": false,
+      "strReq": null,
+      "category": "Лёгкие доспехи"
+    },
+    {
+      "id": "dagger",
+      "name": "Кинжал",
+      "qty": 2,
+      "weight": 1,
+      "costGp": 2,
+      "itemClass": "weapon",
+      "description": "",
+      "damageDice": "1к4",
+      "damageType": "Колющий",
+      "properties": [
+        {
+          "id": "light",
+          "label": "Лёгкое"
+        },
+        {
+          "id": "finesse",
+          "label": "Фехтовальное"
+        }
+      ],
+      "category": "Простое оружие",
+      "subcategory": "Простое рукопашное"
+    },
+    {
+      "id": "honorary_badge",
+      "name": "Знак отличия",
+      "qty": 1,
+      "weight": 0,
+      "costGp": 0,
+      "itemClass": "special",
+      "description": ""
+    },
+    {
+      "id": "enemy_trophy",
+      "name": "Трофей с убитого врага",
+      "qty": 1,
+      "weight": 0,
+      "costGp": 0,
+      "itemClass": "special",
+      "description": ""
+    },
+    {
+      "id": "game_dice",
+      "name": "Кости",
+      "qty": 1,
+      "weight": 0,
+      "costGp": 0.1,
+      "itemClass": "tool",
+      "description": "",
+      "category": "Игровые наборы",
+      "categoryId": "gaming"
+    },
+    {
+      "id": "clothes_common",
+      "name": "Одежда, обычная",
+      "qty": 1,
+      "weight": 3,
+      "costGp": 0.5,
+      "itemClass": "gear",
+      "description": "",
+      "category": "Прочее",
+      "capacity": null
+    },
+    {
+      "id": "pouch",
+      "name": "Кошель",
+      "qty": 1,
+      "weight": 1,
+      "costGp": 0.5,
+      "itemClass": "gear",
+      "description": "В кожаном или тканевом кошеле поместится 20 снарядов для пращи или 50 иголок для духовой трубки, а также другие вещи. Кошель с отделениями для хранения компонентов заклинаний называется мешочком с компонентами (описывается ниже).",
+      "category": "Прочее",
+      "capacity": "0,2 кубических фута/6 фунтов (3 кг.)"
+    }
+  ],
+  "currency": {
+    "gp": 10,
+    "sp": 0,
+    "cp": 0,
+    "ep": 0,
+    "pp": 0
+  },
+  "racialTraits": "Стандартный: все характеристики +1. Вариантный: 2 хар-ки +1, черта, навык.",
+  "classFeatures": "Потусторонний покровитель, Договор магии (ячейки за короткий отдых), Таинственные воззвания",
+  "armorRestriction": "",
+  "subclassFeatures": "",
+  "backgroundFeature": "Будучи солдатом, вы заслужили звание. Солдаты, верные военной организации, которой вы раньше принадлежали, всё еще признают вашу власть и влияние, и они подчиняются вам, если их звание ниже вашего. С помощью своего звания вы можете оказывать влияние на других солдат и брать во временное пользование простое снаряжение или лошадей.",
+  "inspiration": false,
+  "conditions": [],
+  "deathSaves": {
+    "successes": [
+      false,
+      false,
+      false
+    ],
+    "failures": [
+      false,
+      false,
+      false
+    ]
+  },
+  "notes": "",
+  "resources": [],
+  "halfProficiency": false,
+  "remarkableAthlete": false,
+  "portrait": null,
+  "abilitiesText": "Скорость: 30 фт.\n▶ Расовые черты (Человек)\nСтандартный: все характеристики +1. Вариантный: 2 хар-ки +1, черта, навык.\n▶ Черты класса (Колдун)\nПотусторонний покровитель, Договор магии (ячейки за короткий отдых), Таинственные воззвания\n▶ Особенность предыстории (Солдат)\nБудучи солдатом, вы заслужили звание. Солдаты, верные военной организации, которой вы раньше принадлежали, всё еще признают вашу власть и влияние, и они подчиняются вам, если их звание ниже вашего. С помощью своего звания вы можете оказывать влияние на других солдат и брать во временное пользование простое снаряжение или лошадей.",
+  "exhaustion": 0,
+  "_profText": "Языки: Общий, Примордиальный\nДоспехи: Лёгкие доспехи\nОружие: Простое оружие\nИнструменты: Драконьи шахматы\nПрочее: Транспортное средство (наземное)",
+  "attacksNotes": ""
+}

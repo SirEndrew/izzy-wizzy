@@ -1,0 +1,488 @@
+{
+  "_abilitiesTextEdited": true,
+  "_created": "2026-03-09T13:08:18.060Z",
+  "_featTextEdited": true,
+  "_profText": "Языки: Общий, Эльфийский, Локсодон\nДоспехи: Лёгкие доспехи\nОружие: Простое оружие, Ручной арбалет, Длинный меч, Рапира, Короткий меч\nИнструменты: Воровские инструменты, Инструменты стеклодува, Драконьи шахматы",
+  "_spellAbilityOverride": null,
+  "_system": "DnD5e",
+  "_version": "2.1",
+  "abilities": {
+    "ИНТ": 8,
+    "ЛОВ": 9,
+    "МДР": 8,
+    "СИЛ": 9,
+    "ТЕЛ": 8,
+    "ХАР": 10
+  },
+  "abilitiesText": "Скорость: 30 фт. | Тёмное зрение: 60 фт.&nbsp;<div>▶ Расовые черты (Полуэльф)\nТёмное зрение 60 фут., Бонус к навыку фей, Универсальность (2 любых навыка)&nbsp;</div><div>▶ Черты класса (Плут)\nМастерство (×2 бонус в 2 навыках), Скрытная атака (к6), Воровской жаргон, Хитрое действие&nbsp;</div><div>▶ Особенность предыстории (Преступник)\nУ вас есть надёжное доверенное лицо, которое выступает в роли вашего связного в криминальных кругах. Вы умеете получать и отправлять сведения связному, даже через большие расстояния: например, вы знаете местных посыльных, продажных караванщиков и нечистых на руку матросов, которые могут доставить сообщение для вас.</div>",
+  "abilityBases": {
+    "ИНТ": 8,
+    "ЛОВ": 8,
+    "МДР": 8,
+    "СИЛ": 8,
+    "ТЕЛ": 8,
+    "ХАР": 8
+  },
+  "ac": 10,
+  "acBase": 10,
+  "acFormula": "11+[ЛОВ]",
+  "age": "",
+  "alignment": "",
+  "allies": "",
+  "appearance": "9929292929",
+  "armorProf": "Лёгкие доспехи",
+  "armorRestriction": "",
+  "attacksNotes": "<div></div><ul class=\"rte-checklist\"><li><span style=\"font-size: 0.85rem;\"><br></span></li><li><br></li></ul><div></div>",
+  "background": "criminal",
+  "backgroundFeature": "У вас есть надёжное доверенное лицо, которое выступает в роли вашего связного в криминальных кругах. Вы умеете получать и отправлять сведения связному, даже через большие расстояния: например, вы знаете местных посыльных, продажных караванщиков и нечистых на руку матросов, которые могут доставить сообщение для вас.",
+  "backgroundName": "Преступник",
+  "backstory": "",
+  "bonds": "уауцацацуаца",
+  "class": "rogue",
+  "classFeatures": "Мастерство (×2 бонус в 2 навыках), Скрытная атака (к6), Воровской жаргон, Хитрое действие",
+  "className": "Плут",
+  "climbSpeed": 0,
+  "conditions": [],
+  "currency": {
+    "cp": 0,
+    "ep": 0,
+    "gp": 15,
+    "pp": 0,
+    "sp": 0
+  },
+  "darkvision": 60,
+  "deathSaves": {
+    "failures": [
+      false,
+      false,
+      false
+    ],
+    "successes": [
+      false,
+      false,
+      false
+    ]
+  },
+  "exhaustion": 0,
+  "eyes": "",
+  "fightingStyle": "",
+  "flaws": "",
+  "flySpeed": 0,
+  "hair": "",
+  "halfProficiency": false,
+  "hasFeat": false,
+  "height": "",
+  "hitDie": 8,
+  "hpCurrent": 250,
+  "hpMax": 555,
+  "hpTemp": 0,
+  "ideals": "цуауццццццццццццццццццццц<div>уацу</div><div>ауауау</div><div>а</div><div>уа</div><div>ауа</div><div>у</div><div>а</div><div>уау</div><div>ау</div><div>ау</div><div>а</div><div>у</div>",
+  "initiative": 0,
+  "inspiration": false,
+  "inventory": [
+    {
+      "category": "Воинское оружие",
+      "costGp": 25,
+      "damageDice": "1к(ЛОВ)+15",
+      "damageType": "Колющий",
+      "description": "",
+      "id": "rapier",
+      "itemClass": "weapon",
+      "name": "Рапира",
+      "properties": [
+        {
+          "id": "finesse",
+          "label": "Фехтовальное"
+        }
+      ],
+      "qty": 1,
+      "subcategory": "Воинское рукопашное",
+      "weight": 2
+    },
+    {
+      "category": "Простое оружие",
+      "costGp": 25,
+      "damageDice": "1к6",
+      "damageType": "Колющий",
+      "description": "",
+      "id": "shortbow",
+      "itemClass": "weapon",
+      "name": "Короткий лук",
+      "properties": [
+        {
+          "id": "ammunition",
+          "label": "Боеприпас",
+          "range": "80/320"
+        },
+        {
+          "id": "two-handed",
+          "label": "Двуручное"
+        }
+      ],
+      "qty": 1,
+      "subcategory": "Простое дальнобойное",
+      "weight": 2
+    },
+    {
+      "category": "Боеприпасы",
+      "costGp": 1,
+      "description": "",
+      "id": "arrows_20",
+      "itemClass": "ammo",
+      "name": "Стрелы (20)",
+      "qty": 1,
+      "stackSize": 20,
+      "weight": 1
+    },
+    {
+      "capacity": null,
+      "category": "Прочее",
+      "costGp": 1,
+      "description": "В колчан помещается 20 стрел.",
+      "id": "quiver",
+      "itemClass": "gear",
+      "name": "Колчан",
+      "qty": 1,
+      "weight": 1
+    },
+    {
+      "capacity": "1 кубический фут/30 фунтов (15 кг.)",
+      "category": "Прочее",
+      "costGp": 2,
+      "description": "",
+      "id": "backpack",
+      "itemClass": "gear",
+      "name": "Рюкзак",
+      "qty": 1,
+      "weight": 5
+    },
+    {
+      "capacity": null,
+      "category": "Прочее",
+      "costGp": 2,
+      "description": "Использование ломика позволяет совершать проверки Силы с преимуществом, если рычаг должен помочь.",
+      "id": "crowbar",
+      "itemClass": "gear",
+      "name": "Ломик",
+      "qty": 1,
+      "weight": 5
+    },
+    {
+      "capacity": null,
+      "category": "Прочее",
+      "costGp": 1,
+      "description": "",
+      "id": "hammer",
+      "itemClass": "gear",
+      "name": "Молоток",
+      "qty": 1,
+      "weight": 3
+    },
+    {
+      "capacity": null,
+      "category": "Прочее",
+      "costGp": 0.05,
+      "description": "",
+      "id": "piton",
+      "itemClass": "gear",
+      "name": "Шлямбур",
+      "qty": 10,
+      "weight": 0.25
+    },
+    {
+      "capacity": null,
+      "category": "Прочее",
+      "costGp": 0.01,
+      "description": "Факел горит 1 час, испуская яркий свет в пределах 20 футов и тусклый свет в пределах еще 20 футов. Если вы совершаете рукопашную атаку горящим факелом и попадаете, он причиняет урон огнём 1.",
+      "id": "torch",
+      "itemClass": "gear",
+      "name": "Факел",
+      "qty": 10,
+      "weight": 1
+    },
+    {
+      "capacity": null,
+      "category": "Прочее",
+      "costGp": 0.5,
+      "description": "В этом небольшом контейнере находится кремень, кресало и трут (обычно это сухая тряпка, вымоченная в масле), используемые для разжигания огня. Использование его для разжигания факела — или чего-нибудь другого, легковоспламеняющегося — требует одного действия. Разжигание другого огня требует 1 минуты.",
+      "id": "tinderbox",
+      "itemClass": "gear",
+      "name": "Трутница",
+      "qty": 1,
+      "weight": 1
+    },
+    {
+      "capacity": null,
+      "category": "Прочее",
+      "costGp": 0.5,
+      "description": "Рационы состоят из обезвоженной пищи, подходящей для путешествий, включая вяленое мясо, сухофрукты, галеты и орехи.",
+      "id": "rations_1day",
+      "itemClass": "gear",
+      "name": "Рационы (1 день)",
+      "qty": 10,
+      "weight": 2
+    },
+    {
+      "capacity": "4 пинты (2 лит.)",
+      "category": "Прочее",
+      "costGp": 0.2,
+      "description": "",
+      "id": "waterskin",
+      "itemClass": "gear",
+      "name": "Бурдюк",
+      "qty": 1,
+      "weight": 5
+    },
+    {
+      "capacity": null,
+      "category": "Прочее",
+      "costGp": 1,
+      "description": "У верёвки, сделанной из пеньки или шёлка, 2 хита, и её можно порвать проверкой Силы Сл 17.",
+      "id": "rope_hempen_50ft",
+      "itemClass": "gear",
+      "name": "Верёвка пеньковая (50 футов)",
+      "qty": 1,
+      "weight": 10
+    },
+    {
+      "ac": "11+[ЛОВ]",
+      "category": "Лёгкие доспехи",
+      "costGp": 10,
+      "description": "",
+      "id": "leather",
+      "itemClass": "armor",
+      "name": "Кожаный",
+      "qty": 1,
+      "stealthDisadv": false,
+      "strReq": null,
+      "weight": 10
+    },
+    {
+      "category": "Простое оружие",
+      "costGp": 2,
+      "damageDice": "1к4",
+      "damageType": "Колющий",
+      "description": "",
+      "id": "dagger",
+      "itemClass": "weapon",
+      "name": "Кинжал",
+      "properties": [
+        {
+          "id": "light",
+          "label": "Лёгкое"
+        },
+        {
+          "id": "finesse",
+          "label": "Фехтовальное"
+        },
+        {
+          "id": "thrown",
+          "label": "Метательное",
+          "range": "20/60"
+        }
+      ],
+      "qty": 2,
+      "subcategory": "Простое рукопашное",
+      "weight": 1
+    },
+    {
+      "category": "Прочие инструменты",
+      "categoryId": "other",
+      "costGp": 25,
+      "description": "",
+      "id": "tools_thieves",
+      "itemClass": "tool",
+      "name": "Воровские инструменты",
+      "qty": 1,
+      "weight": 1
+    },
+    {
+      "capacity": null,
+      "category": "Прочее",
+      "costGp": 2,
+      "description": "Использование ломика позволяет совершать проверки Силы с преимуществом, если рычаг должен помочь.",
+      "id": "crowbar",
+      "itemClass": "gear",
+      "name": "Ломик",
+      "qty": 1,
+      "weight": 5
+    },
+    {
+      "capacity": null,
+      "category": "Прочее",
+      "costGp": 0.5,
+      "description": "",
+      "id": "clothes_common",
+      "itemClass": "gear",
+      "name": "Одежда, обычная",
+      "qty": 1,
+      "weight": 3
+    },
+    {
+      "capacity": "0,2 кубических фута/6 фунтов (3 кг.)",
+      "category": "Прочее",
+      "costGp": 0.5,
+      "description": "В кожаном или тканевом кошеле поместится 20 снарядов для пращи или 50 иголок для духовой трубки, а также другие вещи. Кошель с отделениями для хранения компонентов заклинаний называется мешочком с компонентами (описывается ниже).",
+      "id": "pouch",
+      "itemClass": "gear",
+      "name": "Кошель",
+      "qty": 1,
+      "weight": 1
+    },
+    {
+      "category": "Прочее",
+      "costGp": 2500,
+      "description": "Существо, выпившее магическую красную жидкость из этого флакона, восстанавливает 8к4 + 8 хита. Зелье выпивается или заливается в рот другому действием.",
+      "id": "potion_of_superior_healing",
+      "itemClass": "gear",
+      "name": "Зелье отличного лечения",
+      "qty": 4,
+      "weight": 0.5
+    },
+    {
+      "category": "Прочее",
+      "costGp": 25000,
+      "description": "Существо, выпившее магическую красную жидкость из этого флакона, восстанавливает 10к4 + 20 хита. Зелье выпивается или заливается в рот другому действием.",
+      "id": "potion_of_supreme_healing",
+      "itemClass": "gear",
+      "name": "Зелье превосходного лечения",
+      "qty": 4,
+      "weight": 0.5
+    }
+  ],
+  "inventoryNotes": "",
+  "languages": [
+    "Общий",
+    "Эльфийский",
+    "Локсодон"
+  ],
+  "level": 1,
+  "name": "цуацуац",
+  "noteBlocks": [
+    {
+      "collapsed": false,
+      "id": "nb_2",
+      "text": "<span style=\"font-size: 0.85rem;\">5156165156161516151</span><font size=\"5\"><b style=\"\">\nццмцкмцк\nцумцмцу\nцмумцумцуму</b><b><br></b><b style=\"\">ау</b></font><span style=\"font-size: 0.85rem;\">сус</span>",
+      "title": "Заметки"
+    },
+    {
+      "collapsed": false,
+      "id": "nb_1",
+      "text": "<br><div>891</div>",
+      "title": "Цели"
+    },
+    {
+      "collapsed": false,
+      "id": "nb_1773138290314_598",
+      "text": "",
+      "title": "Заметка"
+    },
+    {
+      "collapsed": false,
+      "id": "nb_1773138291114_704",
+      "text": "",
+      "title": "Заметка"
+    }
+  ],
+  "notes": "",
+  "otherProf": "Инструменты стеклодува, Драконьи шахматы",
+  "portrait": "/api/portrait/цуацуац.jpg?t=1773171230433",
+  "proficiencyBonus": 2,
+  "race": "half_elf",
+  "raceName": "Полуэльф",
+  "racialBonuses": {
+    "ЛОВ": 1,
+    "СИЛ": 1,
+    "ХАР": 2
+  },
+  "racialSkillChoice": null,
+  "racialTraits": "Тёмное зрение 60 фут., Бонус к навыку фей, Универсальность (2 любых навыка)",
+  "remarkableAthlete": false,
+  "resources": [],
+  "savedFeatText": "уцмцмуцумцумцумуцмуцм",
+  "savingThrows": [
+    "ЛОВ",
+    "ИНТ"
+  ],
+  "shieldEquipped": false,
+  "size": "Средний",
+  "skillExpertise": {
+    "Восприятие": 2,
+    "Обман": 1,
+    "Проницательность": 1,
+    "Расследование": 1,
+    "Скрытность": 1,
+    "Убеждение": 1
+  },
+  "skillProficiencies": [
+    "Восприятие",
+    "Обман",
+    "Проницательность",
+    "Расследование",
+    "Скрытность",
+    "Убеждение"
+  ],
+  "skin": "",
+  "speed": 30,
+  "spellAbility": null,
+  "spells": [],
+  "subclass": "",
+  "subclassFeatures": "",
+  "subrace": "",
+  "subraceName": "",
+  "swimSpeed": 0,
+  "toolProf": "Воровские инструменты",
+  "traits": "",
+  "usedSpellSlots": {},
+  "weaponProf": [
+    "Простое оружие",
+    "Ручной арбалет",
+    "Длинный меч",
+    "Рапира",
+    "Короткий меч"
+  ],
+  "weapons": [
+    {
+      "ability": "dex",
+      "attackBonus": 0,
+      "damage": "1к10",
+      "damageType": "Колющий",
+      "isProf": true,
+      "name": "Рапира",
+      "note": "",
+      "props": "Фехтовальное"
+    },
+    {
+      "ability": "dex",
+      "attackBonus": 0,
+      "damage": "1к10+15",
+      "damageType": "Колющий",
+      "isProf": true,
+      "name": "Рапира",
+      "note": "",
+      "props": "Фехтовальное"
+    },
+    {
+      "ability": "dex",
+      "attackBonus": 0,
+      "damage": "1к10+15",
+      "damageType": "Колющий",
+      "isProf": true,
+      "name": "Рапира",
+      "note": "",
+      "props": "Фехтовальное"
+    },
+    {
+      "ability": "dex",
+      "attackBonus": 0,
+      "damage": "1к(ЛОВ)+15",
+      "damageType": "Колющий",
+      "isProf": true,
+      "name": "Рапира",
+      "note": "",
+      "props": "Фехтовальное"
+    }
+  ],
+  "weight": "",
+  "xp": 0
+}

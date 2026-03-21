@@ -1,0 +1,336 @@
+{
+  "name": "уауау",
+  "_system": "DnD5e",
+  "_version": "2.1",
+  "_created": "2026-03-07T16:53:43.797Z",
+  "race": "halfling",
+  "raceName": "Полурослик",
+  "subrace": "lightfoot",
+  "subraceName": "Легконогий",
+  "class": "druid",
+  "className": "Друид",
+  "subclass": "",
+  "fightingStyle": "",
+  "background": "charlatan",
+  "backgroundName": "Шарлатан",
+  "level": 1,
+  "xp": 0,
+  "alignment": "",
+  "size": "Маленький",
+  "age": "",
+  "height": "",
+  "weight": "",
+  "eyes": "",
+  "skin": "",
+  "hair": "",
+  "appearance": "",
+  "backstory": "",
+  "traits": "",
+  "ideals": "",
+  "bonds": "",
+  "flaws": "",
+  "allies": "",
+  "abilities": {
+    "СИЛ": 15,
+    "ЛОВ": 16,
+    "ТЕЛ": 13,
+    "ИНТ": 12,
+    "МДР": 10,
+    "ХАР": 9
+  },
+  "abilityBases": {
+    "СИЛ": 15,
+    "ЛОВ": 14,
+    "ТЕЛ": 13,
+    "ИНТ": 12,
+    "МДР": 10,
+    "ХАР": 8
+  },
+  "racialBonuses": {
+    "ЛОВ": 2,
+    "ХАР": 1
+  },
+  "proficiencyBonus": 2,
+  "hpMax": 9,
+  "hpCurrent": 9,
+  "hpTemp": 0,
+  "hitDie": 8,
+  "ac": 14,
+  "speed": 25,
+  "flySpeed": 0,
+  "swimSpeed": 0,
+  "climbSpeed": 0,
+  "darkvision": 0,
+  "initiative": 0,
+  "savingThrows": [
+    "ИНТ",
+    "МДР"
+  ],
+  "armorProf": "Лёгкие доспехи, Средние доспехи, Щиты",
+  "armorRestriction": "только неметаллические",
+  "weaponProf": [
+    "Дубинка",
+    "Кинжал",
+    "Дротик",
+    "Копьё",
+    "Скимитар",
+    "Серп",
+    "Боевой посох",
+    "Праща"
+  ],
+  "toolProf": "Набор травника",
+  "otherProf": "Набор для грима, Набор для фальсификации",
+  "hasFeat": false,
+  "racialSkillChoice": null,
+  "skillProficiencies": [
+    "Ловкость рук",
+    "Обман",
+    "Природа",
+    "Религия"
+  ],
+  "skillExpertise": {
+    "Ловкость рук": 1,
+    "Обман": 1,
+    "Природа": 1,
+    "Религия": 1
+  },
+  "languages": [
+    "Общий",
+    "Язык Полуросликов"
+  ],
+  "spellAbility": "МДР",
+  "spells": [
+    "Дубинка",
+    "Искусство друидов"
+  ],
+  "usedSpellSlots": {},
+  "weapons": [
+    {
+      "name": "Скимитар",
+      "damage": "1к6",
+      "damageType": "Рубящий",
+      "ability": "dex",
+      "isProf": true,
+      "attackBonus": 0,
+      "note": ""
+    }
+  ],
+  "inventory": [
+    {
+      "id": "shield",
+      "name": "Щит",
+      "qty": 1,
+      "weight": 6,
+      "costGp": 10,
+      "itemClass": "armor",
+      "description": "",
+      "ac": "+2",
+      "stealthDisadv": false,
+      "strReq": null,
+      "category": "Щиты"
+    },
+    {
+      "id": "scimitar",
+      "name": "Скимитар",
+      "qty": 1,
+      "weight": 3,
+      "costGp": 25,
+      "itemClass": "weapon",
+      "description": "",
+      "damageDice": "1к6",
+      "damageType": "Рубящий",
+      "properties": [
+        {
+          "id": "light",
+          "label": "Лёгкое"
+        },
+        {
+          "id": "finesse",
+          "label": "Фехтовальное"
+        }
+      ],
+      "category": "Воинское оружие",
+      "subcategory": "Воинское рукопашное"
+    },
+    {
+      "id": "leather",
+      "name": "Кожаный",
+      "qty": 1,
+      "weight": 10,
+      "costGp": 10,
+      "itemClass": "armor",
+      "description": "",
+      "ac": "11+[ЛОВ]",
+      "stealthDisadv": false,
+      "strReq": null,
+      "category": "Лёгкие доспехи"
+    },
+    {
+      "id": "backpack",
+      "name": "Рюкзак",
+      "qty": 1,
+      "weight": 5,
+      "costGp": 2,
+      "itemClass": "gear",
+      "description": "",
+      "category": "Прочее",
+      "capacity": "1 кубический фут/30 фунтов (15 кг.)"
+    },
+    {
+      "id": "bedroll",
+      "name": "Спальник",
+      "qty": 1,
+      "weight": 7,
+      "costGp": 1,
+      "itemClass": "gear",
+      "description": "",
+      "category": "Прочее",
+      "capacity": null
+    },
+    {
+      "id": "mess_kit",
+      "name": "Столовый набор",
+      "qty": 1,
+      "weight": 1,
+      "costGp": 0.2,
+      "itemClass": "gear",
+      "description": "В этой небольшой коробке находится чашка и простые столовые приборы. Коробка раскрывается, и одна сторона может использоваться как сковорода, а другая — как тарелка или неглубокая миска.",
+      "category": "Прочее",
+      "capacity": null
+    },
+    {
+      "id": "tinderbox",
+      "name": "Трутница",
+      "qty": 1,
+      "weight": 1,
+      "costGp": 0.5,
+      "itemClass": "gear",
+      "description": "В этом небольшом контейнере находится кремень, кресало и трут (обычно это сухая тряпка, вымоченная в масле), используемые для разжигания огня. Использование его для разжигания факела — или чего-нибудь другого, легковоспламеняющегося — требует одного действия. Разжигание другого огня требует 1 минуты.",
+      "category": "Прочее",
+      "capacity": null
+    },
+    {
+      "id": "torch",
+      "name": "Факел",
+      "qty": 10,
+      "weight": 1,
+      "costGp": 0.01,
+      "itemClass": "gear",
+      "description": "Факел горит 1 час, испуская яркий свет в пределах 20 футов и тусклый свет в пределах еще 20 футов. Если вы совершаете рукопашную атаку горящим факелом и попадаете, он причиняет урон огнём 1.",
+      "category": "Прочее",
+      "capacity": null
+    },
+    {
+      "id": "rations_1day",
+      "name": "Рационы (1 день)",
+      "qty": 10,
+      "weight": 2,
+      "costGp": 0.5,
+      "itemClass": "gear",
+      "description": "Рационы состоят из обезвоженной пищи, подходящей для путешествий, включая вяленое мясо, сухофрукты, галеты и орехи.",
+      "category": "Прочее",
+      "capacity": null
+    },
+    {
+      "id": "waterskin",
+      "name": "Бурдюк",
+      "qty": 1,
+      "weight": 5,
+      "costGp": 0.2,
+      "itemClass": "gear",
+      "description": "",
+      "category": "Прочее",
+      "capacity": "4 пинты (2 лит.)"
+    },
+    {
+      "id": "rope_hempen_50ft",
+      "name": "Верёвка пеньковая (50 футов)",
+      "qty": 1,
+      "weight": 10,
+      "costGp": 1,
+      "itemClass": "gear",
+      "description": "У верёвки, сделанной из пеньки или шёлка, 2 хита, и её можно порвать проверкой Силы Сл 17.",
+      "category": "Прочее",
+      "capacity": null
+    },
+    {
+      "id": "clothes_fine",
+      "name": "Одежда, отличная",
+      "qty": 1,
+      "weight": 6,
+      "costGp": 15,
+      "itemClass": "gear",
+      "description": "",
+      "category": "Прочее",
+      "capacity": null
+    },
+    {
+      "id": "kit_disguise",
+      "name": "Набор для грима",
+      "qty": 1,
+      "weight": 3,
+      "costGp": 25,
+      "itemClass": "tool",
+      "description": "",
+      "category": "Прочие инструменты",
+      "categoryId": "other"
+    },
+    {
+      "id": "pouch",
+      "name": "Кошель",
+      "qty": 1,
+      "weight": 1,
+      "costGp": 0.5,
+      "itemClass": "gear",
+      "description": "В кожаном или тканевом кошеле поместится 20 снарядов для пращи или 50 иголок для духовой трубки, а также другие вещи. Кошель с отделениями для хранения компонентов заклинаний называется мешочком с компонентами (описывается ниже).",
+      "category": "Прочее",
+      "capacity": "0,2 кубических фута/6 фунтов (3 кг.)"
+    },
+    {
+      "id": "con_tool_bottles",
+      "name": "Бутыль с подкрашенной жидкостью",
+      "qty": 1,
+      "weight": 2,
+      "costGp": 0,
+      "itemClass": "special",
+      "description": ""
+    }
+  ],
+  "currency": {
+    "gp": 15,
+    "sp": 0,
+    "cp": 0,
+    "ep": 0,
+    "pp": 0
+  },
+  "racialTraits": "Везение, Храбрость, Проворность",
+  "classFeatures": "Друидический, Дикий облик (дважды до короткого отдыха)",
+  "subclassFeatures": "",
+  "backgroundFeature": "Вы создали себе вторую личность, включая необходимые документы, знакомства и маскировку, что позволяет вам перевоплощаться в этот образ. В дополнение к этому вы можете подделывать документы, включая официальные документы и личные письма, если ранее видели пример подобного документа или почерк, который пытаетесь скопировать.",
+  "inspiration": false,
+  "conditions": [],
+  "deathSaves": {
+    "successes": [
+      false,
+      false,
+      false
+    ],
+    "failures": [
+      false,
+      false,
+      false
+    ]
+  },
+  "notes": "",
+  "resources": [],
+  "halfProficiency": false,
+  "remarkableAthlete": false,
+  "portrait": null,
+  "abilitiesText": "Скорость: 25 фт.\n▶ Расовые черты (Полурослик)\nВезение, Храбрость, Проворность\n▶ Черты класса (Друид)\nДруидический, Дикий облик (дважды до короткого отдыха)\n▶ Особенность предыстории (Шарлатан)\nВы создали себе вторую личность, включая необходимые документы, знакомства и маскировку, что позволяет вам перевоплощаться в этот образ. В дополнение к этому вы можете подделывать документы, включая официальные документы и личные письма, если ранее видели пример подобного документа или почерк, который пытаетесь скопировать.",
+  "acFormula": "11+[ЛОВ]",
+  "acBase": 14,
+  "exhaustion": 0,
+  "_profText": "Языки: Общий, Язык Полуросликов\nДоспехи (только неметаллические): Лёгкие доспехи, Средние доспехи, Щиты\nОружие: Дубинка, Кинжал, Дротик, Копьё, Скимитар, Серп, Боевой посох, Праща\nИнструменты: Набор травника, Набор для грима, Набор для фальсификации",
+  "attacksNotes": "",
+  "shieldEquipped": false
+}

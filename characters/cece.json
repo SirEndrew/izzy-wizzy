@@ -1,0 +1,370 @@
+{
+  "_created": "2026-03-07T06:55:35.453Z",
+  "_profText": "Языки: Общий, Драконий\nОружие: Простое оружие, Короткий меч\nИнструменты: Воровские инструменты, Драконьи шахматы\nМузыкальные инструменты: Виола",
+  "_saveBonus": {},
+  "_saveOverride": {},
+  "_system": "DnD5e",
+  "_version": "2.1",
+  "abilities": {
+    "ИНТ": 12,
+    "ЛОВ": 16,
+    "МДР": 10,
+    "СИЛ": 17,
+    "ТЕЛ": 13,
+    "ХАР": 9
+  },
+  "abilitiesText": "Скорость: 30 фт.\n▶ Расовые черты (Драконорождённый)\nДраконье дыхание (линия или конус), Сопротивление элементу дракона\n▶ Черты класса (Монах)\nБоевые искусства (к4), Очки ки (= уровню), Незащищённое движение\n▶ Особенность предыстории (Преступник)\nУ вас есть надёжное доверенное лицо, которое выступает в роли вашего связного в криминальных кругах. Вы умеете получать и отправлять сведения связному, даже через большие расстояния: например, вы знаете местных посыльных, продажных караванщиков и нечистых на руку матросов, которые могут доставить сообщение для вас.",
+  "abilityBases": {
+    "ИНТ": 12,
+    "ЛОВ": 14,
+    "МДР": 10,
+    "СИЛ": 15,
+    "ТЕЛ": 13,
+    "ХАР": 8
+  },
+  "ac": 14,
+  "acBase": 14,
+  "acFormula": "14",
+  "age": "",
+  "alignment": "",
+  "allies": "",
+  "appearance": "",
+  "armorProf": "",
+  "armorRestriction": "",
+  "attacksNotes": "",
+  "background": "criminal",
+  "backgroundFeature": "У вас есть надёжное доверенное лицо, которое выступает в роли вашего связного в криминальных кругах. Вы умеете получать и отправлять сведения связному, даже через большие расстояния: например, вы знаете местных посыльных, продажных караванщиков и нечистых на руку матросов, которые могут доставить сообщение для вас.",
+  "backgroundName": "Преступник",
+  "backstory": "",
+  "bonds": "",
+  "class": "monk",
+  "classFeatures": "Боевые искусства (к4), Очки ки (= уровню), Незащищённое движение",
+  "className": "Монах",
+  "climbSpeed": 0,
+  "conditions": [],
+  "currency": {
+    "cp": 0,
+    "ep": 0,
+    "gp": 18,
+    "pp": 0,
+    "sp": 0
+  },
+  "darkvision": 0,
+  "deathSaves": {
+    "failures": [
+      false,
+      false,
+      false
+    ],
+    "successes": [
+      false,
+      false,
+      false
+    ]
+  },
+  "exhaustion": 0,
+  "eyes": "",
+  "fightingStyle": "",
+  "flaws": "",
+  "flySpeed": 0,
+  "hair": "",
+  "halfProficiency": false,
+  "hasFeat": false,
+  "height": "",
+  "hitDie": 8,
+  "hpCurrent": 7,
+  "hpMax": 9,
+  "hpTemp": 0,
+  "ideals": "",
+  "initiative": 0,
+  "inspiration": false,
+  "inventory": [
+    {
+      "category": "Воинское оружие",
+      "costGp": 10,
+      "damageDice": "1к6",
+      "damageType": "Колющий",
+      "description": "",
+      "id": "shortsword",
+      "itemClass": "weapon",
+      "name": "Короткий меч",
+      "properties": [
+        {
+          "id": "light",
+          "label": "Лёгкое"
+        },
+        {
+          "id": "finesse",
+          "label": "Фехтовальное"
+        }
+      ],
+      "qty": 1,
+      "subcategory": "Воинское рукопашное",
+      "weight": 2
+    },
+    {
+      "capacity": "1 кубический фут/30 фунтов (15 кг.)",
+      "category": "Прочее",
+      "costGp": 2,
+      "description": "",
+      "id": "backpack",
+      "itemClass": "gear",
+      "name": "Рюкзак",
+      "qty": 1,
+      "weight": 5
+    },
+    {
+      "capacity": null,
+      "category": "Прочее",
+      "costGp": 1,
+      "description": "",
+      "id": "bedroll",
+      "itemClass": "gear",
+      "name": "Спальник",
+      "qty": 1,
+      "weight": 7
+    },
+    {
+      "capacity": null,
+      "category": "Прочее",
+      "costGp": 0.2,
+      "description": "В этой небольшой коробке находится чашка и простые столовые приборы. Коробка раскрывается, и одна сторона может использоваться как сковорода, а другая — как тарелка или неглубокая миска.",
+      "id": "mess_kit",
+      "itemClass": "gear",
+      "name": "Столовый набор",
+      "qty": 1,
+      "weight": 1
+    },
+    {
+      "capacity": null,
+      "category": "Прочее",
+      "costGp": 0.5,
+      "description": "В этом небольшом контейнере находится кремень, кресало и трут (обычно это сухая тряпка, вымоченная в масле), используемые для разжигания огня. Использование его для разжигания факела — или чего-нибудь другого, легковоспламеняющегося — требует одного действия. Разжигание другого огня требует 1 минуты.",
+      "id": "tinderbox",
+      "itemClass": "gear",
+      "name": "Трутница",
+      "qty": 1,
+      "weight": 1
+    },
+    {
+      "capacity": null,
+      "category": "Прочее",
+      "costGp": 0.01,
+      "description": "Факел горит 1 час, испуская яркий свет в пределах 20 футов и тусклый свет в пределах еще 20 футов. Если вы совершаете рукопашную атаку горящим факелом и попадаете, он причиняет урон огнём 1.",
+      "id": "torch",
+      "itemClass": "gear",
+      "name": "Факел",
+      "qty": 10,
+      "weight": 1
+    },
+    {
+      "capacity": null,
+      "category": "Прочее",
+      "costGp": 0.5,
+      "description": "Рационы состоят из обезвоженной пищи, подходящей для путешествий, включая вяленое мясо, сухофрукты, галеты и орехи.",
+      "id": "rations_1day",
+      "itemClass": "gear",
+      "name": "Рационы (1 день)",
+      "qty": 10,
+      "weight": 2
+    },
+    {
+      "capacity": "4 пинты (2 лит.)",
+      "category": "Прочее",
+      "costGp": 0.2,
+      "description": "",
+      "id": "waterskin",
+      "itemClass": "gear",
+      "name": "Бурдюк",
+      "qty": 1,
+      "weight": 5
+    },
+    {
+      "capacity": null,
+      "category": "Прочее",
+      "costGp": 1,
+      "description": "У верёвки, сделанной из пеньки или шёлка, 2 хита, и её можно порвать проверкой Силы Сл 17.",
+      "id": "rope_hempen_50ft",
+      "itemClass": "gear",
+      "name": "Верёвка пеньковая (50 футов)",
+      "qty": 1,
+      "weight": 10
+    },
+    {
+      "category": "Простое оружие",
+      "costGp": 0.05,
+      "damageDice": "1к4",
+      "damageType": "Колющий",
+      "description": "",
+      "id": "dart",
+      "itemClass": "weapon",
+      "name": "Дротик",
+      "properties": [
+        {
+          "id": "thrown",
+          "label": "Метательное",
+          "range": "20/60"
+        },
+        {
+          "id": "finesse",
+          "label": "Фехтовальное"
+        }
+      ],
+      "qty": 10,
+      "subcategory": "Простое дальнобойное",
+      "weight": 0.25
+    },
+    {
+      "capacity": null,
+      "category": "Прочее",
+      "costGp": 2,
+      "description": "Использование ломика позволяет совершать проверки Силы с преимуществом, если рычаг должен помочь.",
+      "id": "crowbar",
+      "itemClass": "gear",
+      "name": "Ломик",
+      "qty": 1,
+      "weight": 5
+    },
+    {
+      "capacity": null,
+      "category": "Прочее",
+      "costGp": 0.5,
+      "description": "",
+      "id": "clothes_common",
+      "itemClass": "gear",
+      "name": "Одежда, обычная",
+      "qty": 1,
+      "weight": 3
+    },
+    {
+      "capacity": "0,2 кубических фута/6 фунтов (3 кг.)",
+      "category": "Прочее",
+      "costGp": 0.5,
+      "description": "В кожаном или тканевом кошеле поместится 20 снарядов для пращи или 50 иголок для духовой трубки, а также другие вещи. Кошель с отделениями для хранения компонентов заклинаний называется мешочком с компонентами (описывается ниже).",
+      "id": "pouch",
+      "itemClass": "gear",
+      "name": "Кошель",
+      "qty": 1,
+      "weight": 1
+    },
+    {
+      "ac": "14 + [ЛОВ]",
+      "category": "Лёгкие доспехи",
+      "costGp": 45,
+      "description": "",
+      "id": "studded",
+      "itemClass": "armor",
+      "name": "Клёпаный кожаный",
+      "qty": 1,
+      "stealthDisadv": false,
+      "weight": 13
+    },
+    {
+      "category": "Боеприпасы",
+      "costGp": 1,
+      "description": "",
+      "id": "arrows_20",
+      "itemClass": "ammo",
+      "name": "Стрелы (20)",
+      "qty": 1,
+      "weight": 1
+    },
+    {
+      "ac": "14 + мод. Ловк. (макс. 2)",
+      "category": "Средние доспехи",
+      "costGp": 400,
+      "description": "",
+      "id": "breastplate",
+      "itemClass": "armor",
+      "name": "Нагрудник",
+      "qty": 1,
+      "stealthDisadv": false,
+      "weight": 20
+    }
+  ],
+  "languages": [
+    "Общий",
+    "Драконий"
+  ],
+  "level": 6,
+  "name": "cece",
+  "notes": "",
+  "otherProf": "Воровские инструменты, Драконьи шахматы, Виола",
+  "portrait": null,
+  "proficiencyBonus": 3,
+  "race": "dragonborn",
+  "raceName": "Драконорождённый",
+  "racialBonuses": {
+    "СИЛ": 2,
+    "ХАР": 1
+  },
+  "racialSkillChoice": null,
+  "racialTraits": "Драконье дыхание (линия или конус), Сопротивление элементу дракона",
+  "remarkableAthlete": false,
+  "resources": [
+    {
+      "cur": 20,
+      "max": 20,
+      "name": "Стрелы (20)",
+      "note": "",
+      "restLong": false,
+      "restShort": false,
+      "type": "item"
+    }
+  ],
+  "savingThrows": [
+    "СИЛ",
+    "ЛОВ"
+  ],
+  "shieldEquipped": false,
+  "size": "Средний",
+  "skillExpertise": {
+    "Акробатика": 1,
+    "Восприятие": 1,
+    "Выживание": 1,
+    "История": 1,
+    "Медицина": 1,
+    "Обман": 1,
+    "Скрытность": 1,
+    "Уход за животными": 1
+  },
+  "skillProficiencies": [
+    "Акробатика",
+    "Восприятие",
+    "Выживание",
+    "История",
+    "Медицина",
+    "Обман",
+    "Скрытность",
+    "Уход за животными"
+  ],
+  "skin": "",
+  "speed": 30,
+  "spellAbility": null,
+  "spells": [],
+  "subclass": "",
+  "subclassFeatures": "",
+  "subrace": "",
+  "subraceName": "",
+  "swimSpeed": 0,
+  "toolProf": "",
+  "traits": "",
+  "usedSpellSlots": {},
+  "weaponProf": [
+    "Простое оружие",
+    "Короткий меч"
+  ],
+  "weapons": [
+    {
+      "ability": "dex",
+      "attackBonus": 0,
+      "damage": "1к6",
+      "damageType": "Колющий",
+      "isProf": true,
+      "name": "Короткий меч",
+      "note": ""
+    }
+  ],
+  "weight": "",
+  "xp": 0
+}

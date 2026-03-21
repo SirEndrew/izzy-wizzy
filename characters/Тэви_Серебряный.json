@@ -1,0 +1,119 @@
+{
+  "name": "Тэви Серебряный",
+  "_system": "DnD5e",
+  "_version": "2.1",
+  "_created": "2026-03-07T09:29:19.603Z",
+  "race": "tiefling",
+  "raceName": "Тифлинг",
+  "subrace": "asmodeus",
+  "subraceName": "Асмодей",
+  "class": "paladin",
+  "className": "Паладин",
+  "subclass": "Клятва мести",
+  "fightingStyle": "",
+  "background": "outlander",
+  "backgroundName": "Чужеземец",
+  "level": 3,
+  "xp": 0,
+  "alignment": "Нейтральный злой",
+  "size": "Средний",
+  "abilities": {
+    "СИЛ": 12,
+    "ЛОВ": 12,
+    "ТЕЛ": 10,
+    "ИНТ": 10,
+    "МДР": 15,
+    "ХАР": 18
+  },
+  "abilityBases": {
+    "СИЛ": 12,
+    "ЛОВ": 12,
+    "ТЕЛ": 10,
+    "ИНТ": 9,
+    "МДР": 15,
+    "ХАР": 16
+  },
+  "racialBonuses": {
+    "ИНТ": 1,
+    "ХАР": 2
+  },
+  "proficiencyBonus": 2,
+  "hpMax": 22,
+  "hpCurrent": 22,
+  "hpTemp": 0,
+  "hitDie": 10,
+  "ac": 10,
+  "speed": 30,
+  "flySpeed": 0,
+  "swimSpeed": 0,
+  "climbSpeed": 0,
+  "darkvision": 0,
+  "initiative": 0,
+  "savingThrows": [
+    "МДР",
+    "ХАР"
+  ],
+  "armorProf": "Лёгкие доспехи,Средние доспехи,Тяжёлые доспехи,Щиты",
+  "weaponProf": [
+    "Простое оружие",
+    "Воинское оружие"
+  ],
+  "toolProf": "",
+  "otherProf": "Виола",
+  "racialSkillChoice": null,
+  "hasFeat": false,
+  "skillProficiencies": [
+    "Атлетика",
+    "Выживание",
+    "Проницательность",
+    "Религия"
+  ],
+  "skillExpertise": {},
+  "languages": [
+    "Общий",
+    "Инфернальный",
+    "Южный"
+  ],
+  "spellAbility": "ХАР",
+  "spells": [
+    "Божественное благоволение",
+    "Приказ",
+    "Обнаружение болезней и яда",
+    "Палящая кара",
+    "Метка охотника"
+  ],
+  "usedSpellSlots": {},
+  "weapons": [],
+  "inventory": [],
+  "currency": {
+    "gp": 100,
+    "sp": 0,
+    "cp": 0,
+    "ep": 0,
+    "pp": 0
+  },
+  "racialTraits": "Тёмное зрение 60 фут., Инфернальное наследие (тематические заклинания), Устойчивость к огню",
+  "classFeatures": "Обнаружение зла и добра, Возложение рук, Божественный смыт, Аура защиты",
+  "armorRestriction": "",
+  "subclassFeatures": "",
+  "backgroundFeature": "Вы отлично запоминаете карты и местность, и всегда можете вспомнить общие характеристики местности, поселения, и прочие особенности в окрестностях. Кроме того, вы каждый день можете находить еду и пресную воду для себя и пяти других товарищей, при условии, что вокруг вас можно найти ягоды, дичь, воду и так далее.",
+  "inspiration": false,
+  "conditions": [],
+  "deathSaves": {
+    "successes": [
+      false,
+      false,
+      false
+    ],
+    "failures": [
+      false,
+      false,
+      false
+    ]
+  },
+  "notes": "",
+  "resources": [],
+  "halfProficiency": false,
+  "remarkableAthlete": false,
+  "portrait": null
+}

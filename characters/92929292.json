@@ -1,0 +1,466 @@
+{
+  "_created": "2026-03-08T23:15:05.906Z",
+  "_profText": "Языки: Общий, Эльфийский, Леонин, 2 языка на выбор\nДоспехи: Лёгкие доспехи, Средние доспехи, Щиты, Тяжёлые доспехи\nОружие: Простое оружие, Воиснское оружие",
+  "_spellAbilityOverride": "МДР",
+  "_system": "DnD5e",
+  "_version": "2.1",
+  "abilities": {
+    "ИНТ": 13,
+    "ЛОВ": 15,
+    "МДР": 12,
+    "СИЛ": 16,
+    "ТЕЛ": 14,
+    "ХАР": 11
+  },
+  "abilitiesText": "Скорость: 30 фт. | Тёмное зрение: 60 фт.\n▶ Расовые черты (Полуэльф)\nТёмное зрение 60 фут., Бонус к навыку фей, Универсальность (2 любых навыка)\n▶ Черты класса (Жрец)\nИспользование заклинаний, Черты домена, Уничтожение нежити\n▶ Особенность предыстории (Мудрец)\nЕсли вы пытаетесь изучить или вспомнить информацию, которой вы не обладаете, вы часто знаете, где и от кого её можно получить. Обычно это библиотека, скрипторий, университет, мудрец или другое образованное существо. Мастер может решить, что искомое знание является тайной и хранится в практически недоступном месте, или что оно вообще недоступно.",
+  "abilityBases": {
+    "ИНТ": 13,
+    "ЛОВ": 14,
+    "МДР": 12,
+    "СИЛ": 15,
+    "ТЕЛ": 14,
+    "ХАР": 9
+  },
+  "ac": 10,
+  "age": "66",
+  "alignment": "Нейтральный добрый",
+  "allies": "уцеецец",
+  "appearance": "",
+  "armorProf": "Лёгкие доспехи, Средние доспехи, Щиты, Тяжёлые доспехи",
+  "armorRestriction": "",
+  "attacksNotes": "иыивыивыивыисч счмымывмвым",
+  "background": "sage",
+  "backgroundFeature": "Если вы пытаетесь изучить или вспомнить информацию, которой вы не обладаете, вы часто знаете, где и от кого её можно получить. Обычно это библиотека, скрипторий, университет, мудрец или другое образованное существо. Мастер может решить, что искомое знание является тайной и хранится в практически недоступном месте, или что оно вообще недоступно.",
+  "backgroundName": "Мудрец",
+  "backstory": "афаафафафа",
+  "bonds": "рпьпрьпьп",
+  "class": "cleric",
+  "classFeatures": "Использование заклинаний, Черты домена, Уничтожение нежити",
+  "className": "Жрец",
+  "climbSpeed": 0,
+  "conditions": [],
+  "currency": {
+    "cp": 0,
+    "ep": 0,
+    "gp": 10,
+    "pp": 0,
+    "sp": 0
+  },
+  "darkvision": 60,
+  "deathSaves": {
+    "failures": [
+      false,
+      false,
+      false
+    ],
+    "successes": [
+      false,
+      false,
+      false
+    ]
+  },
+  "exhaustion": 0,
+  "eyes": "пр",
+  "fightingStyle": "",
+  "flaws": "глгнлнл",
+  "flySpeed": 0,
+  "hair": "укук",
+  "halfProficiency": false,
+  "hasFeat": false,
+  "height": "1123",
+  "hitDie": 8,
+  "hpCurrent": 10,
+  "hpMax": 10,
+  "hpTemp": 0,
+  "ideals": "фаафафацффафаааа",
+  "initiative": 0,
+  "inspiration": false,
+  "inventory": [
+    {
+      "category": "Воинское оружие",
+      "costGp": 15,
+      "damageDice": "1к8",
+      "damageType": "Дробящий",
+      "description": "",
+      "id": "warhammer",
+      "itemClass": "weapon",
+      "name": "Боевой молот",
+      "properties": [
+        {
+          "altDamage": "1к10",
+          "id": "versatile",
+          "label": "Универсальное"
+        }
+      ],
+      "qty": 1,
+      "subcategory": "Воинское рукопашное",
+      "weight": 2
+    },
+    {
+      "ac": "14+min([ЛОВ],2)",
+      "category": "Средние доспехи",
+      "costGp": 50,
+      "description": "",
+      "id": "scalemale",
+      "itemClass": "armor",
+      "name": "Чешуйчатый",
+      "qty": 1,
+      "stealthDisadv": true,
+      "strReq": null,
+      "weight": 45
+    },
+    {
+      "category": "Простое оружие",
+      "costGp": 25,
+      "damageDice": "1к8",
+      "damageType": "Колющий",
+      "description": "",
+      "id": "crossbow_light",
+      "itemClass": "weapon",
+      "name": "Лёгкий арбалет",
+      "properties": [
+        {
+          "id": "ammunition",
+          "label": "Боеприпас",
+          "range": "80/320"
+        },
+        {
+          "id": "two-handed",
+          "label": "Двуручное"
+        },
+        {
+          "id": "loading",
+          "label": "Перезарядка"
+        }
+      ],
+      "qty": 1,
+      "subcategory": "Простое дальнобойное",
+      "weight": 5
+    },
+    {
+      "category": "Боеприпасы",
+      "costGp": 1,
+      "description": "В этот деревянный контейнер помещаются 20 арбалетных болтов.",
+      "id": "crossbow_bolts_20",
+      "itemClass": "ammo",
+      "name": "Арбалетные болты (20)",
+      "qty": 1,
+      "stackSize": 20,
+      "weight": 1.5
+    },
+    {
+      "capacity": null,
+      "category": "Прочее",
+      "costGp": 1,
+      "description": "В этот деревянный контейнер помещаются 20 арбалетных болтов.",
+      "id": "case_crossbow_bolts",
+      "itemClass": "gear",
+      "name": "Контейнер для арбалетных болтов",
+      "qty": 1,
+      "weight": 1
+    },
+    {
+      "capacity": "1 кубический фут/30 фунтов (15 кг.)",
+      "category": "Прочее",
+      "costGp": 2,
+      "description": "",
+      "id": "backpack",
+      "itemClass": "gear",
+      "name": "Рюкзак",
+      "qty": 1,
+      "weight": 5
+    },
+    {
+      "capacity": null,
+      "category": "Прочее",
+      "costGp": 0.5,
+      "description": "",
+      "id": "blanket",
+      "itemClass": "gear",
+      "name": "Одеяло",
+      "qty": 1,
+      "weight": 3
+    },
+    {
+      "capacity": null,
+      "category": "Прочее",
+      "costGp": 0.01,
+      "description": "В течение 1 часа свеча испускает яркий свет в пределах радиуса 5 футов и тусклый свет в пределах еще 5 футов.",
+      "id": "candle",
+      "itemClass": "gear",
+      "name": "Свеча",
+      "qty": 10,
+      "weight": 0
+    },
+    {
+      "capacity": null,
+      "category": "Прочее",
+      "costGp": 0.5,
+      "description": "В этом небольшом контейнере находится кремень, кресало и трут (обычно это сухая тряпка, вымоченная в масле), используемые для разжигания огня. Использование его для разжигания факела — или чего-нибудь другого, легковоспламеняющегося — требует одного действия. Разжигание другого огня требует 1 минуты.",
+      "id": "tinderbox",
+      "itemClass": "gear",
+      "name": "Трутница",
+      "qty": 1,
+      "weight": 1
+    },
+    {
+      "capacity": null,
+      "category": "Прочее",
+      "costGp": 0.5,
+      "description": "Рационы состоят из обезвоженной пищи, подходящей для путешествий, включая вяленое мясо, сухофрукты, галеты и орехи.",
+      "id": "rations_1day",
+      "itemClass": "gear",
+      "name": "Рационы (1 день)",
+      "qty": 2,
+      "weight": 2
+    },
+    {
+      "capacity": "4 пинты (2 лит.)",
+      "category": "Прочее",
+      "costGp": 0.2,
+      "description": "",
+      "id": "waterskin",
+      "itemClass": "gear",
+      "name": "Бурдюк",
+      "qty": 1,
+      "weight": 5
+    },
+    {
+      "capacity": null,
+      "category": "Прочее",
+      "costGp": null,
+      "description": "",
+      "id": "donation_box",
+      "itemClass": "gear",
+      "name": "Коробка для пожертвований",
+      "qty": 1,
+      "weight": 0
+    },
+    {
+      "capacity": null,
+      "category": "Прочее",
+      "costGp": null,
+      "description": "",
+      "id": "incense_pack",
+      "itemClass": "gear",
+      "name": "Благовония (упаковка)",
+      "qty": 2,
+      "weight": 0
+    },
+    {
+      "capacity": null,
+      "category": "Прочее",
+      "costGp": null,
+      "description": "",
+      "id": "censer",
+      "itemClass": "gear",
+      "name": "Кадило",
+      "qty": 1,
+      "weight": 0
+    },
+    {
+      "ac": "+2",
+      "category": "Щиты",
+      "costGp": 10,
+      "description": "",
+      "id": "shield",
+      "itemClass": "armor",
+      "name": "Щит",
+      "qty": 1,
+      "stealthDisadv": false,
+      "strReq": null,
+      "weight": 6
+    },
+    {
+      "capacity": null,
+      "category": "Прочее",
+      "costGp": 10,
+      "description": "",
+      "id": "ink_bottle",
+      "itemClass": "gear",
+      "name": "Чернила (бутылочка 30 грамм)",
+      "qty": 1,
+      "weight": 0
+    },
+    {
+      "capacity": null,
+      "category": "Прочее",
+      "costGp": 0.02,
+      "description": "",
+      "id": "quill",
+      "itemClass": "gear",
+      "name": "Писчее перо",
+      "qty": 1,
+      "weight": 0
+    },
+    {
+      "capacity": null,
+      "category": "Прочее",
+      "costGp": null,
+      "description": "",
+      "id": "small_knife",
+      "itemClass": "gear",
+      "name": "Небольшой нож",
+      "qty": 1,
+      "weight": 0
+    },
+    {
+      "costGp": 0,
+      "description": "",
+      "id": "letter_dead_colleague",
+      "itemClass": "special",
+      "name": "Письмо от мёртвого коллеги с вопросом, на который вы пока не можете ответить",
+      "qty": 1,
+      "weight": 0
+    },
+    {
+      "capacity": null,
+      "category": "Прочее",
+      "costGp": 0.5,
+      "description": "",
+      "id": "clothes_common",
+      "itemClass": "gear",
+      "name": "Одежда, обычная",
+      "qty": 1,
+      "weight": 3
+    },
+    {
+      "capacity": "0,2 кубических фута/6 фунтов (3 кг.)",
+      "category": "Прочее",
+      "costGp": 0.5,
+      "description": "В кожаном или тканевом кошеле поместится 20 снарядов для пращи или 50 иголок для духовой трубки, а также другие вещи. Кошель с отделениями для хранения компонентов заклинаний называется мешочком с компонентами (описывается ниже).",
+      "id": "pouch",
+      "itemClass": "gear",
+      "name": "Кошель",
+      "qty": 1,
+      "weight": 1
+    }
+  ],
+  "languages": [
+    "Общий",
+    "Эльфийский",
+    "Леонин",
+    "2 языка на выбор"
+  ],
+  "level": 1,
+  "name": "92929292",
+  "notes": "",
+  "otherProf": "",
+  "portrait": null,
+  "proficiencyBonus": 2,
+  "race": "half_elf",
+  "raceName": "Полуэльф",
+  "racialBonuses": {
+    "ЛОВ": 1,
+    "СИЛ": 1,
+    "ХАР": 2
+  },
+  "racialSkillChoice": null,
+  "racialTraits": "Тёмное зрение 60 фут., Бонус к навыку фей, Универсальность (2 любых навыка)",
+  "remarkableAthlete": true,
+  "resources": [
+    {
+      "name": "Арбалетные болты (20)",
+      "cur": 20,
+      "max": 20,
+      "type": "ammo",
+      "restShort": false,
+      "restLong": false,
+      "note": "В этот деревянный контейнер помещаются 20 арбалетных болтов."
+    }
+  ],
+  "savingThrows": [
+    "МДР",
+    "ХАР"
+  ],
+  "size": "Средний",
+  "skillExpertise": {
+    "История": 1,
+    "Магия": 1,
+    "Медицина": 0,
+    "Религия": 1
+  },
+  "skillProficiencies": [
+    "История",
+    "Магия",
+    "Религия"
+  ],
+  "skin": "прпрпрпр",
+  "speed": 30,
+  "spellAbility": "МДР",
+  "spells": [
+    "Свет",
+    "Священное пламя",
+    "Сопротивление"
+  ],
+  "subclass": "Домен бури",
+  "subclassFeatures": "",
+  "subrace": "",
+  "subraceName": "уаыаыыа",
+  "swimSpeed": 0,
+  "toolProf": "",
+  "traits": "цафафафаф",
+  "usedSpellSlots": {},
+  "weaponProf": [
+    "Простое оружие",
+    "Воиснское оружие"
+  ],
+  "weapons": [
+    {
+      "ability": "str",
+      "attackBonus": 0,
+      "damage": "1к8",
+      "damageType": "Дробящий",
+      "isProf": true,
+      "name": "Боевой молот",
+      "note": ""
+    },
+    {
+      "name": "Боевой молот",
+      "damage": "1к8",
+      "damageType": "Дробящий",
+      "ability": "str",
+      "isProf": true,
+      "attackBonus": 0,
+      "props": "Универсальное",
+      "note": ""
+    },
+    {
+      "name": "Лёгкий арбалет",
+      "damage": "1к8",
+      "damageType": "Колющий",
+      "ability": "dex",
+      "isProf": true,
+      "attackBonus": 0,
+      "props": "Боеприпасы · Двуручное · Перезарядка",
+      "note": ""
+    },
+    {
+      "name": "Боевой молот",
+      "damage": "1к8",
+      "damageType": "Дробящий",
+      "ability": "str",
+      "isProf": true,
+      "attackBonus": 0,
+      "props": "Универсальное",
+      "note": ""
+    }
+  ],
+  "weight": "32323",
+  "xp": 0,
+  "noteBlocks": [
+    {
+      "id": "nb_1",
+      "title": "Цели",
+      "text": "ааыыимыиыиыиыуваыиыи",
+      "collapsed": false
+    },
+    {
+      "id": "nb_2",
+      "title": "Заметки",
+      "text": "ысиыиыивыиыиыви",
+      "collapsed": false
+    }
+  ],
+  "inventoryNotes": ""
+}
