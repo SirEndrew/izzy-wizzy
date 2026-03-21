@@ -1,0 +1,68 @@
+name: Build Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt pyinstaller
+
+      - name: Build EXE
+        run: pyinstaller izzy_wizzy.spec
+
+      - name: Upload EXE artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: IzzyWizzy-windows
+          path: dist/IzzyWizzy.exe
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt pyinstaller
+
+      - name: Build APP
+        run: pyinstaller izzy_wizzy.spec
+
+      - name: Zip APP bundle
+        run: zip -r IzzyWizzy-mac.zip dist/IzzyWizzy.app
+
+      - name: Upload APP artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: IzzyWizzy-macos
+          path: IzzyWizzy-mac.zip
+
+  release:
+    needs: [build-windows, build-macos]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            IzzyWizzy-windows/IzzyWizzy.exe
+            IzzyWizzy-macos/IzzyWizzy-mac.zip
