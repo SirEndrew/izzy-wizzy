@@ -1219,6 +1219,23 @@ hr.divider { border: none; border-top: 1px solid #606b85; margin: .9rem 0 }
 .pers-trait-cell.collapsed .pers-collapse-btn { transform: rotate(180deg) }
 .pers-field-block.collapsed .pers-field-ta,
 .pers-trait-cell.collapsed .pers-field-ta { display: none }
+.rte-body.rte-pers {
+  background: var(--dlg-btn-bg, #1e2638);
+  border: 1px solid var(--dlg-input-border, #3d4a65);
+  border-radius: var(--dlg-input-radius, 4px);
+  color: var(--text1, #dde3f0);
+  font-size: .9rem;
+  line-height: 1.55;
+  resize: vertical;
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 70px;
+  padding: .35rem .5rem;
+  outline: none;
+}
+.rte-body.rte-pers:focus {
+  border-color: var(--accent2, #5b8dee);
+}
 .pers-field-ta {
   width: 100%; box-sizing: border-box; resize: vertical;
   background: var(--dlg-btn-bg); border: 1px solid var(--dlg-input-border);
@@ -3585,7 +3602,7 @@ hr.divider { border: none; border-top: 1px solid #606b85; margin: .9rem 0 }
             <div class="ds2-pip fail2-pip" id="ds2-fail-1" onclick="toggleDS2('fail',1)" title="Провал"></div>
             <div class="ds2-pip fail2-pip" id="ds2-fail-2" onclick="toggleDS2('fail',2)" title="Провал"></div>
           </div>
-          <div id="ds2-die" onclick="rollDeathSave()" title="Бросить к20" style="width:52px;height:52px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1.6rem;user-select:none;transition:filter .3s,transform .2s;filter:drop-shadow(0 0 6px rgba(255,255,255,.25))">
+          <div id="ds2-die" onclick="rollDeathSave(event)" title="Бросить к20 (Shift=Преим., Alt=Помеха)" style="width:52px;height:52px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1.6rem;user-select:none;transition:filter .3s,transform .2s;filter:drop-shadow(0 0 6px rgba(255,255,255,.25))">
             <svg width="36" height="36" viewBox="0 0 33 33" fill="none" xmlns="http://www.w3.org/2000/svg" style="stroke:rgba(255,255,255,.85);stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round">
               <path d="M16.4997 1.99976L28.4997 9.95628M16.4997 1.99976L4.49969 9.95628M16.4997 1.99976V9.69541M28.4997 9.95628L16.4997 9.69541M28.4997 9.95628L23.9345 21.1737M28.4997 9.95628V22.3476M28.4997 22.3476L16.4997 30.4345M28.4997 22.3476L23.9345 21.1737M16.4997 30.4345L4.49969 22.3476M16.4997 30.4345L9.06491 21.1737M16.4997 30.4345L23.9345 21.1737M4.49969 22.3476V9.95628M4.49969 22.3476L9.06491 21.1737M4.49969 9.95628L16.4997 9.69541M4.49969 9.95628L9.06491 21.1737M16.4997 9.69541L9.06491 21.1737M16.4997 9.69541L23.9345 21.1737M9.06491 21.1737H23.9345" stroke="inherit"></path>
             </svg>
@@ -3772,7 +3789,7 @@ hr.divider { border: none; border-top: 1px solid #606b85; margin: .9rem 0 }
         <div class="quickstat-bar">
 
           <!-- Инициатива -->
-          <div class="qs-box" style="min-width:72px;cursor:pointer" onclick="rollInitiative()" oncontextmenu="openInitDialog(event)" title="Бросок инициативы (ПКМ — настройка)">
+          <div class="qs-box" style="min-width:72px;cursor:pointer" onclick="rollInitiative(event)" oncontextmenu="openInitDialog(event)" title="Бросок инициативы (Shift=Преим., Alt=Помеха, ПКМ — настройка)">
             <span class="qs-val" id="qs-init-val">—</span>
             <span class="qs-label">Инициатива</span>
           </div>
@@ -3905,7 +3922,7 @@ hr.divider { border: none; border-top: 1px solid #606b85; margin: .9rem 0 }
               <span class="pers-field-block-label">Внешность</span>
               <button class="pers-collapse-btn" onclick="this.closest('.pers-field-block').classList.toggle('collapsed')" title="Свернуть">∧</button>
             </div>
-            <textarea id="sp-appearance" class="pers-field-ta"
+            <textarea id="sp-appearance" class="pers-field-ta rte-source" data-rte-class="rte-pers"
               rows="3" placeholder="Внешнее описание персонажа..."
               oninput="if(currentChar){currentChar.appearance=this.value};autoSave()"></textarea>
           </div>
@@ -3949,7 +3966,7 @@ hr.divider { border: none; border-top: 1px solid #606b85; margin: .9rem 0 }
               <span class="pers-field-block-label">Предыстория персонажа</span>
               <button class="pers-collapse-btn" onclick="this.closest('.pers-field-block').classList.toggle('collapsed')" title="Свернуть">∧</button>
             </div>
-            <textarea id="sp-backstory" class="pers-field-ta"
+            <textarea id="sp-backstory" class="pers-field-ta rte-source" data-rte-class="rte-pers"
               rows="5" placeholder="Откуда пришёл, что привело к приключениям..."
               oninput="if(currentChar){currentChar.backstory=this.value};autoSave()"></textarea>
           </div>
@@ -3960,7 +3977,7 @@ hr.divider { border: none; border-top: 1px solid #606b85; margin: .9rem 0 }
               <span class="pers-field-block-label">Черты характера</span>
               <button class="pers-collapse-btn" onclick="this.closest('.pers-field-block').classList.toggle('collapsed')" title="Свернуть">∧</button>
             </div>
-            <textarea id="sp-traits" class="pers-field-ta"
+            <textarea id="sp-traits" class="pers-field-ta rte-source" data-rte-class="rte-pers"
               rows="3" placeholder="Как ведёт себя персонаж, его привычки и манеры..."
               oninput="if(currentChar){currentChar.traits=this.value};autoSave()"></textarea>
           </div>
@@ -3972,7 +3989,7 @@ hr.divider { border: none; border-top: 1px solid #606b85; margin: .9rem 0 }
                 <span class="pers-field-block-label">Идеалы</span>
                 <button class="pers-collapse-btn" onclick="this.closest('.pers-trait-cell').classList.toggle('collapsed')" title="Свернуть">∧</button>
               </div>
-              <textarea id="sp-ideals" class="pers-field-ta"
+              <textarea id="sp-ideals" class="pers-field-ta rte-source" data-rte-class="rte-pers"
                 rows="4" oninput="if(currentChar)currentChar.ideals=this.value;autoSave()"></textarea>
             </div>
             <div class="pers-trait-cell">
@@ -3980,7 +3997,7 @@ hr.divider { border: none; border-top: 1px solid #606b85; margin: .9rem 0 }
                 <span class="pers-field-block-label">Привязанности</span>
                 <button class="pers-collapse-btn" onclick="this.closest('.pers-trait-cell').classList.toggle('collapsed')" title="Свернуть">∧</button>
               </div>
-              <textarea id="sp-bonds" class="pers-field-ta"
+              <textarea id="sp-bonds" class="pers-field-ta rte-source" data-rte-class="rte-pers"
                 rows="4" oninput="if(currentChar)currentChar.bonds=this.value;autoSave()"></textarea>
             </div>
             <div class="pers-trait-cell">
@@ -3988,7 +4005,7 @@ hr.divider { border: none; border-top: 1px solid #606b85; margin: .9rem 0 }
                 <span class="pers-field-block-label">Слабости</span>
                 <button class="pers-collapse-btn" onclick="this.closest('.pers-trait-cell').classList.toggle('collapsed')" title="Свернуть">∧</button>
               </div>
-              <textarea id="sp-flaws" class="pers-field-ta"
+              <textarea id="sp-flaws" class="pers-field-ta rte-source" data-rte-class="rte-pers"
                 rows="4" oninput="if(currentChar)currentChar.flaws=this.value;autoSave()"></textarea>
             </div>
             <div class="pers-trait-cell">
@@ -3996,7 +4013,7 @@ hr.divider { border: none; border-top: 1px solid #606b85; margin: .9rem 0 }
                 <span class="pers-field-block-label">Союзники и организации</span>
                 <button class="pers-collapse-btn" onclick="this.closest('.pers-trait-cell').classList.toggle('collapsed')" title="Свернуть">∧</button>
               </div>
-              <textarea id="sp-allies" class="pers-field-ta"
+              <textarea id="sp-allies" class="pers-field-ta rte-source" data-rte-class="rte-pers"
                 rows="4" oninput="if(currentChar)currentChar.allies=this.value;autoSave()"></textarea>
             </div>
           </div>
@@ -4059,7 +4076,7 @@ hr.divider { border: none; border-top: 1px solid #606b85; margin: .9rem 0 }
         <img src="/static/img/icon.svg" alt="" class="about-icon">
         <div>
           <div class="about-appname">Izzy Wizzy</div>
-          <div class="about-version">версия 0.9.01B</div>
+          <div class="about-version">версия 0.9.02B</div>
         </div>
       </div>
       <div class="about-desc">Менеджер персонажей для D&amp;D 5e на русском языке.<br>Работает локально, не требует интернета.</div>
@@ -4683,7 +4700,7 @@ document.getElementById('ability-pb-grid').innerHTML =
         <img src="/static/img/icon.svg" alt="" class="about-icon">
         <div>
           <div class="about-appname">Izzy Wizzy</div>
-          <div class="about-version">версия 0.9.01B</div>
+          <div class="about-version">версия 0.9.02B</div>
         </div>
       </div>
       <div class="about-desc">Менеджер персонажей для D&amp;D 5e на русском языке.<br>Работает локально, не требует интернета.</div>
@@ -5260,6 +5277,20 @@ document.getElementById('ability-pb-grid').innerHTML =
           oninput="updateAcDialogPreview()">
         <button class="btn btn-secondary" style="width:2rem;height:2rem;padding:0;font-size:1rem"
           onclick="document.getElementById('acd-bonus').value=Math.min(20,(parseInt(document.getElementById('acd-bonus').value)||0)+1);updateAcDialogPreview()">+</button>
+      </div>
+    </div>
+
+    <!-- Бонус щита -->
+    <div style="margin-bottom:.8rem">
+      <label class="dlg-label">Бонус щита</label>
+      <div style="display:flex;align-items:center;gap:.5rem">
+        <button class="btn btn-secondary" style="width:2rem;height:2rem;padding:0;font-size:1rem"
+          onclick="document.getElementById('acd-shield-bonus').value=Math.max(0,(parseInt(document.getElementById('acd-shield-bonus').value)||2)-1);updateAcDialogPreview()">−</button>
+        <input type="number" id="acd-shield-bonus" value="2" min="0" max="20" step="1"
+          style="background:var(--dlg-input-bg);border:1px solid var(--dlg-input-border);border-radius:var(--dlg-input-radius);color:var(--text);font-family:inherit;font-size:var(--dlg-input-fs);padding:var(--dlg-input-pad);width:100%;box-sizing:border-box;outline:none"
+          oninput="updateAcDialogPreview()">
+        <button class="btn btn-secondary" style="width:2rem;height:2rem;padding:0;font-size:1rem"
+          onclick="document.getElementById('acd-shield-bonus').value=Math.min(20,(parseInt(document.getElementById('acd-shield-bonus').value)||2)+1);updateAcDialogPreview()">+</button>
       </div>
     </div>
 

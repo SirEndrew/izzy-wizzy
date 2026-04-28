@@ -244,6 +244,7 @@ const LOG_FIELD_MAP = {
   spellsNotes:      { icon:'✨',  fmt:(o,n)=>`Заметки к заклинаниям изменены` },
   savedFeatText:    { icon:'📖',  fmt:(o,n)=>`Черты и способности изменены` },
   abilitiesText:    { icon:'📖',  fmt:(o,n)=>`Текст способностей изменён` },
+  _profText:        { icon:'📜',  fmt:(o,n)=>`Владения и языки изменены` },
   armorProf:        { icon:'📜',  fmt:(o,n)=>`Владение доспехами изменено` },
   weaponProf:       { icon:'📜',  fmt:(o,n)=>`Владение оружием изменено` },
   toolProf:         { icon:'📜',  fmt:(o,n)=>`Владение инструментами изменено` },
@@ -284,7 +285,7 @@ const LOG_ARRAY_MAP = {
   resources:          { icon:'⚡',  add:'Ресурс добавлен',     del:'Ресурс удалён',     name: r=>r.name||r.label },
   features:           { icon:'📖',  add:'Умение добавлено',    del:'Умение удалено',    name: f=>f.name||f.label||'' },
   conditions:         { icon:'🤕',  add:'Состояние наложено',  del:'Состояние снято',   name: c=>typeof c==='string'?c:(c.name||c) },
-  skillProficiencies: { icon:'🎯',  add:'Навык получен',       del:'Навык утерян',      name: s=>s },
+  // skillProficiencies убран — логируется через skillExpertise ниже
 };
 
 // Поля noteBlocks логируем отдельно
@@ -351,9 +352,7 @@ function charLogDiff(oldChar, newChar) {
     }
   }
 
-  // noteBlocks
-  if (JSON.stringify(oldChar.noteBlocks) !== JSON.stringify(newChar.noteBlocks))
-    _logDiffNoteBlocks(oldChar.noteBlocks, newChar.noteBlocks);
+  // noteBlocks — логируется через debounce в charLogOnSave
 
   // skillExpertise — изменения владений/компетентностей
   const oe = oldChar.skillExpertise || {};
@@ -455,9 +454,15 @@ function _logTakeSnapshot(char) {
 
 // ── Инициализация при загрузке персонажа ────────────────────────
 async function charLogInit(char) {
-  _logStem     = (char.name||'character').replace(/ /g,'_').replace(/\//g,'_').substring(0,60);
-  _logEntries  = [];
-  _logSnapshot = _logTakeSnapshot(char);
+  _logStem      = (char.name||'character').replace(/ /g,'_').replace(/\//g,'_').substring(0,60);
+  _logEntries   = [];
+  _logSnapshot  = _logTakeSnapshot(char);
+  // Сбрасываем debounce при смене персонажа — немедленно фиксируем незаписанные изменения
+  if (_logTextDebounceTimer) {
+    clearTimeout(_logTextDebounceTimer);
+    _logTextDebounceTimer = null;
+  }
+  _logTextBaseSnapshot = null;
   try {
     const res = await fetch(`/api/log/${encodeURIComponent(_logStem)}`);
     if (res.ok) _logEntries = await res.json();
@@ -465,11 +470,104 @@ async function charLogInit(char) {
   if (_logOpen) _logRender();
 }
 
+// Поля которые логируются с debounce (текстовые — меняются постепенно при печати)
+const LOG_THROTTLED_FIELDS = new Set([
+  'traits','ideals','bonds','flaws','backstory','appearance','allies',
+  'attacksNotes','inventoryNotes','spellsNotes','savedFeatText','abilitiesText',
+  '_profText','noteBlocks',
+]);
+let _logTextDebounceTimer = null;  // таймер debounce для текстовых полей
+let _logTextBaseSnapshot  = null;  // снапшот текстовых полей до начала редактирования
+const LOG_TEXT_DEBOUNCE = 10000;   // 10 секунд без изменений → запись в лог
+
 // Вызывается из saveSheet() — сравниваем и обновляем снимок
 function charLogOnSave(char) {
   if (!_logStem || !char) return;
-  if (_logSnapshot) charLogDiff(_logSnapshot, char);
+
+  if (_logSnapshot) {
+    // 1. Немедленно логируем всё кроме текстовых полей
+    const snapNoText = _logOmitFields(_logSnapshot, LOG_THROTTLED_FIELDS);
+    const charNoText = _logOmitFields(char, LOG_THROTTLED_FIELDS);
+    charLogDiff(snapNoText, charNoText);
+
+    // 2. Текстовые поля — debounce: сбрасываем таймер при каждом сохранении
+    const textChanged = _logTextFieldsChanged(_logSnapshot, char);
+    if (textChanged) {
+      // Запоминаем снапшот ДО начала редактирования (только при первом изменении)
+      if (!_logTextBaseSnapshot) {
+        _logTextBaseSnapshot = _logPickFields(_logSnapshot, LOG_THROTTLED_FIELDS);
+      }
+      // Сбрасываем таймер — ждём паузы 10 секунд
+      clearTimeout(_logTextDebounceTimer);
+      _logTextDebounceTimer = setTimeout(() => {
+        // Пауза 10 секунд — сравниваем с базовым снапшотом и логируем
+        if (_logTextBaseSnapshot && currentChar) {
+          const charText = _logPickFields(currentChar, LOG_THROTTLED_FIELDS);
+          charLogDiff(_logTextBaseSnapshot, charText);
+          // noteBlocks — отдельная логика
+          if (JSON.stringify(_logTextBaseSnapshot.noteBlocks) !== JSON.stringify(charText.noteBlocks))
+            _logDiffNoteBlocks(_logTextBaseSnapshot.noteBlocks, charText.noteBlocks);
+        }
+        _logTextBaseSnapshot  = null;
+        _logTextDebounceTimer = null;
+      }, LOG_TEXT_DEBOUNCE);
+    }
+  }
+
   _logSnapshot = _logTakeSnapshot(char);
+}
+
+function _logTextFieldsChanged(oldChar, newChar) {
+  for (const f of LOG_THROTTLED_FIELDS) {
+    const ov = typeof oldChar[f] === 'object' ? JSON.stringify(oldChar[f]) : (oldChar[f] ?? '');
+    const nv = typeof newChar[f] === 'object' ? JSON.stringify(newChar[f]) : (newChar[f] ?? '');
+    if (ov !== nv) return true;
+  }
+  return false;
+}
+
+// Немедленно записать накопленные изменения текстовых полей в лог
+function _logTextFlush() {
+  if (!_logTextDebounceTimer && !_logTextBaseSnapshot) return;
+  clearTimeout(_logTextDebounceTimer);
+  _logTextDebounceTimer = null;
+  if (!_logTextBaseSnapshot || !currentChar) return;
+  // Синхронизируем актуальные значения из RTE в currentChar перед сравнением
+  const featHtml = rteGetValue('s-features');
+  if (featHtml !== undefined && featHtml !== '') currentChar.savedFeatText = featHtml;
+  const profHtml = rteGetValue('s-proficiencies');
+  if (profHtml !== undefined && profHtml !== '') currentChar._profText = profHtml;
+  const charText = _logPickFields(currentChar, LOG_THROTTLED_FIELDS);
+  charLogDiff(_logTextBaseSnapshot, charText);
+  // noteBlocks — отдельная логика
+  if (JSON.stringify(_logTextBaseSnapshot.noteBlocks) !== JSON.stringify(charText.noteBlocks))
+    _logDiffNoteBlocks(_logTextBaseSnapshot.noteBlocks, charText.noteBlocks);
+  _logTextBaseSnapshot = null;
+}
+
+// Вешаем flush на blur текстовых полей — когда пользователь уходит из поля
+document.addEventListener('focusout', e => {
+  const el = e.target;
+  if (!el) return;
+  const isText = el.tagName === 'TEXTAREA'
+    || (el.tagName === 'INPUT' && (el.type === 'text' || el.type === ''))
+    || el.classList.contains('rte-body');
+  if (isText && _logTextDebounceTimer) _logTextFlush();
+});
+
+// Фиксируем незаписанные изменения при закрытии приложения
+window.addEventListener('beforeunload', () => { _logTextFlush(); });
+
+function _logOmitFields(char, fields) {
+  const copy = { ...char };
+  for (const f of fields) delete copy[f];
+  return copy;
+}
+
+function _logPickFields(char, fields) {
+  const copy = {};
+  for (const f of fields) if (char[f] !== undefined) copy[f] = char[f];
+  return copy;
 }
 
 // ── Добавить запись ─────────────────────────────────────────────
@@ -576,8 +674,9 @@ function _logCtxShow(e, row) {
   if (!menu) return;
   menu.style.display = 'block';
   const mw = menu.offsetWidth, mh = menu.offsetHeight;
-  menu.style.left = Math.min(e.clientX, window.innerWidth  - mw - 4) + 'px';
-  menu.style.top  = Math.min(e.clientY, window.innerHeight - mh - 4) + 'px';
+  const _z_log = parseFloat(document.documentElement.style.zoom) || 1;
+  menu.style.left = Math.min(e.clientX / _z_log, window.innerWidth  / _z_log - mw - 4) + 'px';
+  menu.style.top  = Math.min(e.clientY / _z_log, window.innerHeight / _z_log - mh - 4) + 'px';
 }
 
 function _logCtxHide() {
@@ -799,8 +898,8 @@ function showView(v) {
   if (gearSheetItems) { gearSheetItems.style.display = v === 'sheet' ? '' : 'none'; }
   // Gear pushes right only when sheet-actions are hidden
   if (gear) { gear.style.marginLeft = v === 'sheet' ? '0' : 'auto'; }
-  if (v === 'list')   { loadCharList(); window.scrollTo({ top: 0, behavior: 'instant' }); }
-  if (v === 'create') initWizard();
+  if (v === 'list')   { _logTextFlush(); loadCharList(); window.scrollTo({ top: 0, behavior: 'instant' }); }
+  if (v === 'create') { _logTextFlush(); initWizard(); }
   if (v === 'sheet' && !currentChar) { showView('list'); return; }
 }
 
@@ -1011,8 +1110,6 @@ function saveCharEditDialog() {
     }
   }
 
-  if (currentChar && _prevLevel && _prevLevel !== currentChar.level)
-    charLogAdd('⬆️', `Уровень: <b>${_prevLevel} → ${currentChar.level}</b>`);
   closeCharEditDialog();
   renderSheet(currentChar);
   saveSheet();
@@ -5240,12 +5337,24 @@ function _rteShow() {
   const sel = window.getSelection();
   if (!sel || sel.rangeCount === 0) return;
   const rect = sel.getRangeAt(0).getBoundingClientRect();
+  if (!rect.width && !rect.height) return;
+  const z = parseFloat(document.documentElement.style.zoom) || 1;
+  // Тулбар position:fixed — координаты в зумированном viewport (без scrollX/Y)
   tb.style.display = 'flex';
-  // Позиция: над выделением, или под если нет места
-  let top  = rect.top + window.scrollY - tb.offsetHeight - 10;
-  let left = rect.left + window.scrollX;
-  if (top < window.scrollY + 4) top = rect.bottom + window.scrollY + 8;
-  left = Math.max(4, Math.min(left, window.innerWidth - 400));
+  const tbH = tb.offsetHeight;
+  const tbW = tb.offsetWidth;
+  const vpW = window.innerWidth  / z;
+  const vpH = window.innerHeight / z;
+  // Позиция выделения в зумированных px
+  const selTop    = rect.top    / z;
+  const selBottom = rect.bottom / z;
+  const selLeft   = rect.left   / z;
+  // Пробуем над выделением, если нет места — под
+  let top  = selTop - tbH - 8;
+  let left = selLeft;
+  if (top < 4) top = selBottom + 8;
+  if (top + tbH > vpH - 4) top = Math.max(4, selTop - tbH - 8);
+  left = Math.max(4, Math.min(left, vpW - tbW - 4));
   tb.style.top  = top  + 'px';
   tb.style.left = left + 'px';
 }
@@ -5431,7 +5540,22 @@ document.addEventListener('mouseup', e => {
 }, true);
 
 // ── Первичная инициализация ──
-document.addEventListener('DOMContentLoaded', () => setTimeout(initRteFields, 200));
+document.addEventListener('DOMContentLoaded', () => {
+  if (!document.getElementById('rte-link-popup')) {
+    const _pop = document.createElement('div');
+    _pop.id = 'rte-link-popup';
+    _pop.className = 'rte-link-popup';
+    _pop.style.display = 'none';
+    _pop.innerHTML =
+      '<input id="rte-link-url" type="text" placeholder="https://..." style="flex:1;min-width:200px">' +
+      '<div class="rte-link-popup-row">' +
+      '<button class="btn btn-secondary btn-sm" onmousedown="event.preventDefault();rteLinkCancel()">Отмена</button>' +
+      '<button class="btn btn-primary btn-sm" onmousedown="event.preventDefault();rteLinkApply()">Вставить</button>' +
+      '</div>';
+    document.body.appendChild(_pop);
+  }
+  setTimeout(initRteFields, 200);
+});
 
 function autoSave() {
   if (!currentChar || !currentFilename) return;
@@ -5628,9 +5752,25 @@ async function saveSheet() {
   // Истощение из select
   const _exhEl = document.getElementById('s-exhaustion');
   if (_exhEl) currentChar.exhaustion = parseInt(_exhEl.value)||0;
-  // Владения из Б3-textarea
+  // Черты и способности (RTE)
+  const _featHtml = rteGetValue('s-features');
+  if (_featHtml !== undefined) {
+    currentChar.savedFeatText  = _featHtml;
+    currentChar._featTextEdited = true;
+  }
+  // Владения и языки (RTE — сохраняем HTML с форматированием)
   const _profEl = document.getElementById('s-proficiencies');
-  if (_profEl) currentChar._profText = _profEl.value;
+  if (_profEl) {
+    const _profHtml = rteGetValue('s-proficiencies');
+    // rteGetValue вернёт innerHTML div если RTE инициализирован, иначе undefined
+    const _profVal = (_profHtml !== undefined && _profHtml !== '')
+      ? _profHtml
+      : _profEl.value;
+    if (_profVal) {
+      currentChar._profText       = _profVal;
+      currentChar._profTextEdited = true;
+    }
+  }
   // s-ac-input is a plain div — don't read it back (ac is managed by toggleShield/_updateAcDisplay)
   const speedEl = document.getElementById('s-speed-input');
   if (speedEl) currentChar.speed = parseInt(speedEl?.isContentEditable ? speedEl.textContent : speedEl?.value) || currentChar.speed || 30;
@@ -5648,6 +5788,12 @@ async function saveSheet() {
   if (_atkNotes) currentChar.attacksNotes = _atkNotes.value;
   const _invNotes = document.getElementById('s-inv-notes');
   if (_invNotes) currentChar.inventoryNotes = _invNotes.value;
+  // Настройки вебхука
+  const _rs = _loadRollSettings();
+  currentChar._webhookUrl     = _rs.webhookUrl    || '';
+  currentChar._webhookName    = _rs.botName       || '';
+  currentChar._webhookEnabled = _rs.enabled       || false;
+  currentChar._webhookCritsOnly = _rs.critsOnly   || false;
   _reapplyAcFormula();
   charLogOnSave(currentChar);
   await fetch('/api/characters',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(currentChar)});
@@ -5656,7 +5802,7 @@ async function saveSheet() {
 /** Re-evaluates currentChar.acFormula and updates acBase/ac if formula is set */
 function _reapplyAcFormula() {
   if (!currentChar?.acFormula) return;
-  const shield = currentChar.shieldEquipped ? 2 : 0;
+  const shield = currentChar.shieldEquipped ? (currentChar.shieldBonus ?? 2) : 0;
   const bonus  = parseInt(document.getElementById('acd-bonus')?.value) || 0; // usually 0 after apply
   const baseVal = _evalAcFormula(currentChar.acFormula, currentChar);
   const newAC   = baseVal + shield;
@@ -5729,6 +5875,7 @@ async function loadCharList() {
 }
 
 async function loadChar(filename) {
+  _logTextFlush();
   const res=await fetch('/api/characters/'+filename);
   const char=await res.json();
   _normalizeXpLevel(char);
@@ -5871,6 +6018,7 @@ async function createBlankChar() {
 }
 
 async function importChar() {
+  _logTextFlush();
   const input=document.createElement('input');
   input.type='file'; input.accept='.json';
   input.onchange=async e=>{
@@ -5899,6 +6047,15 @@ function renderSheet(char) {
   sheetSkillExp   = {...(char.skillExpertise||{})};
   // Back-compat: fill from proficiencies
   (char.skillProficiencies||[]).forEach(s=>{ if(!sheetSkillExp[s]) sheetSkillExp[s]=1; });
+  // Восстанавливаем настройки вебхука из персонажа
+  if (char._webhookUrl !== undefined || char._webhookEnabled !== undefined) {
+    const _rs = _loadRollSettings();
+    if (char._webhookUrl  !== undefined) _rs.webhookUrl = char._webhookUrl;
+    if (char._webhookName !== undefined) _rs.botName    = char._webhookName;
+    if (char._webhookEnabled  !== undefined) _rs.enabled    = char._webhookEnabled;
+    if (char._webhookCritsOnly !== undefined) _rs.critsOnly  = char._webhookCritsOnly;
+    _saveRollSettingsToStorage(_rs);
+  }
   sheetUsedSlots  = char.usedSpellSlots||{};
 
   const pb = char.proficiencyBonus||profBonus(char.level||1);
@@ -6011,8 +6168,13 @@ function renderSheet(char) {
       // В RTE-div — HTML с жирными заголовками
       rteSetValue('s-proficiencies', autoText);
     }
-    profEl.oninput = () => { char.savedProfText = profEl.value; char._profTextEdited = true;
-      charLogAdd('📜', 'Внесены изменения: владения и языки'); autoSave(); };
+    profEl.oninput = () => {
+      const val = rteGetValue('s-proficiencies') ?? profEl.value;
+      char.savedProfText    = val;
+      char._profText        = val;
+      char._profTextEdited  = true;
+      autoSave();
+    };
   }
   // Abilities text tab — auto-computed unless user edited manually
   const abText = document.getElementById('s-abilities-text');
@@ -6033,7 +6195,7 @@ function renderSheet(char) {
   if (featEl && featEl.tagName === 'TEXTAREA') {
     if (!char._featTextEdited) featEl.value = char.savedFeatText ?? char.features ?? '';
     featEl.oninput = () => { char.savedFeatText = featEl.value; char._featTextEdited = true;
-    charLogAdd('📖', 'Внесены изменения: черты и способности'); autoSave(); };
+    autoSave(); };
   }
 
   // ── Personality tab ──
@@ -6042,13 +6204,13 @@ function renderSheet(char) {
   setP('sp-alignment',   char.alignment);
   setP('sp-subrace',     char.subraceName);
   setP('sp-subclass',    char.subclass);
-  setP('sp-appearance',  char.appearance);
-  setP('sp-backstory',   char.backstory);
-  setP('sp-traits',      char.traits);
-  setP('sp-ideals',      char.ideals);
-  setP('sp-bonds',       char.bonds);
-  setP('sp-flaws',       char.flaws);
-  setP('sp-allies',      char.allies);
+  const _persRteIds = ['sp-appearance','sp-backstory','sp-traits','sp-ideals','sp-bonds','sp-flaws','sp-allies'];
+  const _persVals = [char.appearance, char.backstory, char.traits, char.ideals, char.bonds, char.flaws, char.allies];
+  _persRteIds.forEach((id, i) => {
+    const el = document.getElementById(id);
+    if (el) el.value = _persVals[i] || '';
+    rteSetValue(id, _persVals[i] || '');
+  });
   setP('sp-age',         char.age);
   setP('sp-height',      char.height);
   setP('sp-weight',      char.weight);
@@ -6057,6 +6219,7 @@ function renderSheet(char) {
   setP('sp-hair',        char.hair);
   const _invNotesEl = document.getElementById('s-inv-notes');
   if (_invNotesEl) { _invNotesEl.value = char.inventoryNotes || ''; }
+  setTimeout(initRteFields, 0);
 }
 
 function setInputVal(id, v) {
@@ -6220,7 +6383,7 @@ function renderAbilitiesSheet(char) {
       return `<div class="ab-skill-row ${rowCls}${hasCustom}" onclick="openSkillDialog('${s.name}')">
         <div class="ab-skill-dot ${dotCls}" onclick="event.stopPropagation();cycleSkillExp('${s.name}',this)" title="Нажмите для смены владения"></div>
         <span class="ab-skill-name">${s.name}</span>
-        <span class="ab-skill-val" onclick="event.stopPropagation();rollSkillCheck('${s.name}')" title="Бросить проверку" style="cursor:pointer">${fmtMod(total)}</span>
+        <span class="ab-skill-val" onclick="event.stopPropagation();rollSkillCheck('${s.name}',event)" title="Бросить проверку (Shift=Преим., Alt=Помеха)" style="cursor:pointer">${fmtMod(total)}</span>
       </div>`;
     }).join('');
 
@@ -6231,7 +6394,7 @@ function renderAbilitiesSheet(char) {
         <span class="ab-card-score" id="s-ab-${a}">${score}</span>
       </div>
       <div class="ab-badges">
-        <div class="ab-badge" onclick="rollAbilityCheck('${a}')" style="cursor:pointer" title="Проверка ${FULL[a]||a}">
+        <div class="ab-badge" onclick="rollAbilityCheck('${a}',event)" style="cursor:pointer" title="Проверка ${FULL[a]||a} (Shift=Преим., Alt=Помеха)">
           <span>Проверка</span>
           <span class="ab-badge-val">${fmtMod(mod)}</span>
         </div>
@@ -6239,7 +6402,7 @@ function renderAbilitiesSheet(char) {
           <div class="ab-save-dot ${isSave?'active':''}" data-ability="${a}" onclick="event.stopPropagation();toggleSaveProf('${a}',this)" title="Переключить владение"></div>
           <div class="ab-badge ${isSave?'save-active':''}">
             <span>Спасбросок</span>
-            <span class="ab-badge-val" onclick="rollSaveCheck('${a}')" style="cursor:pointer" title="Спасбросок ${FULL[a]||a}">${fmtMod(saveBonus)}</span>
+            <span class="ab-badge-val" onclick="rollSaveCheck('${a}',event)" style="cursor:pointer" title="Спасбросок ${FULL[a]||a} (Shift=Преим., Alt=Помеха)">${fmtMod(saveBonus)}</span>
           </div>
         </div>
       </div>
@@ -6264,6 +6427,7 @@ function renderAbilitiesSheet(char) {
   const _profRaw = char._profTextEdited
     ? (char._profText || '')
     : (computeProfText(char) ?? char._profText ?? '');
+  // _profText теперь может хранить HTML
   // Для textarea (атрибут value) — всегда plaintext
   const profVal = _profRaw.replace(/<br>/g, '\n').replace(/<[^>]+>/g, '');
 
@@ -6306,6 +6470,11 @@ function renderAbilitiesSheet(char) {
     <div class="ab-cell-a3">${cardHtml('ХАР')}</div>
     <div class="ab-cell-b3">${b3Html}</div>
   `;
+  // Инициализируем RTE и восстанавливаем HTML с форматированием
+  setTimeout(() => {
+    initRteFields();
+    rteSetValue('s-proficiencies', _profRaw);
+  }, 0);
   renderJumpBlock(char);
 }
 
@@ -6459,8 +6628,17 @@ function renderWeaponsSheet(char, pb) {
       const autoRange = (wProps.find(p=>p.id==='ammunition')||wProps.find(p=>p.id==='thrown'))?.range || '';
       const wRange = (w.range !== undefined && w.range !== '') ? w.range : autoRange;
       const wRangeShort = wRange || '—';
-      const propTags = w.props
-        ? w.props.split('·').map(p=>p.trim()).filter(Boolean)
+      // Свойства: приоритет — поле w.props (из карточки), fallback — из библиотеки
+      const PROP_LBL = {
+        'two-handed':'Двуручное','versatile':'Универсальное','finesse':'Фехтовальное',
+        'light':'Лёгкое','heavy':'Тяжёлое','reach':'Досягаемость',
+        'thrown':'Метательное','loading':'Перезарядка','special':'Особое','ammunition':'Боеприпасы',
+        'ranged':'Дальнобойное',
+      };
+      const libProps = wProps.map(p => PROP_LBL[p.id||p]).filter(Boolean).join(' · ');
+      const propsStr = w.props || libProps;
+      const propTags = propsStr
+        ? propsStr.split('·').map(p=>p.trim()).filter(Boolean)
             .map(p=>`<span class="weapon-card-prop-tag">${p}</span>`).join('')
         : '';
       return `<div class="weapon-card" oncontextmenu="openWeaponCtxMenu(event,${i})" onclick="openWeaponEdit(${i})">
@@ -6472,7 +6650,7 @@ function renderWeaponsSheet(char, pb) {
         <span class="weapon-card-sep"></span>
         <span class="weapon-card-range" title="${wRange||'Нет дистанции'}">${wRangeShort}</span>
         <span class="weapon-card-sep"></span>
-        <span class="weapon-card-atk" onclick="event.stopPropagation();rollWeaponAtk(${i})" title="Бросок атаки">${atk}</span>
+        <span class="weapon-card-atk" onclick="event.stopPropagation();rollWeaponAtk(${i},event)" title="Бросок атаки (Shift=Преим., Alt=Помеха)">${atk}</span>
         <span class="weapon-card-sep"></span>
         <span class="weapon-card-dmg" onclick="event.stopPropagation();rollWeaponDmg(${i})" title="Бросок урона">${w.damage||'—'}</span>
         <span class="weapon-card-sep"></span>
@@ -6493,7 +6671,10 @@ let _wCtxIdx = -1;
 function _positionCtxMenu(menu, clientX, clientY) {
   menu.classList.remove('visible');
 
-  // Показываем в верхнем углу документа — offsetHeight гарантированно реален
+  const z = parseFloat(document.documentElement.style.zoom) || 1;
+  const cx = clientX / z;
+  const cy = clientY / z;
+
   menu.style.visibility = 'hidden';
   menu.style.display    = 'block';
   menu.style.left       = '0px';
@@ -6502,21 +6683,14 @@ function _positionCtxMenu(menu, clientX, clientY) {
 
   const menuW = menu.offsetWidth;
   const menuH = menu.offsetHeight;
-  const winW  = window.innerWidth;
-  const winH  = window.innerHeight;
+  const winW  = window.innerWidth  / z;
+  const winH  = window.innerHeight / z;
 
-  // Координаты клика → позиция в документе
-  let x = clientX + window.scrollX;
-  let y = clientY + window.scrollY;
+  let x = cx + window.scrollX / z;
+  let y = cy + window.scrollY / z;
 
-  // Корректировка по горизонтали
-  if (clientX + menuW > winW - 4) {
-    x = window.scrollX + winW - menuW - 4;
-  }
-  // Корректировка по вертикали
-  if (clientY + menuH > winH - 4) {
-    y = window.scrollY + winH - menuH - 4;
-  }
+  if (cx + menuW > winW - 4) x = window.scrollX / z + winW - menuW - 4;
+  if (cy + menuH > winH - 4) y = window.scrollY / z + winH - menuH - 4;
 
   menu.style.left       = x + 'px';
   menu.style.top        = y + 'px';
@@ -6866,8 +7040,8 @@ function renderSpellsSheet(char, pb) {
       </div>
       <div class="sc-sep"></div>
       <div class="sc-col sc-col-atk ${hasAtk ? 'sc-col-clickable' : ''}"
-           onclick="event.stopPropagation();${hasAtk ? `rollSpellAtk(${idx})` : ''}"
-           title="${hasAtk ? 'Бросок атаки заклинанием' : 'Нет броска атаки'}">
+           onclick="event.stopPropagation();${hasAtk ? `rollSpellAtk(${idx},event)` : ''}"
+           title="${hasAtk ? 'Бросок атаки заклинанием (Shift=Преим., Alt=Помеха)' : 'Нет броска атаки'}">
         <span class="sc-col-val ${hasAtk ? 'sc-val-atk' : 'sc-val-dim'}">${atkDisplay}</span>
       </div>
       <div class="sc-sep"></div>
@@ -7115,13 +7289,20 @@ function renderInventorySheet(char) {
       'thrown':'Метательное','loading':'Перезарядка','special':'Особое',
     };
     const propParts = [];
-    props.forEach(p => {
-      if (PROP_LBL[p.id]) {
-        propParts.push(PROP_LBL[p.id]);
-        if ((p.id === 'thrown' || p.id === 'ammunition') && p.range)
-          propParts.push(p.range);
-      }
-    });
+    // Приоритет: _propStr из карточки инвентаря, иначе — из библиотеки
+    if (item._propStr !== undefined && item._propStr !== '') {
+      item._propStr.split(',').map(p => p.trim()).filter(Boolean).forEach(p => propParts.push(p));
+    } else if (item.props) {
+      item.props.split('·').map(p => p.trim()).filter(Boolean).forEach(p => propParts.push(p));
+    } else {
+      props.forEach(p => {
+        if (PROP_LBL[p.id]) {
+          propParts.push(PROP_LBL[p.id]);
+          if ((p.id === 'thrown' || p.id === 'ammunition') && p.range)
+            propParts.push(p.range);
+        }
+      });
+    }
     return {
       cls,
       wt:        item.weight  ?? src?.weightLbs ?? null,
@@ -7220,7 +7401,7 @@ function renderInventorySheet(char) {
             <span class="inv-item-name">${item.name || '<em style="opacity:.4">без названия</em>'}</span>
             ${keyStat}
           </div>
-          ${r.category ? `<div class="inv-subinfo">${r.category}${r.propTags ? ' · '+r.propTags : ''}</div>` : ''}
+          ${(r.category || r.propTags) ? `<div class="inv-subinfo">${r.category || ''}${r.category && r.propTags ? ' · ' : ''}${r.propTags || ''}</div>` : ''}
         </div>
         <div class="inv-stats-row">
           <div class="inv-qty-cell">
@@ -7267,8 +7448,13 @@ function addSheetItem() { openCreateItemDialog(); }
 function renderFeaturesSheet(char) {
   const featEl = document.getElementById('s-features');
   if (!featEl) return;
-  // If user already edited the textarea, don't overwrite
-  if (char._featTextEdited) return;
+  // Если пользователь уже редактировал — загружаем сохранённое значение
+  if (char._featTextEdited && char.savedFeatText !== undefined) {
+    featEl.value = char.savedFeatText;
+    rteSetValue('s-features', char.savedFeatText);
+    featEl.oninput = () => { char.savedFeatText = rteGetValue('s-features') ?? featEl.value; char._featTextEdited = true; autoSave(); };
+    return;
+  }
   const p=[];
   if(char.racialTraits)  p.push(`РАСОВЫЕ ЧЕРТЫ (${char.raceName})\n${char.racialTraits}`);
   if(char.subraceTraits) p.push(`ЧЕРТЫ ПОДРАСЫ (${char.subraceName||'подраса'})\n${char.subraceTraits}`);
@@ -7284,7 +7470,7 @@ function renderFeaturesSheet(char) {
   const featVal = char.savedFeatText ?? (p.join('\n') || '');
   featEl.value = featVal;
   rteSetValue('s-features', featVal);
-  featEl.oninput = () => { char.savedFeatText = featEl.value; char._featTextEdited = true; };
+  featEl.oninput = () => { char.savedFeatText = rteGetValue('s-features') ?? featEl.value; char._featTextEdited = true; };
 }
 
 // ── ДЕЙСТВИЯ НА ЛИСТЕ ──
@@ -7487,6 +7673,7 @@ function openAcDialog(e, prefillFormula) {
   const overlay = document.getElementById('ac-dialog-overlay');
   if (!overlay) return;
   document.getElementById('acd-bonus').value    = 0;
+  document.getElementById('acd-shield-bonus').value = currentChar.shieldBonus ?? 2;
   // Pre-fill override with existing formula or prefill from armor equip
   const formula = prefillFormula || currentChar.acFormula || '';
   document.getElementById('acd-override').value = formula;
@@ -7500,7 +7687,8 @@ function closeAcDialog() {
 }
 
 function updateAcDialogPreview() {
-  const shield   = currentChar.shieldEquipped ? 2 : 0;
+  const shieldVal = parseInt(document.getElementById('acd-shield-bonus')?.value) ?? 2;
+  const shield   = currentChar.shieldEquipped ? shieldVal : 0;
   const bonus    = parseInt(document.getElementById('acd-bonus')?.value) || 0;
   const override = document.getElementById('acd-override')?.value.trim();
   const prev     = currentChar.ac || 10;
@@ -7529,9 +7717,11 @@ function updateAcDialogPreview() {
 }
 
 function applyAcDialog() {
-  const bonus    = parseInt(document.getElementById('acd-bonus')?.value) || 0;
-  const override = document.getElementById('acd-override')?.value.trim();
-  const shield   = currentChar.shieldEquipped ? 2 : 0;
+  const bonus       = parseInt(document.getElementById('acd-bonus')?.value) || 0;
+  const override    = document.getElementById('acd-override')?.value.trim();
+  const shieldBonus = parseInt(document.getElementById('acd-shield-bonus')?.value) ?? 2;
+  currentChar.shieldBonus = shieldBonus;
+  const shield   = currentChar.shieldEquipped ? shieldBonus : 0;
 
   if (override !== '') {
     // Save formula string so it can be re-evaluated when abilities change
@@ -7635,7 +7825,8 @@ function toggleShield() {
   if (path) path.setAttribute('stroke', on ? 'rgba(200,160,50,0.9)' : 'rgba(255,255,255,0.75)');
   // Recalc AC
   if (!currentChar.acBase) currentChar.acBase = currentChar.ac || 10;
-  currentChar.ac = currentChar.acBase + (on ? 2 : 0);
+  const _sb = currentChar.shieldBonus ?? 2;
+  currentChar.ac = currentChar.acBase + (on ? _sb : 0);
   _updateAcDisplay();
   saveSheet();
 }
@@ -7780,7 +7971,7 @@ function onSheetStatChange(field, el) {
   currentChar[field]=v;
   if(field==='ac'){
     // Reset base AC and reapply shield
-    currentChar.acBase = currentChar.shieldEquipped ? v - 2 : v;
+    currentChar.acBase = currentChar.shieldEquipped ? v - (currentChar.shieldBonus ?? 2) : v;
     _updateAcDisplay();
   }
   if(field==='level'){
@@ -9278,6 +9469,12 @@ function saveRollSettings() {
     critsOnly:  document.getElementById('rs-crits-only')?.checked        || false,
   };
   _saveRollSettingsToStorage(rs);
+  // Также сохраняем вебхук в текущего персонажа
+  if (currentChar) {
+    currentChar._webhookUrl  = rs.webhookUrl;
+    currentChar._webhookName = rs.botName;
+    autoSave();
+  }
   closeRollSettingsDialog();
   toast('✅ Настройки бросков сохранены', 'success');
 }
@@ -9339,44 +9536,80 @@ async function _sendRollToDiscord(label, result, math, opts = {}) {
   const isFail    = opts.critFail;
   const color     = isCrit ? 0x4caf7d : isFail ? 0xc0392b : 0x7c6b9e;
 
+  // Оформляем заголовок: крит успех — 🔥, крит провал — 🤦
+  const titleLabel = isCrit ? `🔥 ${label} 🔥` : isFail ? `🤦 ${label} 🤦` : label;
+
   // Discord embed: ## heading = large bold text (≈2× normal size)
   const descParts = [`## ${result}`];
   if (math) descParts.push('`' + math + '`');
 
   const embed = {
     author: { name: charName },
-    title: label,
+    title: titleLabel,
     description: descParts.join('\n'),
     color,
   };
 
-  // Portrait: convert base64 data URL → Blob → send as multipart attachment
-  // Discord supports attachment://filename.jpg as thumbnail url
-  const hasPortrait = portrait && portrait.startsWith('data:image');
+  // Portrait: может быть base64 data URL или URL на сервере (/api/portrait/...)
+  const portraitSrc = currentChar?.portrait || null;
+  let portraitBlob  = null;
+  let fileName      = 'portrait.jpg';
+  let mimeType      = 'image/jpeg';
 
-  if (hasPortrait) {
-    embed.thumbnail = { url: 'attachment://portrait.jpg' };
+  if (portraitSrc) {
+    try {
+      if (portraitSrc.startsWith('data:image')) {
+        // Base64 → Blob
+        const mimeMatch = portraitSrc.match(/^data:(image\/[a-z+]+);/);
+        if (mimeMatch) {
+          mimeType = mimeMatch[1];
+          fileName = mimeType === 'image/png' ? 'portrait.png' : 'portrait.jpg';
+        }
+        const base64 = portraitSrc.split(',')[1];
+        const binary = atob(base64);
+        const bytes  = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        portraitBlob = new Blob([bytes], { type: mimeType });
+      } else if (portraitSrc.startsWith('/') || portraitSrc.startsWith('http')) {
+        // URL → fetch → Blob
+        const resp = await fetch(portraitSrc.split('?')[0]); // без cache-bust
+        if (resp.ok) {
+          portraitBlob = await resp.blob();
+          mimeType = portraitBlob.type || 'image/jpeg';
+          fileName = mimeType === 'image/png' ? 'portrait.png' : 'portrait.jpg';
+        }
+      }
+    } catch { portraitBlob = null; }
   }
 
-  const payloadJson = JSON.stringify({
+  if (portraitBlob) {
+    embed.thumbnail = { url: `attachment://${fileName}` };
+  }
+
+  const payloadObj = {
     username: rs.botName || 'Izzy Wizzy',
     embeds: [embed],
-  });
+  };
+  if (portraitBlob) {
+    payloadObj.attachments = [{ id: 0, filename: fileName }];
+  }
+  const payloadJson = JSON.stringify(payloadObj);
 
   try {
-    if (hasPortrait) {
-      // Convert base64 → Blob
-      const base64 = portrait.split(',')[1];
-      const binary = atob(base64);
-      const bytes  = new Uint8Array(binary.length);
-      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-      const blob = new Blob([bytes], { type: 'image/jpeg' });
-
+    if (portraitBlob) {
       const form = new FormData();
       form.append('payload_json', payloadJson);
-      form.append('files[0]', blob, 'portrait.jpg');
-
-      await fetch(rs.webhookUrl, { method: 'POST', body: form });
+      form.append('files[0]', portraitBlob, fileName);
+      const resp = await fetch(rs.webhookUrl, { method: 'POST', body: form });
+      if (!resp.ok && resp.status !== 204) {
+        // Fallback без картинки
+        delete embed.thumbnail;
+        await fetch(rs.webhookUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: rs.botName || 'Izzy Wizzy', embeds: [embed] }),
+        });
+      }
     } else {
       await fetch(rs.webhookUrl, {
         method: 'POST',
@@ -9402,13 +9635,13 @@ function openSheetSettings() {
   const btn = document.getElementById('nav-sheet-gear');
   if (btn) {
     const r = btn.getBoundingClientRect();
-    menu.style.top   = (r.bottom + 4) + 'px';
+    const _z_gear = parseFloat(document.documentElement.style.zoom) || 1;
+    menu.style.top   = (r.bottom / _z_gear + 4) + 'px';
     menu.style.right = 'auto';
-    // Measure actual menu width after making it visible but off-screen
     menu.style.left = '-9999px';
     menu.style.display = 'block';
     const mw = menu.offsetWidth;
-    menu.style.left = Math.max(4, r.right - mw) + 'px';
+    menu.style.left = Math.max(4, r.right / _z_gear - mw) + 'px';
   }
   overlay.style.display = 'block';
   menu.style.display    = 'block';
@@ -9493,9 +9726,17 @@ function toggleDS2(type, idx) {
   saveSheet();
 }
 
-function rollDeathSave() {
+function rollDeathSave(ev) {
   if (!currentChar) return;
-  const roll = Math.floor(Math.random() * 20) + 1;
+  const _adv = ev?.shiftKey ? 'adv' : ev?.altKey ? 'dis' : null;
+  let roll;
+  if (_adv) {
+    const r1 = Math.floor(Math.random() * 20) + 1;
+    const r2 = Math.floor(Math.random() * 20) + 1;
+    roll = _adv === 'adv' ? Math.max(r1, r2) : Math.min(r1, r2);
+  } else {
+    roll = Math.floor(Math.random() * 20) + 1;
+  }
   const die = document.getElementById('ds2-die');
   const msg = document.getElementById('ds2-result-msg');
 
@@ -9871,12 +10112,33 @@ function _esc(s) {
 // ── Roll helpers (used by weapon/skill/save click handlers) ──
 
 function rollD20Check(label, bonus, opts = {}) {
-  const d20    = Math.floor(Math.random() * 20) + 1;
+  // Определяем режим из event (Shift = преимущество, Alt = помеха)
+  const ev  = opts._event || null;
+  const adv = ev?.shiftKey ? 'adv' : ev?.altKey ? 'dis' : (opts.adv || null);
+  delete opts._event;
+
+  const r1   = Math.floor(Math.random() * 20) + 1;
+  const sign = bonus >= 0 ? `+${bonus}` : `${bonus}`;
+  let d20, math;
+
+  if (adv === 'adv' || adv === 'dis') {
+    const r2   = Math.floor(Math.random() * 20) + 1;
+    d20        = adv === 'adv' ? Math.max(r1, r2) : Math.min(r1, r2);
+    const mode = adv === 'adv' ? 'Преимущество' : 'Помеха';
+    const kept = adv === 'adv'
+      ? (r1 >= r2 ? `[${r1}]/${r2}` : `${r1}/[${r2}]`)
+      : (r1 <= r2 ? `[${r1}]/${r2}` : `${r1}/[${r2}]`);
+    math = bonus !== 0
+      ? `${mode}: (${kept})${sign}`
+      : `${mode}: (${kept})`;
+  } else {
+    d20  = r1;
+    math = bonus !== 0 ? `(1к20=${d20})${sign}` : `1к20=${d20}`;
+  }
+
   const total  = d20 + bonus;
   const isCrit = d20 === 20;
   const isFail = d20 === 1;
-  const sign   = bonus >= 0 ? `+${bonus}` : `${bonus}`;
-  const math   = bonus !== 0 ? `(1к20=${d20})${sign}` : `1к20=${d20}`;
   pushRoll(label, total, math, { crit: isCrit, critFail: isFail, ...opts });
   return { d20, total, isCrit, isFail };
 }
@@ -9981,13 +10243,13 @@ function rollDamage(label, formula, bonusOverride) {
 }
 
 // ── Initiative roll ──
-function rollInitiative() {
+function rollInitiative(ev) {
   if (!currentChar) return;
   const dexMod = getMod(currentChar.abilities?.['ЛОВ'] || 10);
   const initBonus = currentChar._initOverride != null
     ? currentChar._initOverride
     : dexMod + (currentChar.initiative || 0);
-  rollD20Check('Инициатива', initBonus);
+  rollD20Check('Инициатива', initBonus, { _event: ev });
 }
 
 // ── Weapon card roll — attack only ──
@@ -10016,10 +10278,10 @@ function _getSpellRollData(idx) {
   return { name, sp, ovr, pb, abMod, baseAtkBonus, atkExtra, totalAtkBonus, dmgFormula };
 }
 
-function rollSpellAtk(idx) {
+function rollSpellAtk(idx, ev) {
   const d = _getSpellRollData(idx);
   if (!d || !d.sp?.hasAtk) return;
-  rollD20Check(`${d.name} — атака`, d.totalAtkBonus);
+  rollD20Check(`${d.name} — атака`, d.totalAtkBonus, { _event: ev });
 }
 
 function rollSpellDmg(idx) {
@@ -10036,7 +10298,7 @@ function rollSpellSave(idx) {
   pushRoll(`${d.name} — Спасбросок ${d.sp.save}`, dc, `СЗ ${dc} (8 + ${d.pb} + ${d.abMod})`);
 }
 
-function rollWeaponAtk(idx) {
+function rollWeaponAtk(idx, ev) {
   if (!currentChar?.weapons?.[idx]) return;
   const w  = currentChar.weapons[idx];
   const pb = currentChar.proficiencyBonus || profBonus(currentChar.level||1);
@@ -10044,7 +10306,7 @@ function rollWeaponAtk(idx) {
   const abKey  = AB_MAP[w.ability||'str'] || 'СИЛ';
   const abMod  = getMod(currentChar.abilities?.[abKey] || 10);
   const atkBonus = (w.attackBonus||0) + (w.isProf?pb:0) + abMod;
-  rollD20Check(`${w.name} — атака`, atkBonus);
+  rollD20Check(`${w.name} — атака`, atkBonus, { _event: ev });
 }
 
 // ── Weapon card roll — damage only ──
@@ -10055,19 +10317,21 @@ function rollWeaponDmg(idx) {
   const abKey  = AB_MAP[w.ability||'str'] || 'СИЛ';
   const abMod  = getMod(currentChar.abilities?.[abKey] || 10);
   if (w.damage) {
-    const dmgBonus = abMod + (w.attackBonus||0);
+    // Если формула содержит переменные токены — abMod уже внутри формулы, не дублируем
+    const hasVars = /[({[]/.test(w.damage);
+    const dmgBonus = hasVars ? (w.attackBonus||0) : abMod + (w.attackBonus||0);
     rollDamage(`${w.name} — урон`, w.damage, dmgBonus);
   }
 }
 
 // ── Weapon card roll (attack + damage) ──
-function rollWeapon(idx) {
-  rollWeaponAtk(idx);
+function rollWeapon(idx, ev) {
+  rollWeaponAtk(idx, ev);
   rollWeaponDmg(idx);
 }
 
 // ── Skill check roll ──
-function rollSkillCheck(skillName) {
+function rollSkillCheck(skillName, ev) {
   if (!currentChar) return;
   const SKILL_AB = {
     'Акробатика':'ЛОВ','Магия':'ИНТ','Атлетика':'СИЛ','Обман':'ХАР',
@@ -10090,19 +10354,19 @@ function rollSkillCheck(skillName) {
     ? currentChar._skillOverride[skillName]
     : mod + bonus + extra;
   // total is the final bonus — pass as bonus to d20 roll
-  rollD20Check(skillName, total);
+  rollD20Check(skillName, total, { _event: ev });
 }
 
 // ── Ability check roll ──
-function rollAbilityCheck(abKey) {
+function rollAbilityCheck(abKey, ev) {
   if (!currentChar) return;
   const FULL = {СИЛ:'Сила',ЛОВ:'Ловкость',ТЕЛ:'Телосложение',ИНТ:'Интеллект',МДР:'Мудрость',ХАР:'Харизма'};
   const mod = getMod(currentChar.abilities?.[abKey] || 10);
-  rollD20Check(`Проверка: ${FULL[abKey]||abKey}`, mod);
+  rollD20Check(`Проверка: ${FULL[abKey]||abKey}`, mod, { _event: ev });
 }
 
 // ── Saving throw roll ──
-function rollSaveCheck(abKey) {
+function rollSaveCheck(abKey, ev) {
   if (!currentChar) return;
   const FULL = {СИЛ:'Сила',ЛОВ:'Ловкость',ТЕЛ:'Телосложение',ИНТ:'Интеллект',МДР:'Мудрость',ХАР:'Харизма'};
   const pb  = currentChar.proficiencyBonus || profBonus(currentChar.level||1);
@@ -10110,7 +10374,7 @@ function rollSaveCheck(abKey) {
   const isP = (currentChar.savingThrows||[]).includes(abKey);
   const over = currentChar._saveOverride?.[abKey];
   const bonus = over != null ? over : mod + (isP?pb:0) + (currentChar._saveBonus?.[abKey]||0);
-  rollD20Check(`Спасбросок: ${FULL[abKey]||abKey}`, bonus);
+  rollD20Check(`Спасбросок: ${FULL[abKey]||abKey}`, bonus, { _event: ev });
 }
 
 // ══ LEVEL UP HP ══
@@ -10306,7 +10570,7 @@ function closeCreateItemDialog() {
 }
 const CI_FIELDS = {
   gear:   [['name','Название','text'],['qty','Количество','number'],['costGp','Стоимость (зм)','number'],['weight','Вес (фунты)','number'],['description','Описание / заметки','text']],
-  weapon: [['name','Название','text'],['qty','Количество','number'],['damageDice','Кость урона (напр. 1к8)','text'],['damageType','Тип урона','text'],['costGp','Стоимость (зм)','number'],['weight','Вес (фунты)','number'],['description','Описание','text']],
+  weapon: [['name','Название','text'],['qty','Количество','number'],['damageDice','Кость урона (напр. 1к8)','text'],['damageType','Тип урона','text'],['propstr','Свойства (через запятую)','text'],['costGp','Стоимость (зм)','number'],['weight','Вес (фунты)','number'],['description','Описание','text']],
   armor:  [['name','Название','text'],['qty','Количество','number'],['ac','КД (напр. 14 + мод.Ловк.)','text'],['costGp','Стоимость (зм)','number'],['weight','Вес (фунты)','number'],['description','Описание','text']],
   tool:   [['name','Название','text'],['qty','Количество','number'],['costGp','Стоимость (зм)','number'],['weight','Вес (фунты)','number'],['description','Описание','text']],
   kit:    [['name','Название','text'],['qty','Количество','number'],['costGp','Стоимость (зм)','number'],['weight','Вес (фунты)','number'],['description','Содержимое','text']],
@@ -10338,7 +10602,7 @@ function saveCreatedItem() {
     itemClass: type, weight: getN('weight') ?? 0,
     costGp: getN('costGp'), description: get('description') || '',
   };
-  if (type === 'weapon') { item.damageDice = get('damageDice'); item.damageType = get('damageType'); }
+  if (type === 'weapon') { item.damageDice = get('damageDice'); item.damageType = get('damageType'); item._propStr = get('propstr') || ''; }
   if (type === 'armor')  { item.ac = get('ac'); }
   if (!currentChar.inventory) currentChar.inventory = [];
   currentChar.inventory.push(item);
