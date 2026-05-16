@@ -1135,37 +1135,61 @@ function getClassIcon(char) {
 function triggerPortraitUpload() {
   document.getElementById('portrait-file-input')?.click();
 }
-let _cropTarget = 'wizard'; // 'wizard' | 'sheet'
+let _cropTarget = 'wizard'; // 'wizard' | 'sheet' | 'pdf_export'
+let _pdfCropResolve = null;
 
 function onPortraitFileSelected(input) {
   const file = input.files?.[0];
   if (!file) return;
   _cropTarget = 'sheet';
   const reader = new FileReader();
-  reader.onload = e => openCropDialog(e.target.result);
+  reader.onload = e => openCropDialog(e.target.result, 1);
   reader.readAsDataURL(file);
   input.value = '';
 }
+function _renderPortraitCroppedFromData(char, targets) {
+  const c = char.portraitCrop;
+  if (!c || !char.portrait) return;
+  const img = new Image();
+  img.onload = () => {
+    const outW = 400, outH = Math.round(outW * (c.vh / c.vw));
+    const canvas = document.createElement('canvas');
+    canvas.width = outW; canvas.height = outH;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, -c.ox / c.scale, -c.oy / c.scale, c.vw / c.scale, c.vh / c.scale, 0, 0, outW, outH);
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+    targets.forEach(el => {
+      if (el) el.innerHTML = `<img src="${dataUrl}" alt="portrait"><div class="portrait-overlay">📷<br>Фото</div>`;
+    });
+  };
+  img.src = char.portrait;
+}
+
 function renderPortrait(char) {
   const portEl = document.getElementById('s-portrait');
   if (!portEl) return;
+  const spPort = document.getElementById('sp-portrait-box');
   if (char?.portrait) {
-    // Сохраняем оверлей
-    portEl.innerHTML = `<img src="${char.portrait}" alt="portrait"><div class="portrait-overlay">📷<br>Фото</div>`;
+    if (char.portraitCrop) {
+      portEl.innerHTML = `<img src="${char.portrait}" alt="portrait"><div class="portrait-overlay">📷<br>Фото</div>`;
+      if (spPort) spPort.innerHTML = portEl.innerHTML;
+      _renderPortraitCroppedFromData(char, [portEl, spPort]);
+    } else {
+      portEl.innerHTML = `<img src="${char.portrait}" alt="portrait"><div class="portrait-overlay">📷<br>Фото</div>`;
+      if (spPort) spPort.innerHTML = portEl.innerHTML;
+    }
   } else {
     const icon = getClassIcon(char);
     portEl.innerHTML = `<span style="font-size:2.4rem;line-height:1;filter:drop-shadow(0 1px 3px rgba(0,0,0,.5))">${icon}</span><div class="portrait-overlay">📷<br>Фото</div>`;
+    if (spPort) spPort.innerHTML = `<span style="font-size:3.5rem;line-height:1">${icon}</span><div class="portrait-overlay">📷<br>Фото</div>`;
   }
-  // Зеркалируем в Личность
+}
+
+function renderPortraitCropped(dataUrl) {
+  const portEl = document.getElementById('s-portrait');
+  if (portEl) portEl.innerHTML = `<img src="${dataUrl}" alt="portrait"><div class="portrait-overlay">📷<br>Фото</div>`;
   const spPort = document.getElementById('sp-portrait-box');
-  if (spPort) {
-    if (char?.portrait) {
-      spPort.innerHTML = `<img src="${char.portrait}" alt="portrait"><div class="portrait-overlay">📷<br>Фото</div>`;
-    } else {
-      const icon = getClassIcon(char);
-      spPort.innerHTML = `<span style="font-size:3.5rem;line-height:1">${icon}</span><div class="portrait-overlay">📷<br>Фото</div>`;
-    }
-  }
+  if (spPort) spPort.innerHTML = `<img src="${dataUrl}" alt="portrait"><div class="portrait-overlay">📷<br>Фото</div>`;
 }
 
 function showInner(tab, panelId) {
@@ -1602,10 +1626,11 @@ function renderStep8() { syncStep8(); }
 // ── PORTRAIT CROP ENGINE ──
 const _crop = {
   img: null, scale: 1, minScale: 1,
-  ox: 0, oy: 0,          // image offset relative to viewport
+  ox: 0, oy: 0,
   dragStartX: 0, dragStartY: 0,
   dragging: false,
-  vw: 0,                 // viewport size (square)
+  vw: 0, vh: 0,
+  aspectRatio: 1,
   naturalW: 0, naturalH: 0,
 };
 
@@ -1614,58 +1639,79 @@ function handlePortraitUpload(input) {
   if (!file) return;
   _cropTarget = 'wizard';
   const reader = new FileReader();
-  reader.onload = e => openCropDialog(e.target.result);
+  reader.onload = e => openCropDialog(e.target.result, 1);
   reader.readAsDataURL(file);
   input.value = '';
 }
 
-function openCropDialog(src) {
+function openCropDialog(src, aspectRatio = 1) {
   const overlay  = document.getElementById('crop-overlay');
   const imgEl    = document.getElementById('crop-img');
   const viewport = document.getElementById('crop-viewport');
   if (!overlay || !imgEl || !viewport) return;
 
+  _crop.aspectRatio = aspectRatio;
+
+  // Для портретного соотношения ограничиваем высоту 55vh через ширину
+  if (aspectRatio < 1) {
+    const maxH = Math.round(window.innerHeight * 0.55);
+    const cappedW = Math.round(maxH * aspectRatio);
+    viewport.style.width = cappedW + 'px';
+  } else {
+    viewport.style.width = '100%';
+  }
+  viewport.style.aspectRatio = String(aspectRatio);
+
   overlay.classList.remove('hidden');
-  imgEl.src = src;
-  imgEl.onload = () => {
-    const vsize = viewport.clientWidth;
-    _crop.vw = vsize;
-    _crop.naturalW = imgEl.naturalWidth;
-    _crop.naturalH = imgEl.naturalHeight;
+  // rAF гарантирует что браузер пересчитал layout до чтения clientWidth
+  requestAnimationFrame(() => {
+    imgEl.src = src;
+    imgEl.onload = () => {
+      const vw = viewport.clientWidth;
+      const vh = Math.round(vw / aspectRatio);
+      _crop.vw = vw;
+      _crop.vh = vh;
+      _crop.naturalW = imgEl.naturalWidth;
+      _crop.naturalH = imgEl.naturalHeight;
 
-    // Минимальный масштаб: изображение должно покрывать весь квадрат
-    const minScale = Math.max(vsize / imgEl.naturalWidth, vsize / imgEl.naturalHeight);
-    _crop.minScale = minScale;
-    _crop.scale = minScale;
+      const minScale = Math.max(vw / imgEl.naturalWidth, vh / imgEl.naturalHeight);
+      _crop.minScale = minScale;
+      _crop.scale = minScale;
 
-    // Центрируем
-    _crop.ox = (vsize - imgEl.naturalWidth * minScale) / 2;
-    _crop.oy = (vsize - imgEl.naturalHeight * minScale) / 2;
+      _crop.ox = (vw - imgEl.naturalWidth * minScale) / 2;
+      _crop.oy = (vh - imgEl.naturalHeight * minScale) / 2;
 
-    const zoomInput = document.getElementById('crop-zoom');
-    if (zoomInput) {
-      zoomInput.min  = minScale;
-      zoomInput.max  = minScale * 5;
-      zoomInput.step = minScale * 0.01;
-      zoomInput.value = minScale;
-    }
-    _cropApplyTransform();
-  };
+      const zoomInput = document.getElementById('crop-zoom');
+      if (zoomInput) {
+        zoomInput.min   = minScale;
+        zoomInput.max   = minScale * 5;
+        zoomInput.step  = minScale * 0.01;
+        zoomInput.value = minScale;
+      }
+      _cropApplyTransform();
+    };
+  });
 }
 
 function closeCropDialog() {
   document.getElementById('crop-overlay')?.classList.add('hidden');
+  const vp = document.getElementById('crop-viewport');
+  if (vp) { vp.style.aspectRatio = '1'; vp.style.width = '100%'; }
+  if (_cropTarget === 'pdf_export' && _pdfCropResolve) {
+    _pdfCropResolve(null);
+    _pdfCropResolve = null;
+  }
 }
 
 function _cropApplyTransform() {
   const imgEl = document.getElementById('crop-img');
   if (!imgEl) return;
-  // Clamp offset so image always covers the viewport
   const dispW = _crop.naturalW * _crop.scale;
   const dispH = _crop.naturalH * _crop.scale;
   const vw = _crop.vw;
+  const vh = _crop.vh || _crop.vw;
   _crop.ox = Math.min(0, Math.max(_crop.ox, vw - dispW));
-  _crop.oy = Math.min(0, Math.max(_crop.oy, vw - dispH));
+  _crop.oy = Math.min(0, Math.max(_crop.oy, vh - dispH));
   imgEl.style.transform = `translate(${_crop.ox}px, ${_crop.oy}px) scale(${_crop.scale})`;
   imgEl.style.transformOrigin = '0 0';
   imgEl.style.width  = _crop.naturalW + 'px';
@@ -1674,10 +1720,10 @@ function _cropApplyTransform() {
 
 function cropZoomChange(val) {
   const vw = _crop.vw;
+  const vh = _crop.vh || _crop.vw;
   const oldScale = _crop.scale;
   const newScale = parseFloat(val);
-  // Zoom relative to center of viewport
-  const cx = vw / 2, cy = vw / 2;
+  const cx = vw / 2, cy = vh / 2;
   _crop.ox = cx - (cx - _crop.ox) * (newScale / oldScale);
   _crop.oy = cy - (cy - _crop.oy) * (newScale / oldScale);
   _crop.scale = newScale;
@@ -1746,46 +1792,59 @@ function applyCrop() {
   const imgEl = document.getElementById('crop-img');
   if (!imgEl) return;
   const vw = _crop.vw;
+  const vh = _crop.vh || _crop.vw;
 
-  // Render crop to canvas
+  const outW = 800;
+  const outH = Math.round(outW * (vh / vw));
   const canvas = document.createElement('canvas');
-  const size   = 400; // output size px
-  canvas.width  = size;
-  canvas.height = size;
+  canvas.width  = outW;
+  canvas.height = outH;
   const ctx = canvas.getContext('2d');
 
-  // Map viewport square back to original image coordinates
   const srcX = -_crop.ox / _crop.scale;
   const srcY = -_crop.oy / _crop.scale;
-  const srcS =  vw / _crop.scale;
+  const srcW =  vw / _crop.scale;
+  const srcH =  vh / _crop.scale;
 
-  ctx.drawImage(imgEl, srcX, srcY, srcS, srcS, 0, 0, size, size);
+  ctx.drawImage(imgEl, srcX, srcY, srcW, srcH, 0, 0, outW, outH);
   const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
 
+  if (_cropTarget === 'pdf_export') {
+    const resolve = _pdfCropResolve;
+    _pdfCropResolve = null;
+    _cropTarget = 'wizard';
+    closeCropDialog();
+    if (resolve) resolve(dataUrl);
+    return;
+  }
+
   if (_cropTarget === 'sheet') {
-    // Upload to server → save as characters/<name>.jpg
     if (currentChar && currentFilename) {
       const stem = currentFilename.replace(/\.json$/i, '');
+      currentChar.portraitCrop = {
+        ox: _crop.ox, oy: _crop.oy, scale: _crop.scale,
+        naturalW: _crop.naturalW, naturalH: _crop.naturalH,
+        vw: _crop.vw, vh: _crop.vh,
+      };
       fetch(`/api/portrait/${stem}`, {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({data: dataUrl})
+        body: JSON.stringify({data: imgEl.src})
       }).then(r => r.json()).then(res => {
         if (res.url) {
-          currentChar.portrait = res.url + '?t=' + Date.now(); // cache-bust
-          renderPortrait(currentChar);
+          currentChar.portrait = res.url + '?t=' + Date.now();
+          renderPortraitCropped(dataUrl);
           saveSheet();
         }
       }).catch(() => {
-        // Fallback: store base64 if server unavailable
         currentChar.portrait = dataUrl;
         renderPortrait(currentChar);
         saveSheet();
       });
     }
   } else {
-    // Wizard: keep base64 in memory until character is saved, then upload
-    wiz.portrait = dataUrl;
+    // Wizard: оригинал на сервер, кроп для превью
+    wiz.portrait = imgEl.src;
     const preview     = document.getElementById('portrait-preview');
     const placeholder = document.getElementById('portrait-placeholder');
     const hint        = document.getElementById('portrait-hint');
@@ -5847,9 +5906,9 @@ async function loadCharList() {
       // API отдаёт: ch.race, ch.subrace, ch.class, ch.background, ch.portrait
       let portraitInner;
       if (ch.portrait) {
-        portraitInner = `<img src="${ch.portrait}" alt="portrait">`;
+        const cropAttr = ch.portraitCrop ? ` data-crop='${JSON.stringify(ch.portraitCrop)}'` : '';
+        portraitInner = `<img src="${ch.portrait}" alt="portrait"${cropAttr} class="cli-portrait-img">`;
       } else {
-        // Нет портрета — эмодзи класса крупным шрифтом
         portraitInner = `<span class="cli-portrait-placeholder">${cls?.icon||'🧙'}</span>`;
       }
       const raceClass = [ch.race, ch.subrace, ch.class].filter(Boolean).join(' · ');
@@ -5872,6 +5931,24 @@ async function loadCharList() {
         </div>
       </div>`;
     }).join('')+'</div>';
+
+  requestAnimationFrame(() => {
+    document.querySelectorAll('.cli-portrait-img[data-crop]').forEach(img => {
+      let c; try { c = JSON.parse(img.getAttribute('data-crop')); } catch(e) { return; }
+      if (!c || !c.vw) return;
+      const apply = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = 80; canvas.height = 80;
+        canvas.getContext('2d').drawImage(img,
+          -c.ox/c.scale, -c.oy/c.scale, c.vw/c.scale, c.vh/c.scale,
+          0, 0, 80, 80);
+        canvas.style.cssText = 'width:100%;height:100%;display:block;';
+        img.replaceWith(canvas);
+      };
+      if (img.complete && img.naturalWidth) apply();
+      else img.addEventListener('load', apply, {once: true});
+    });
+  });
 }
 
 async function loadChar(filename) {
@@ -5886,27 +5963,85 @@ async function loadChar(filename) {
   showView('sheet');
 }
 
-async function exportCharLSS(filename) { window.open('/api/export/lss/'+filename,'_blank'); }
+async function exportCharLSS(filename) {
+  try {
+    const response = await fetch('/api/export/lss/' + filename);
+    if (!response.ok) throw new Error('HTTP ' + response.status);
+    const ct = response.headers.get('content-type') || '';
+    if (ct.includes('application/json')) {
+      const data = await response.json();
+      if (data.saved) {
+        toast('📋 LSS сохранён: ' + data.name, 'success');
+      } else {
+        throw new Error(data.error || 'Ошибка');
+      }
+    } else {
+      // Браузерный режим — скачиваем blob
+      const blob = await response.blob();
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href     = url;
+      a.download = filename.replace('.json', '') + '___Long_Story_Short.json';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+      toast('📋 LSS скачан!', 'success');
+    }
+  } catch(e) {
+    toast('❌ Ошибка LSS: ' + e.message, 'error');
+  }
+}
 async function exportCharRaw(filename) { window.open('/api/export/raw/'+filename,'_blank'); }
 function exportSheet() { if(currentFilename) exportCharLSS(currentFilename); }
 function exportRaw()   { if(currentFilename) exportCharRaw(currentFilename); }
 
 async function exportPdf() {
   if (!currentChar) return;
+
+  let pdfPortraitDataUrl = null;
+  if (currentChar.portrait) {
+    const loadSrc = () => new Promise(resolve => {
+      if (currentChar.portrait.startsWith('data:image')) {
+        resolve(currentChar.portrait);
+      } else {
+        fetch(currentChar.portrait.split('?')[0])
+          .then(r => r.blob())
+          .then(b => { const fr = new FileReader(); fr.onload = e => resolve(e.target.result); fr.readAsDataURL(b); })
+          .catch(() => resolve(null));
+      }
+    });
+    const origSrc = await loadSrc();
+    if (origSrc) {
+      _cropTarget = 'pdf_export';
+      const titleEl = document.getElementById('crop-title');
+      const hintEl  = document.getElementById('crop-hint');
+      if (titleEl) titleEl.textContent = '✂️ Кадрировать портрет для PDF';
+      if (hintEl)  hintEl.textContent  = 'Выберите область для PDF. Соотношение сторон — поле портрета в листе.';
+      openCropDialog(origSrc, 168 / 214);
+      pdfPortraitDataUrl = await new Promise(resolve => { _pdfCropResolve = resolve; });
+      if (titleEl) titleEl.textContent = '✂️ Кадрировать портрет';
+      if (hintEl)  hintEl.textContent  = 'Перетащите изображение для выбора нужного фрагмента.';
+      if (pdfPortraitDataUrl === null) return;
+    }
+  }
+
   const btn = document.getElementById('btn-export-pdf');
   if (btn) { btn.textContent = '⏳ PDF'; btn.disabled = true; }
 
   try {
-    // Build spell levels map from loaded SPELLS
     const spellLevels = {};
     (window.SPELLS || []).forEach(sp => {
       if (sp.name !== undefined) spellLevels[sp.name] = sp.level ?? 1;
     });
 
+    const charData = {...currentChar, _spellLevels: spellLevels};
+    if (pdfPortraitDataUrl) charData._pdfPortrait = pdfPortraitDataUrl;
+
     const response = await fetch('/api/export/pdf', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({...currentChar, _spellLevels: spellLevels})
+      body: JSON.stringify(charData)
     });
 
     if (!response.ok) {
@@ -5914,16 +6049,28 @@ async function exportPdf() {
       throw new Error(err.error || `HTTP ${response.status}`);
     }
 
-    const blob = await response.blob();
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement('a');
-    a.href     = url;
-    a.download = `${currentChar.name || 'character'}_DnD5e.pdf`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(url), 5000);
-    toast('📄 PDF скачан!', 'success');
+    const contentType = response.headers.get('content-type') || '';
+    if (contentType.includes('application/json')) {
+      // pywebview режим — файл сохранён на диск
+      const data = await response.json();
+      if (data.saved) {
+        toast(`📄 PDF сохранён: ${data.name}`, 'success');
+      } else {
+        throw new Error(data.error || 'Ошибка сохранения PDF');
+      }
+    } else {
+      // Браузерный режим — скачиваем blob
+      const blob = await response.blob();
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href     = url;
+      a.download = `${currentChar.name || 'character'}_DnD5e.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+      toast('📄 PDF скачан!', 'success');
+    }
   } catch(e) {
     toast(`❌ Ошибка PDF: ${e.message}`, 'error');
     console.error('exportPdf error:', e);
@@ -6842,6 +6989,7 @@ function confirmAddWeapon() {
   charLogAdd('⚔️', `Добавлена атака: <b>${name}</b>`);
   const pb = currentChar.proficiencyBonus || profBonus(currentChar.level||1);
   renderWeaponsSheet(currentChar, pb);
+  saveSheet();
   closeWeaponDialog();
 }
 
@@ -7269,11 +7417,11 @@ function renderInventorySheet(char) {
     </div>`;
 
   // ── Inventory list ────────────────────────────────────────────────────
-  const TYPE_ORDER  = ['weapon','firearm','ammo','firearm_ammo','explosive','armor','tool','gear','kit',null,''];
+  const TYPE_ORDER  = ['weapon','firearm','ammo','firearm_ammo','explosive','armor','tool','potion','scroll','gear','kit',null,''];
   const TYPE_LABELS = {
     weapon:'⚔️ Оружие', firearm:'🔫 Огнестрел', ammo:'🏹 Боеприпасы', firearm_ammo:'🔫 Огнестрельные боеприпасы',
     explosive:'💣 Взрывчатка', armor:'🛡 Доспехи', gear:'🎒 Снаряжение',
-    tool:'🔧 Инструменты', kit:'📦 Наборы', special:'✨ Прочее',
+    tool:'🔧 Инструменты', potion:'⚗️ Зелья', scroll:'📜 Свитки', kit:'📦 Наборы', special:'✨ Прочее',
   };
 
   function resolveItem(item) {
@@ -9198,6 +9346,7 @@ function applyResDialog() {
     currentChar.resources.push(resource);
   }
   renderResourcesSheet(currentChar);
+  saveSheet();
   closeResDialog();
 }
 
@@ -9253,6 +9402,7 @@ function _resTogglePip(resIdx, pipIdx) {
   if (pipIdx < r.cur) r.cur = pipIdx;
   else r.cur = pipIdx + 1;
   renderResourcesSheet(currentChar);
+  saveSheet();
 }
 
 function _resAdj(resIdx, delta) {
@@ -9260,6 +9410,7 @@ function _resAdj(resIdx, delta) {
   const r = currentChar.resources[resIdx];
   r.cur = Math.max(0, Math.min(r.max, r.cur + delta));
   renderResourcesSheet(currentChar);
+  saveSheet();
 }
 
 function _resSetCur(resIdx, val) {
@@ -10574,6 +10725,8 @@ const CI_FIELDS = {
   armor:  [['name','Название','text'],['qty','Количество','number'],['ac','КД (напр. 14 + мод.Ловк.)','text'],['costGp','Стоимость (зм)','number'],['weight','Вес (фунты)','number'],['description','Описание','text']],
   tool:   [['name','Название','text'],['qty','Количество','number'],['costGp','Стоимость (зм)','number'],['weight','Вес (фунты)','number'],['description','Описание','text']],
   kit:    [['name','Название','text'],['qty','Количество','number'],['costGp','Стоимость (зм)','number'],['weight','Вес (фунты)','number'],['description','Содержимое','text']],
+  potion: [['name','Название','text'],['qty','Количество','number'],['costGp','Стоимость (зм)','number'],['weight','Вес (фунты)','number'],['description','Эффект / описание','text']],
+  scroll: [['name','Название','text'],['qty','Количество','number'],['costGp','Стоимость (зм)','number'],['weight','Вес (фунты)','number'],['description','Заклинание / описание','text']],
 };
 function renderCreateItemFields() {
   const type = document.getElementById('ci-type')?.value || 'gear';
@@ -10811,9 +10964,9 @@ function renderItemsBrowserList() {
   const type = document.getElementById('ib-type')?.value||'';
   const sort = document.getElementById('ib-sort')?.value||'type';
   const TYPE_RU = {weapon:'Оружие',armor:'Доспех',gear:'Снаряжение',tool:'Инструмент',
-    kit:'Набор',firearm:'Огнестрел',ammo:'Боеприпасы',firearm_ammo:'Огнестрельные боеприпасы',explosive:'Взрывчатка'};
+    kit:'Набор',firearm:'Огнестрел',ammo:'Боеприпасы',firearm_ammo:'Огнестрельные боеприпасы',explosive:'Взрывчатка',potion:'Зелья',scroll:'Свитки'};
   let items = _ibAllItems().filter(it => (!type||it.itemClass===type)&&(!q||normalizeRu(it.name).includes(q)));
-  const ORDER = ['weapon','firearm','ammo','firearm_ammo','explosive','armor','gear','tool','kit'];
+  const ORDER = ['weapon','firearm','ammo','firearm_ammo','explosive','armor','gear','tool','potion','scroll','kit'];
   if (sort==='alpha')  items.sort((a,b)=>a.name.localeCompare(b.name,'ru'));
   else if (sort==='cost')   items.sort((a,b)=>(a.costGp??Infinity)-(b.costGp??Infinity));
   else if (sort==='weight') items.sort((a,b)=>(a.weightLbs??0)-(b.weightLbs??0));
@@ -10954,7 +11107,7 @@ function _renderInvDetail(idx) {
   const TYPE_NAMES = {
     weapon:'Оружие', firearm:'Огнестрел', ammo:'Боеприпасы', firearm_ammo:'Огнестрельные боеприпасы',
     explosive:'Взрывчатка', armor:'Доспех', gear:'Снаряжение',
-    tool:'Инструмент', kit:'Набор', special:'Предмет',
+    tool:'Инструмент', kit:'Набор', special:'Предмет', potion: 'Зелье', scroll: 'Свиток'
   };
 
   const get = (field, fallback='') => item[field] ?? src?.[field] ?? fallback;

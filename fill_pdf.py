@@ -1,39 +1,42 @@
 """
-fill_pdf.py — fills the DnD 5e Russian character sheet PDF.
-Uses pypdfium2 raw API with FPDFText_SetText (UTF-16LE) for correct Cyrillic.
-Merges overlay onto template via pypdf.
-No reportlab required.
+fill_pdf.py — заполняет шаблон sheet_template.pdf данными персонажа DnD 5e.
+Шаблон: static/sheet_template.pdf (4 страницы, AcroForm, NeedAppearances=True)
 """
-import io, ctypes
+import io, re, math
 from pathlib import Path
 from pypdf import PdfReader, PdfWriter
-import pypdfium2 as pdfium
+from pypdf.generic import BooleanObject, NameObject, TextStringObject
 
-_FPDF_FONT_TRUETYPE = 2
 _HERE = Path(__file__).parent
+_TEMPLATE = _HERE / "static" / "sheet_template.pdf"
 
-def _font_path():
-    for p in [_HERE/"static"/"DejaVuSans.ttf",
-              Path("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"),
-              Path("/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf"),
-              Path("/usr/share/fonts/truetype/freefont/FreeSans.ttf")]:
-        if p.exists(): return str(p)
-    raise RuntimeError("No Cyrillic font found. Put DejaVuSans.ttf in the static/ folder.")
+# ── утилиты ──────────────────────────────────────────────────────────────────
 
 def fmt_mod(m): return f"+{m}" if m >= 0 else str(m)
+def get_mod(s): return (int(s) - 10) // 2
+def prof_b(lv): return 1 + ((int(lv) - 1) // 4 + 1)
 
-import re as _re
-_LSS_AB = {"STR":"СИЛ","DEX":"ЛОВ","CON":"ТЕЛ","INT":"ИНТ","WIS":"МДР","CHA":"ХАР",
-           "PROF":"МАЕТ","LVL":"УР"}
+_HTML_BR  = re.compile(r'<br\s*/?>', re.I)
+_HTML_BLK = re.compile(r'</?(p|div|li)[^>]*>', re.I)
+_HTML_TAG = re.compile(r'<[^>]+>')
+_ENTITIES = {'&amp;':'&','&lt;':'<','&gt;':'>','&nbsp;':' ','&quot;':'"','&#39;':"'"}
+_MULTI_NL = re.compile(r'\n{3,}')
+_DASH     = str.maketrans({
+    '\u2014':' - ','\u2013':' - ','\u2012':' - ','\u2015':' - ',
+    '\u00ab':'"','\u00bb':'"','\u2018':"'",'\u2019':"'",
+    '\u201c':'"','\u201d':'"','\u2026':'...',
+})
 
-def _clean_dmg(s):
-    """Translate LSS [DEX]/[STR] placeholders to Russian [ЛОВ]/[СИЛ]."""
-    def _sub(m):
-        key = m.group(1).upper()
-        return f"[{_LSS_AB.get(key, key)}]"
-    return _re.sub(r'\[(\w+)\]', _sub, str(s or ""))
-def get_mod(s): return (s - 10) // 2
-def prof_b(lv): return 1 + ((lv - 1) // 4 + 1)
+def _s(v):
+    if not v: return ''
+    t = str(v)
+    t = _HTML_BR.sub('\n', t)
+    t = _HTML_BLK.sub('\n', t)
+    t = _HTML_TAG.sub('', t)
+    for ent, ch in _ENTITIES.items():
+        t = t.replace(ent, ch)
+    t = _MULTI_NL.sub('\n\n', t)
+    return t.strip().translate(_DASH)
 
 SLOT_TABLE = {
     1:[2,0,0,0,0,0,0,0,0], 2:[3,0,0,0,0,0,0,0,0], 3:[4,2,0,0,0,0,0,0,0],
@@ -44,369 +47,553 @@ SLOT_TABLE = {
     16:[4,3,3,3,2,1,1,1,0],17:[4,3,3,3,2,1,1,1,1],18:[4,3,3,3,3,1,1,1,1],
     19:[4,3,3,3,3,2,1,1,1],20:[4,3,3,3,3,2,2,1,1],
 }
-SKILL_ABILITY = {
-    "Акробатика":"ЛОВ","Магия":"ИНТ","Атлетика":"СИЛ","Обман":"ХАР",
-    "История":"ИНТ","Проницательность":"МДР","Запугивание":"ХАР",
-    "Расследование":"ИНТ","Медицина":"МДР","Природа":"ИНТ",
-    "Восприятие":"МДР","Выступление":"ХАР","Убеждение":"ХАР",
-    "Религия":"ИНТ","Ловкость рук":"ЛОВ","Скрытность":"ЛОВ",
-    "Выживание":"МДР","Уход за животными":"МДР",
+# Магия Договора колдуна: {уровень: (количество_ячеек, уровень_ячеек)}
+WARLOCK_PACT_TABLE = {
+    1:(1,1), 2:(2,1), 3:(2,2), 4:(2,2), 5:(2,3),
+    6:(2,3), 7:(2,4), 8:(2,4), 9:(2,5),10:(2,5),
+   11:(3,5),12:(3,5),13:(3,5),14:(3,5),15:(3,5),
+   16:(3,5),17:(4,5),18:(4,5),19:(4,5),20:(4,5),
 }
 AB_MAP = {"str":"СИЛ","dex":"ЛОВ","int":"ИНТ","wis":"МДР","cha":"ХАР","con":"ТЕЛ"}
-SKILL_RECTS = {
-    "Акробатика":[112,462,126,470],"Уход за животными":[112,448,126,457],
-    "Атлетика":[112,421,126,430],"Магия":[112,434,126,443],
-    "Обман":[112,408,126,416],"История":[112,394,126,403],
-    "Проницательность":[112,381,126,389],"Запугивание":[112,367,126,376],
-    "Расследование":[112,354,126,362],"Медицина":[112,340,126,349],
-    "Природа":[112,327,126,335],"Восприятие":[112,313,126,322],
-    "Выступление":[112,300,126,308],"Убеждение":[112,286,126,295],
-    "Религия":[112,273,126,281],"Ловкость рук":[112,259,126,268],
-    "Скрытность":[112,246,126,254],"Выживание":[112,232,126,241],
+SKILL_AB = {
+    "Акробатика":"ЛОВ","Анализ":"ИНТ","Атлетика":"СИЛ","Восприятие":"МДР",
+    "Выживание":"МДР","Выступление":"ХАР","Запугивание":"ХАР","История":"ИНТ",
+    "Ловкость рук":"ЛОВ","Магия":"ИНТ","Медицина":"МДР","Обман":"ХАР",
+    "Природа":"ИНТ","Проницательность":"МДР","Религия":"ИНТ","Скрытность":"ЛОВ",
+    "Убеждение":"ХАР","Уход за животными":"МДР",
 }
+# Маппинг красивых имён навыков → ключи полей шаблона
+SKILL_FIELD = {
+    "Акробатика":       "SkillАкробатика",
+    "Анализ":           "SkillАнализ",
+    "Атлетика":         "SkillАтлетика",
+    "Восприятие":       "SkillВосприятие",
+    "Выживание":        "SkillВыживание",
+    "Выступление":      "SkillВыступление",
+    "Запугивание":      "SkillЗапугивание",
+    "История":          "SkillИстория",
+    "Ловкость рук":     "SkillЛовкостьРук",
+    "Магия":            "SkillМагия",
+    "Медицина":         "SkillМедицина",
+    "Обман":            "SkillОбман",
+    "Природа":          "SkillПрирода",
+    "Проницательность": "SkillПроницательность",
+    "Религия":          "SkillРелигия",
+    "Скрытность":       "SkillСкрытность",
+    "Убеждение":        "SkillУбеждение",
+    "Уход за животными":"SkillУходЖивотные",
+}
+SKILL_CHK = {k: v.replace("Skill","SKchk") for k,v in SKILL_FIELD.items()}
 
-# ── Core drawing ──────────────────────────────────────────────────────────────
 
-def _utf16(text: str) -> ctypes.Array:
-    enc = str(text).encode('utf-16-le') + b'\x00\x00'
-    n   = len(enc) // 2
-    return (ctypes.c_ushort * n)(*[int.from_bytes(enc[i*2:i*2+2],'little') for i in range(n)])
+# ── SheetFiller ───────────────────────────────────────────────────────────────
 
-def _cw(fs): return fs * 0.52   # estimated char width
+class SheetFiller:
+    def __init__(self, writer: PdfWriter):
+        self.writer = writer
+        self._index = {}
+        acro = writer._root_object.get('/AcroForm')
+        if acro:
+            ao = acro.get_object() if hasattr(acro, 'get_object') else acro
+            for ref in ao.get('/Fields', []):
+                obj = ref.get_object()
+                name = str(obj.get('/T', ''))
+                self._index[name] = obj
 
-class Painter:
-    def __init__(self, font_bytes: bytes):
-        raw = pdfium.raw
-        self._raw = raw
-        self._doc  = raw.FPDF_CreateNewDocument()
-        self._page = raw.FPDFPage_New(self._doc, 0, 612, 792)
-        n  = len(font_bytes)
-        fb = (ctypes.c_ubyte * n)(*font_bytes)
-        self._font = raw.FPDFText_LoadFont(
-            self._doc, fb, ctypes.c_uint(n),
-            ctypes.c_int(_FPDF_FONT_TRUETYPE), ctypes.c_int(1))
-        self._fb = fb   # keep buffer alive
+    def set(self, name: str, value):
+        obj = self._index.get(name)
+        if obj is None: return
+        obj[NameObject('/V')] = TextStringObject(_s(str(value)))
 
-    def t(self, text: str, x: float, y: float, fs: float):
-        """Draw text at (x,y) — PDF coords (y=0 at bottom)."""
-        if not text: return
-        raw = self._raw
-        obj = raw.FPDFPageObj_CreateTextObj(self._doc, self._font, ctypes.c_float(fs))
-        raw.FPDFText_SetText(obj, _utf16(text))
-        raw.FPDFPageObj_Transform(obj, 1, 0, 0, 1, x, y)
-        raw.FPDFPage_InsertObject(self._page, obj)
+    def check(self, name: str, checked: bool):
+        obj = self._index.get(name)
+        if obj is None: return
+        val = NameObject('/Yes') if checked else NameObject('/Off')
+        obj[NameObject('/V')]  = val
+        obj[NameObject('/AS')] = val
 
-    def tc(self, text: str, cx: float, y: float, fs: float):
-        """Draw text centered on cx."""
-        if not text: return
-        w = len(str(text)) * _cw(fs)
-        self.t(text, cx - w/2, y, fs)
 
-    def field(self, text: str, rect, fs: float, align="left"):
-        """Draw text vertically centered inside rect=[x0,y0,x1,y1]."""
-        if not text: return
-        x0,y0,x1,y1 = rect
-        y = y0 + (y1-y0-fs)/2 + 1
-        if align == "center":
-            self.tc(text, (x0+x1)/2, y, fs)
+# ── Заполнение данными персонажа ──────────────────────────────────────────────
+
+def _build(sf: SheetFiller, char: dict):
+    ab   = char.get('abilities', {})
+    lv   = int(char.get('level', 1))
+    pb   = int(char.get('proficiencyBonus') or prof_b(lv))
+    skp  = set(char.get('skillProficiencies') or [])
+    skx  = set(char.get('skillExpertise') or [])
+    svp  = set(char.get('savingThrows') or [])
+    half = bool(char.get('halfProficiency'))
+
+    def sc(ru): return int(ab.get(ru, 10))
+    def md(ru): return get_mod(sc(ru))
+
+    # ══ PAGE 1 ══════════════════════════════════════════════════════════════
+
+    # Шапка
+    cls = _s(char.get('className', ''))
+    sub = _s(char.get('subclass', ''))
+    sf.set('ClassLevel',    f"{cls}{' (' + sub + ')' if sub else ''} {lv}")
+    sf.set('Background',    char.get('backgroundName', char.get('background', '')))
+    sf.set('PlayerName',    char.get('playerName', ''))
+    sf.set('CharacterName', char.get('name', ''))
+    sf.set('Race',          char.get('raceName', char.get('race', '')))
+    sf.set('Alignment',     char.get('alignment', ''))
+    sf.set('XP',            str(char.get('xp', 0) or 0))
+    sf.set('Level',         str(lv))
+
+    # Характеристики
+    for ru in ['СИЛ','ЛОВ','ТЕЛ','ИНТ','МДР','ХАР']:
+        sf.set(f'Score{ru}', str(sc(ru)))
+        sf.set(f'Mod{ru}',   fmt_mod(md(ru)))
+
+    # Бой
+    sf.set('AC',        str(char.get('ac', 10)))
+    sf.set('Initiative',fmt_mod(md('ЛОВ')))
+    sf.set('Speed',     str(char.get('speed', 30)))
+    sf.set('ProfBonus', fmt_mod(pb))
+
+    # Вдохновение
+    sf.check('Inspiration', bool(char.get('inspiration')))
+
+    # Хиты
+    sf.set('HPMax',    str(char.get('hpMax', 10)))
+    sf.set('HPCurrent',str(char.get('hpCurrent', char.get('hpMax', 10))))
+    sf.set('HPTemp',   str(char.get('hpTemp', 0) or ''))
+    sf.set('HDTotal',  f"{lv}d{char.get('hitDie', 8)}")
+    sf.set('HD',       f"d{char.get('hitDie', 8)}")
+
+    # Спасброски — берём итоговые значения из листа если есть, иначе считаем
+    sv_vals = char.get('savingThrowValues') or char.get('_savingThrows') or {}
+    for ru in ['СИЛ','ЛОВ','ТЕЛ','ИНТ','МДР','ХАР']:
+        if ru in sv_vals:
+            bonus = int(sv_vals[ru])
         else:
-            self.t(text, x0+2, y, fs)
+            bonus = md(ru) + (pb if ru in svp else 0)
+        sf.set(f'ST{ru}',      fmt_mod(bonus))
+        sf.check(f'STchk{ru}', ru in svp)
 
-    def wrap(self, text: str, rect, fs: float):
-        """Word-wrap text filling rect from top."""
-        if not text: return
-        x0,y0,x1,y1 = rect
-        max_w = x1-x0-4
-        lh    = fs + 2.2
-        y     = y1-fs-2
-        for para in str(text).split('\n'):
-            words = para.split() if para.strip() else ['']
-            line  = ''
-            for wd in words:
-                candidate = (line+' '+wd).strip()
-                if len(candidate)*_cw(fs) <= max_w:
-                    line = candidate
-                else:
-                    if y < y0: return
-                    if line: self.t(line, x0+2, y, fs)
-                    y -= lh; line = wd
-            if y < y0: return
-            if line: self.t(line, x0+2, y, fs)
-            y -= lh
-
-    def save(self) -> bytes:
-        self._raw.FPDFPage_GenerateContent(self._page)
-        buf = io.BytesIO()
-        pdfium.PdfDocument(self._doc).save(buf)
-        buf.seek(0)
-        return buf.read()
-
-
-# ── Page builders ─────────────────────────────────────────────────────────────
-
-def _page1(char: dict, font_bytes: bytes) -> bytes:
-    p   = Painter(font_bytes)
-    ab  = char.get("abilities",{})
-    lv  = int(char.get("level",1))
-    pb  = int(char.get("proficiencyBonus") or prof_b(lv))
-    skp = set(char.get("skillProficiencies") or [])
-    svp = set(char.get("savingThrows") or [])
-    hp  = bool(char.get("halfProficiency"))
-
-    def score(ru): return ab.get(ru,10)
-    def mod(ru):   return get_mod(score(ru))
-
-    cls = char.get("className",""); sub = char.get("subclass","")
-    p.field(f"{cls}{' ('+sub+')' if sub else ''} {lv}", [270,728,376,744], 7)
-    p.field(char.get("backgroundName",char.get("background","")), [384,728,470,744], 7)
-    p.field(char.get("name",""), [48,710,221,731], 10)
-    p.field(char.get("raceName",char.get("race","")), [269,702,376,718], 7)
-    p.field(char.get("alignment",""), [384,702,474,718], 7)
-    p.field(str(char.get("xp",0) or 0), [480,702,570,718], 7)
-
-    p.field(str(char.get("ac",10)),    [234,626,261,651], 15, "center")
-    p.field(fmt_mod(mod("ЛОВ")),       [286,618,322,651], 12, "center")
-    p.field(str(char.get("speed",30)), [344,618,380,651], 12, "center")
-    p.field(fmt_mod(pb),               [97,606,118,623],  10, "center")
-    if char.get("inspiration"): p.field("*", [97,644,118,661], 12, "center")
-
-    p.field(str(char.get("hpMax",10)), [291,585,380,595], 8)
-    p.field(str(char.get("hpCurrent",char.get("hpMax",10))), [231,549,380,579], 16, "center")
-    tmp = char.get("hpTemp",0) or 0
-    if tmp: p.field(str(tmp), [231,497,380,528], 14, "center")
-    p.field(f"d{char.get('hitDie',8)}", [232,440,295,461], 12, "center")
-    p.field(f"{lv}d{char.get('hitDie',8)}", [247,464,295,474], 7)
-
-    for ru, y_sc, y_mod in [("СИЛ",625,599),("ЛОВ",553,527),("ТЕЛ",482,456),
-                              ("ИНТ",410,384),("МДР",338,312),("ХАР",267,241)]:
-        p.tc(str(score(ru)), 57, y_sc, 14)
-        p.tc(fmt_mod(mod(ru)), 57, y_mod, 9)
-
-    for ru, y in [("СИЛ",581),("ЛОВ",567),("ТЕЛ",553),("ИНТ",540),("МДР",526),("ХАР",513)]:
-        bonus = pb if ru in svp else 0
-        p.tc(fmt_mod(mod(ru)+bonus), 120, y, 7)
-
-    for sk, rect in SKILL_RECTS.items():
-        is_p  = sk in skp
-        bonus = pb if is_p else (pb//2 if hp else 0)
-        p.field(fmt_mod(mod(SKILL_ABILITY.get(sk,"СИЛ"))+bonus), rect, 7, "center")
-
-    pb_p = pb if "Восприятие" in skp else 0
-    p.field(str(10+mod("МДР")+pb_p), [32,184,54,201], 9, "center")
-
-    weapons = char.get("weapons",[]) or []
-    for i, ww in enumerate(weapons[:3]):
-        nr,ar,dr = [([224,385,286,399],[292,385,322,399],[328,385,389,399]),
-                    ([224,365,286,379],[292,365,322,379],[328,365,389,379]),
-                    ([224,344,286,358],[292,344,322,358],[328,344,389,358])][i]
-        am  = mod(AB_MAP.get(ww.get("ability","str"),"СИЛ"))
-        atk = int(ww.get("attackBonus",0) or 0)
-        pp  = pb if ww.get("isProf",True) else 0
-        p.field(ww.get("name",""), nr, 7)
-        p.field(fmt_mod(am+atk+pp), ar, 7, "center")
-        raw_dmg = _clean_dmg(ww.get('damage',''))
-        p.field(f"{raw_dmg} {ww.get('damageType','')}".strip(), dr, 6)
-
-    xl = [f"{ww.get('name','')}  {fmt_mod(int(ww.get('attackBonus',0) or 0))}  {_clean_dmg(ww.get('damage',''))} {ww.get('damageType','')}" + (f"  {ww.get('range','')}" if ww.get('range') else "") for ww in weapons[3:]]
-    atk_note = char.get("attacksNotes", char.get("attackNotes","")) or ""
-    p.wrap("\n".join(filter(None, xl+([atk_note] if atk_note else []))), [224,224,389,338], 6)
-
-    p.wrap(char.get("traits","") or "", [419,603,572,651], 7)
-    p.wrap(char.get("ideals","") or "", [419,548,572,582], 7)
-    p.wrap(char.get("bonds","")  or "", [419,492,572,527], 7)
-    p.wrap(char.get("flaws","")  or "", [419,438,572,472], 7)
-
-    cur = char.get("currency",{}) or {}
-    for coin, rect in [("cp",[230,175,259,193]),("sp",[230,149,259,167]),
-                        ("ep",[230,123,259,141]),("gp",[230,98,259,115]),
-                        ("pp",[230,72,259,89])]:
-        p.field(str(cur.get(coin,0) or 0), rect, 8, "center")
-
-    langs = char.get("languages",[]) or []
-    parts = []
-    if langs: parts.append("Языки: "+", ".join(langs))
-    def _str(v): return ", ".join(v) if isinstance(v, list) else str(v or "")
-    if char.get("armorProf"): parts.append("Доспехи: "+_str(char["armorProf"]))
-    if char.get("weaponProf"): parts.append("Оружие: "+_str(char["weaponProf"]))
-    tool = char.get("toolProf","") or char.get("otherProf","") or ""
-    if isinstance(tool, list): tool = ", ".join(tool)
-    if tool: parts.append("Инструменты: "+tool)
-    p.wrap("\n".join(parts), [34,36,200,165], 6)
-
-    inv = []
-    for item in char.get("inventory",[]) or []:
-        nm = (item.get("name") or "").strip()
-        if not nm: continue
-        qty = item.get("qty",1); desc = (item.get("description") or "").strip()
-        ln  = f"{qty}x {nm}" if qty!=1 else nm
-        if desc: ln += f" - {desc}"
-        inv.append(ln)
-    p.wrap("\n".join(inv), [269,36,389,199], 6)
-
-    fp = [x for x in [char.get("racialTraits",""),char.get("classFeatures",""),
-                       char.get("abilities_text","")] if x and x.strip()]
-    p.wrap("\n\n".join(fp), [412,36,578,405], 6)
-    return p.save()
-
-
-def _page2(char: dict, font_bytes: bytes) -> bytes:
-    p = Painter(font_bytes)
-    p.field(char.get("name",""),             [48,706,256,727], 10)
-    p.field(str(char.get("age","") or ""),   [266,725,372,741], 8)
-    p.field(str(char.get("height","") or ""),[379,725,465,741], 8)
-    p.field(str(char.get("weight","") or ""),[475,725,573,741], 8)
-    p.field(str(char.get("eyes","") or ""),  [265,699,372,715], 8)
-    p.field(str(char.get("skin","") or ""),  [379,699,469,715], 8)
-    p.field(str(char.get("hair","") or ""),  [475,699,573,715], 8)
-    p.wrap(char.get("backstory","") or "",   [35,37,200,407],   6)
-
-    # notes: new format is noteBlocks list, legacy is plain string
-    note_blocks = char.get("noteBlocks") or []
-    if note_blocks:
-        notes_text = "\n\n".join(
-            ((nb.get("title","") + ":\n" if nb.get("title") else "") + (nb.get("text","") or "")).strip()
-            for nb in note_blocks
-        )
+    # skillExpertise: {name: 1} = владение, {name: 2} = экспертиза (логика app.js)
+    skx_raw = char.get('skillExpertise') or {}
+    if isinstance(skx_raw, list):
+        # старый формат — список означает экспертизу
+        skx = {k: 2 for k in skx_raw}
     else:
-        notes_text = char.get("notes","") or ""
-    p.wrap(notes_text, [224,213,578,417], 6)
+        skx = {k: int(v) for k, v in skx_raw.items()}
 
-    # allies / appearance on page 2 right column
-    p.wrap(char.get("allies","") or "",      [224,37,578,202],  6)
-    return p.save()
+    # Спасброски — учитываем _saveOverride и _saveBonus как в app.js
+    save_override = char.get('_saveOverride') or {}
+    save_bonus    = char.get('_saveBonus') or {}
+    for ru in ['СИЛ','ЛОВ','ТЕЛ','ИНТ','МДР','ХАР']:
+        if ru in save_override and save_override[ru] is not None:
+            bonus = int(save_override[ru])
+        else:
+            bonus = md(ru) + (pb if ru in svp else 0) + int(save_bonus.get(ru, 0))
+        sf.set(f'ST{ru}',      fmt_mod(bonus))
+        sf.check(f'STchk{ru}', ru in svp)
+
+    # Навыки — exp=2→pb*2, exp=1→pb, иначе half или 0 (логика app.js строка 5528)
+    for sk_name, sk_ab in SKILL_AB.items():
+        exp  = skx.get(sk_name, 0)
+        bonus = md(sk_ab) + (pb*2 if exp==2 else pb if exp==1 else (math.floor(pb/2) if half else 0))
+        sf.set(SKILL_FIELD[sk_name],  fmt_mod(bonus))
+        sf.check(SKILL_CHK[sk_name],  exp > 0)
+
+    # Пассивное восприятие
+    pv = pb if 'Восприятие' in skp else 0
+    sf.set('Passive', str(10 + md('МДР') + pv))
+
+    # Спасброски от смерти
+    ds = int(char.get('deathSaveSuccesses', 0) or 0)
+    df = int(char.get('deathSaveFailures',  0) or 0)
+    for i in range(3):
+        sf.check(f'DSsucc{i}', i < ds)
+        sf.check(f'DSfail{i}', i < df)
+
+    # Атаки + ресурсы
+    weapons = char.get('weapons', []) or []
+    atk_lines = []
+    for ww in weapons:
+        nm   = _s(ww.get('name', ''))
+        abk  = AB_MAP.get(ww.get('ability', 'str'), 'СИЛ')
+        abm  = md(abk)
+        bns  = pb if ww.get('isProf', True) else 0
+        tot  = abm + bns + int(ww.get('attackBonus', 0) or 0)
+        dmg  = _s(ww.get('damage', ''))
+        dtyp = _s(ww.get('damageType', ''))
+        atk_lines.append(f"{nm}  {fmt_mod(tot)}  {dmg} {dtyp}".rstrip())
+
+    # Ресурсы (cur/max — реальные имена полей в JSON)
+    resources = char.get('resources') or char.get('classResources') or []
+    for res in resources:
+        nm      = _s(res.get('name') or '')
+        cur_val = res.get('cur', res.get('current', ''))
+        max_val = res.get('max', res.get('maximum', ''))
+        if nm:
+            line = nm
+            if max_val: line += f'  {cur_val}/{max_val}'
+            elif cur_val != '': line += f'  {cur_val}'
+            atk_lines.append(line)
+
+    an = _s(char.get('attacksNotes', char.get('attackNotes', '')) or '')
+    if an: atk_lines.append(an)
+    sf.set('AttacksNotes', '\n'.join(atk_lines))
+
+    # Черты личности
+    sf.set('Traits', char.get('traits', '') or '')
+    sf.set('Ideals', char.get('ideals', '') or '')
+    sf.set('Bonds',  char.get('bonds',  '') or '')
+    sf.set('Flaws',  char.get('flaws',  '') or '')
+
+    # Умения и способности (стр.1)
+    feats = [_s(x) for x in [
+        char.get('racialTraits',''), char.get('subraceTraits',''),
+        char.get('classFeatures',''), char.get('abilitiesText', char.get('abilities_text','')),
+    ] if x and _s(str(x))]
+    sf.set('FeaturesTraits', '\n\n'.join(feats))
+
+    # Монеты — порядок полей в шаблоне: CP=мм, SP=см, EP=зм, GP=эм, PP=пм
+    cur = char.get('currency', {}) or {}
+    sf.set('CP', str(int(float(cur.get('cp', 0) or 0))))   # мм
+    sf.set('SP', str(int(float(cur.get('sp', 0) or 0))))   # см
+    sf.set('EP', str(int(float(cur.get('gp', 0) or 0))))   # зм — поле EP стоит под подписью ЗМ
+    sf.set('GP', str(int(float(cur.get('ep', 0) or 0))))   # эм — поле GP стоит под подписью ЭМ
+    sf.set('PP', str(int(float(cur.get('pp', 0) or 0))))   # пм
+
+    # Прочие владения и языки
+    langs = char.get('languages', []) or []
+    parts = []
+    prof_custom = _s(char.get('_profText', '') or '')
+    if prof_custom:
+        parts = [prof_custom]
+    else:
+        if langs: parts.append('Языки: ' + ', '.join(langs))
+        def _ls(v): return ', '.join(v) if isinstance(v, list) else _s(str(v or ''))
+        if char.get('armorProf'):  parts.append('Доспехи: '    + _ls(char['armorProf']))
+        if char.get('weaponProf'): parts.append('Оружие: '     + _ls(char['weaponProf']))
+        tool = char.get('toolProf','') or char.get('otherProf','') or ''
+        if isinstance(tool, list): tool = ', '.join(tool)
+        if tool: parts.append('Инструменты: ' + _s(tool))
+    sf.set('ProfLang', '\n'.join(parts))
+
+    # Снаряжение — из inventory по itemClass: weapon → armor → tool → gear
+    all_items = char.get('inventory', []) or []
+
+    def weapon_line(item):
+        nm = _s(item.get('name') or '').strip()
+        if not nm: return None
+        qty   = item.get('qty', 1)
+        dmg   = _s(item.get('damageDice') or '')
+        dtyp  = _s(item.get('damageType') or '')
+        props = _s(item.get('_propStr') or '')
+        desc  = _s(item.get('description') or '')
+        parts = [p for p in [f'{dmg} {dtyp}'.strip() if dmg else '', props, desc] if p]
+        suffix = f' ({", ".join(parts)})' if parts else ''
+        prefix = f'{int(qty)}x ' if qty and int(qty) != 1 else ''
+        return f'{prefix}{nm}{suffix}'
+
+    def armor_line(item):
+        nm = _s(item.get('name') or '').strip()
+        if not nm: return None
+        ac   = _s(item.get('ac') or '')
+        desc = _s(item.get('description') or '')
+        parts = [p for p in [f'КД: {ac}' if ac else '', desc] if p]
+        suffix = f' ({", ".join(parts)})' if parts else ''
+        return f'{nm}{suffix}'
+
+    def gear_line(item):
+        nm = _s(item.get('name') or '').strip()
+        if not nm: return None
+        qty  = item.get('qty', 1)
+        desc = _s(item.get('description') or '')
+        prefix = f'{int(qty)}x ' if qty and int(qty) != 1 else ''
+        return f'{prefix}{nm}' + (f' - {desc}' if desc else '')
+
+    POTION_IDS = {'potion_healing','potion_of_greater_healing','potion_of_superior_healing','potion_of_supreme_healing'}
+    def effective_class(item):
+        if item.get('id') in POTION_IDS: return 'potion'
+        return item.get('itemClass')
+
+    weapons_inv = [i for i in all_items if effective_class(i) == 'weapon']
+    armors_inv  = [i for i in all_items if effective_class(i) == 'armor']
+    tools_inv   = [i for i in all_items if effective_class(i) == 'tool']
+    potions_inv = [i for i in all_items if effective_class(i) == 'potion']
+    scrolls_inv = [i for i in all_items if effective_class(i) == 'scroll']
+    gear_inv    = [i for i in all_items if effective_class(i) not in ('weapon','armor','tool','potion','scroll')]
+
+    inv_blocks = []
+    if weapons_inv:
+        inv_blocks.append('\n'.join(l for l in [weapon_line(i) for i in weapons_inv] if l))
+    if armors_inv:
+        inv_blocks.append('\n'.join(l for l in [armor_line(i) for i in armors_inv] if l))
+    if tools_inv:
+        inv_blocks.append('\n'.join(l for l in [gear_line(i) for i in tools_inv] if l))
+    if potions_inv:
+        inv_blocks.append('\n'.join(l for l in [gear_line(i) for i in potions_inv] if l))
+    if scrolls_inv:
+        inv_blocks.append('\n'.join(l for l in [gear_line(i) for i in scrolls_inv] if l))
+    if gear_inv:
+        inv_blocks.append('\n'.join(l for l in [gear_line(i) for i in gear_inv] if l))
+    if char.get('inventoryNotes'):
+        inv_blocks.append(_s(char['inventoryNotes']))
+
+    sf.set('Equipment', '\n\n'.join(b for b in inv_blocks if b))
+
+    # ══ PAGE 2 ══════════════════════════════════════════════════════════════
+    # Поля после переименования:
+    # Portrait  (левый верх)  — текстового поля нет, портрет вставляется как изображение
+    # Backstory (левый центр) — предыстория персонажа
+    # Goals     (левый низ)   — цели и задачи (из noteBlock 'Цели')
+    # Allies    (правый верх) — союзники и организации
+    # FeatTraits2 (прав.центр)— доп. способности (внешность + черты)
+    # Treasure  (прав.низ)    — сокровища (пусто)
+
+    sf.set('CharName2', char.get('name', ''))
+    sf.set('Age',    str(char.get('age',    '') or ''))
+    sf.set('Height', str(char.get('height', '') or ''))
+    sf.set('Weight', str(char.get('weight', '') or ''))
+    sf.set('Eyes',   str(char.get('eyes',   '') or ''))
+    sf.set('Skin',   str(char.get('skin',   '') or ''))
+    sf.set('Hair',   str(char.get('hair',   '') or ''))
+
+    sf.set('Backstory', char.get('backstory', '') or '')
+
+    nbs = char.get('noteBlocks') or []
+    goals_text = ''
+    for nb in nbs:
+        if (nb.get('title') or '').strip() in ('Цели', 'Цели и задачи'):
+            goals_text = _s(nb.get('text') or '')
+            break
+    sf.set('Goals', goals_text)
+
+    sf.set('Allies', char.get('allies', '') or '')
+
+    appearance = _s(char.get('appearance', '') or '')
+    feat_text  = _s(char.get('savedFeatText', '') or '')
+    sf.set('FeatTraits2', '\n\n'.join(p for p in [appearance, feat_text] if p))
+
+    sf.set('Treasure', '')
+
+    # ══ PAGE 3 ══════════════════════════════════════════════════════════════
+    sf.set('NoteName', char.get('name', ''))
+
+    # Если заметок > 6, всё начиная с 6-й попадает в последний блок через пустую строку
+    for i in range(1, 7):
+        if i < 6:
+            nb = nbs[i-1] if i-1 < len(nbs) else None
+            if nb:
+                t = _s(nb.get('title') or '').strip()
+                x = _s(nb.get('text')  or '')
+                sf.set(f'Note{i}', (f'{t}:\n{x}' if t else x).strip())
+            else:
+                sf.set(f'Note{i}', '')
+        else:
+            # Note6 = блоки 6, 7, 8... объединённые через пустую строку
+            parts = []
+            for nb in nbs[5:]:
+                t = _s(nb.get('title') or '').strip()
+                x = _s(nb.get('text')  or '')
+                parts.append((f'{t}:\n{x}' if t else x).strip())
+            sf.set('Note6', '\n\n'.join(p for p in parts if p))
+
+    # ══ PAGE 4 ══════════════════════════════════════════════════════════════
+    sabl = char.get('spellAbility', '')
+    ab_m = get_mod(sc(sabl)) if sabl else 0
+    sf.set('SpellClass',   char.get('className', ''))
+    sf.set('SpellAbility', sabl or '')
+    sf.set('SpellDC',      str(8 + pb + ab_m) if sabl else '')
+    sf.set('SpellAtk',     fmt_mod(pb + ab_m) if sabl else '')
+
+    # Ячейки заклинаний
+    # Определяем базовые слоты: колдун — Pact Magic, остальные — стандартная таблица
+    cls_id = (char.get('class') or '').lower()
+    is_warlock = 'warlock' in cls_id or 'колдун' in (char.get('className') or '').lower()
+
+    if is_warlock:
+        pact_cnt, pact_lvl = WARLOCK_PACT_TABLE.get(lv, (1, 1))
+        base_slots = {pact_lvl: pact_cnt}
+    else:
+        slot_counts_char = char.get('spellSlots') or char.get('slotCounts') or {}
+        if slot_counts_char:
+            base_slots = {int(k): int(v or 0) for k, v in slot_counts_char.items()}
+        else:
+            row = SLOT_TABLE.get(lv, SLOT_TABLE[1])
+            base_slots = {i+1: v for i, v in enumerate(row) if v}
+
+    # Применяем _slotOverrides (ручные поправки из диалога ячеек)
+    overrides = char.get('_slotOverrides') or {}
+    used = char.get('usedSpellSlots', {}) or {}
+
+    for sl in range(1, 10):
+        ov = overrides.get(sl) or overrides.get(str(sl)) or {}
+        base = base_slots.get(sl, 0)
+        if ov.get('override') is not None:
+            mx = int(ov['override'])
+        else:
+            mx = base + int(ov.get('bonus') or 0)
+        u = int(used.get(str(sl), 0) or 0)
+        sf.set(f'SlotTotal{sl}',  str(mx) if mx else '')
+        sf.set(f'SlotRemain{sl}', str(max(0, mx - u)) if mx else '')
+
+    # Заклинания
+    slmap    = char.get('_spellLevels', {}) or {}
+    spells   = char.get('spells', []) or []
+    prepared = set(char.get('preparedSpells', []) or [])
+    by_lv    = {}
+    for sp in spells:
+        lv2 = slmap.get(sp, 1)
+        by_lv.setdefault(lv2, []).append(sp)
+
+    for lvl in range(0, 10):
+        sp_list = by_lv.get(lvl, [])
+        i = 0
+        while True:
+            fname = f'SP{lvl}x{i}'
+            if fname not in sf._index: break
+            sp = sp_list[i] if i < len(sp_list) else ''
+            is_prep = bool(sp) and (sp in prepared or lvl == 0)
+            sf.set(fname, sp)
+            sf.check(f'SPchk{lvl}x{i}', is_prep)
+            i += 1
 
 
-def _page3(char: dict, font_bytes: bytes) -> bytes:
-    p    = Painter(font_bytes)
-    ab   = char.get("abilities",{})
-    lv   = int(char.get("level",1))
-    pb   = int(char.get("proficiencyBonus") or prof_b(lv))
-    sabl = char.get("spellAbility","")
+# ── Публичный API ─────────────────────────────────────────────────────────────
 
-    if not sabl:
-        return p.save()
+def _insert_portrait_pikepdf(doc, portrait_src: str, portrait_file: Path = None):
+    """
+    Вставляет портрет на страницу 2 через pikepdf (корректная запись XObject).
+    Источники (в порядке приоритета):
+      1. portrait_file — Path к файлу на диске (любой формат, конвертируется в JPEG)
+      2. portrait_src  — base64 data URL
+    """
+    import base64, struct, io as _io, pikepdf
 
-    ab_m = get_mod(ab.get(sabl,10))
-    p.field(char.get("className",""), [48,706,256,727],  9)
-    p.field(sabl,                     [284,711,349,736], 10, "center")
-    p.field(str(8+pb+ab_m),           [384,711,449,736], 11, "center")
-    p.field(fmt_mod(pb+ab_m),         [488,711,553,736], 11, "center")
+    img_bytes = None
 
-    slot_counts = SLOT_TABLE.get(lv, SLOT_TABLE[1])
-    used = char.get("usedSpellSlots",{}) or {}
-    slot_rects = {
-        1:([52,457,91,478],  [103,457,196,478]),
-        2:([52,229,91,250],  [103,229,196,250]),
-        3:([241,625,280,646],[292,625,385,646]),
-        4:([241,400,280,421],[292,400,385,421]),
-        5:([241,173,280,194],[292,173,385,194]),
-        6:([428,625,467,646],[479,625,572,646]),
-        7:([428,455,467,476],[479,455,572,476]),
-        8:([428,286,467,306],[479,286,572,306]),
-        9:([428,145,467,166],[479,145,572,166]),
-    }
-    for sl in range(1,10):
-        mx = slot_counts[sl-1] if sl<=len(slot_counts) else 0
-        if mx <= 0: continue
-        u = int(used.get(str(sl),0) or 0)
-        tr,rr = slot_rects[sl]
-        p.field(str(mx),          tr, 9, "center")
-        p.field(str(max(0,mx-u)), rr, 9, "center")
+    # 1. Файл на диске
+    if portrait_file and Path(portrait_file).exists():
+        img_bytes = Path(portrait_file).read_bytes()
 
-    slmap  = char.get("_spellLevels",{}) or {}
-    spells = char.get("spells",[]) or []
-    can    = [s for s in spells if slmap.get(s,1)==0]
-    lv1    = [s for s in spells if slmap.get(s,1)==1]
-    by_lv  = {i:[s for s in spells if slmap.get(s,1)==i] for i in range(2,10)}
+    # 2. base64 data URL
+    if img_bytes is None and portrait_src and portrait_src.startswith('data:image'):
+        try:
+            _, b64 = portrait_src.split(',', 1)
+            img_bytes = base64.b64decode(b64)
+        except Exception:
+            return
 
-    def sp(name, x, y): p.t(str(name)[:40], x+3, y+2, 6.5)
+    if not img_bytes:
+        return
 
-    for i,s in enumerate(can[:8]):
-        sp(s, 40, [607,594,580,566,552,538,524,510][i])
-    lv1_y = [422,408,394,380,366,352,338,324,310,296,282,268,
-             195,181,167,153,139,125,111,97,83,69,55,41]
-    for i,s in enumerate(lv1[:len(lv1_y)]): sp(s,40,lv1_y[i])
-    c2={2:[606,592,578,564,550,536,522,508,494,480,466,452,438,424],
-        3:[380,366,352,338,324,310,297,283,269,254,241,227,213],
-        4:[154,140,126,112,98,84,70,56,42]}
-    c3={5:[606,592,578,564,550,536,522,508,494],
-        6:[436,422,408,394,380,366,352],
-        7:[266,252,238,224,211,197,183],
-        8:[126,112,98,84,70,56,42],
-        9:[126,112,98,84,70,56,42]}
-    for lv2,ys in c2.items():
-        for i,s in enumerate(by_lv.get(lv2,[])[:len(ys)]): sp(s,230,ys[i])
-    for lv2,ys in c3.items():
-        for i,s in enumerate(by_lv.get(lv2,[])[:len(ys)]): sp(s,417,ys[i])
-    return p.save()
+    # Конвертируем в JPEG через Pillow — PDF поддерживает только DCTDecode/FlateDecode.
+    # Файл может быть WebP, PNG и т.д. даже с расширением .jpg.
+    try:
+        from PIL import Image as _PIL
+        pil = _PIL.open(_io.BytesIO(img_bytes))
+        if pil.mode not in ('RGB', 'L'):
+            pil = pil.convert('RGB')
+        img_w, img_h = pil.size
+        buf = _io.BytesIO()
+        pil.save(buf, format='JPEG', quality=92)
+        img_bytes = buf.getvalue()
+    except Exception:
+        return
+
+    # Позиция поля Portrait на странице 2: [38, 507, 206, 721]
+    x0, y0, x1, y1 = 38.0, 507.0, 206.0, 721.0
+    w_box = x1 - x0   # 168 pt
+    h_box = y1 - y0   # 214 pt
+
+    # Fill + clip: заполняем бокс целиком, центрируем, обрезаем лишнее
+    img_ratio = img_w / img_h
+    box_ratio = w_box / h_box
+    if img_ratio > box_ratio:
+        draw_h = h_box;  draw_w = h_box * img_ratio
+    else:
+        draw_w = w_box;  draw_h = w_box / img_ratio
+    draw_x = x0 + (w_box - draw_w) / 2
+    draw_y = y0 + (h_box - draw_h) / 2
+
+    page = doc.pages[1]
+
+    # Image XObject через pikepdf
+    img_xobj = pikepdf.Stream(doc, img_bytes)
+    img_xobj['/Type']             = pikepdf.Name('/XObject')
+    img_xobj['/Subtype']          = pikepdf.Name('/Image')
+    img_xobj['/Width']            = img_w
+    img_xobj['/Height']           = img_h
+    img_xobj['/ColorSpace']       = pikepdf.Name('/DeviceRGB')
+    img_xobj['/BitsPerComponent'] = 8
+    img_xobj['/Filter']           = pikepdf.Name('/DCTDecode')
+
+    if '/XObject' not in page['/Resources']:
+        page['/Resources']['/XObject'] = pikepdf.Dictionary()
+    page['/Resources']['/XObject']['/Img0'] = img_xobj
+
+    # Content stream: клиппинг по боксу + отрисовка
+    ops = (
+        f'q '
+        f'{x0:.4f} {y0:.4f} {w_box:.4f} {h_box:.4f} re W n '
+        f'{draw_w:.4f} 0 0 {draw_h:.4f} {draw_x:.4f} {draw_y:.4f} cm '
+        f'/Img0 Do '
+        f'Q\n'
+    ).encode('latin-1')
+    cs = pikepdf.Stream(doc, ops)
+
+    existing = page['/Contents']
+    page['/Contents'] = pikepdf.Array([existing, cs])
 
 
-# ── Checkbox maps ─────────────────────────────────────────────────────────────
+def fill_character_sheet(char: dict, template_path: str = None,
+                         portrait_path: Path = None) -> bytes:
+    """
+    portrait_path: явный путь к JPEG файлу портрета (опционально).
+    Если не передан, пытается найти {stem}.jpg рядом с template или из char['portrait'].
+    """
+    path = template_path or str(_TEMPLATE)
+    reader = PdfReader(path)
+    writer = PdfWriter()
+    writer.append(reader)
 
-SAVE_CHECKBOXES = {
-    'СИЛ': 'Check Box 11',
-    'ЛОВ': 'Check Box 18',
-    'ТЕЛ': 'Check Box 19',
-    'ИНТ': 'Check Box 20',
-    'МДР': 'Check Box 21',
-    'ХАР': 'Check Box 22',
-}
+    acro = writer._root_object.get('/AcroForm')
+    if acro:
+        ao = acro.get_object() if hasattr(acro, 'get_object') else acro
+        ao[NameObject('/NeedAppearances')] = BooleanObject(True)
 
-SKILL_CHECKBOXES = {
-    'Акробатика':       'Check Box 23',
-    'Уход за животными':'Check Box 24',
-    'Магия':            'Check Box 25',
-    'Атлетика':         'Check Box 26',
-    'Обман':            'Check Box 27',
-    'История':          'Check Box 28',
-    'Проницательность': 'Check Box 29',
-    'Запугивание':      'Check Box 30',
-    'Расследование':    'Check Box 31',
-    'Медицина':         'Check Box 32',
-    'Природа':          'Check Box 33',
-    'Восприятие':   'Check Box 34',
-    'Выступление':      'Check Box 35',
-    'Убеждение':        'Check Box 36',
-    'Религия':          'Check Box 37',
-    'Ловкость рук':     'Check Box 38',
-    'Скрытность':       'Check Box 39',
-    'Выживание':        'Check Box 40',
-}
+    sf = SheetFiller(writer)
+    _build(sf, char)
 
-# ── Public API ────────────────────────────────────────────────────────────────
+    # Определяем источник портрета
+    portrait_src  = char.get('portrait', '') or ''
+    portrait_file = portrait_path  # явно переданный путь
 
-def fill_character_sheet(char: dict, template_path: str) -> bytes:
-    font_bytes = open(_font_path(), "rb").read()
-    builders   = [_page1, _page2, _page3]
+    # Если портрет — URL вида /api/portrait/{stem}.jpg, ищем файл рядом с template
+    if not portrait_file and portrait_src and not portrait_src.startswith('data:image'):
+        stem = Path(portrait_src.split('/')[-1]).stem  # берём имя файла без расширения
+        candidates = [
+            Path(path).parent / f'{stem}.jpg',          # рядом с шаблоном
+            _HERE / 'characters' / f'{stem}.jpg',       # папка characters
+            _HERE / f'{stem}.jpg',
+        ]
+        for c in candidates:
+            if c.exists():
+                portrait_file = c
+                break
 
-    # ── Step 1: fill checkboxes on template (preserves AcroForm) ──
-    sv_profs = set(char.get("savingThrows") or [])
-    sk_profs = set(char.get("skillProficiencies") or [])
-    checkbox_values = {}
-    for ru, field in SAVE_CHECKBOXES.items():
-        checkbox_values[field] = '/Yes' if ru in sv_profs else '/Off'
-    for sk, field in SKILL_CHECKBOXES.items():
-        checkbox_values[field] = '/Yes' if sk in sk_profs else '/Off'
+    has_portrait = portrait_file or (portrait_src and portrait_src.startswith('data:image'))
 
-    tpl_reader = PdfReader(template_path)
-    tpl_writer = PdfWriter()
-    tpl_writer.append(tpl_reader)
-    for page in tpl_writer.pages:
-        tpl_writer.update_page_form_field_values(page, checkbox_values, auto_regenerate=False)
-    tpl_buf = io.BytesIO()
-    tpl_writer.write(tpl_buf)
-    tpl_buf.seek(0)
-
-    # ── Step 2: merge text overlays on top ──
-    filled_tpl = PdfReader(tpl_buf)
-    writer     = PdfWriter()
-    writer.append(filled_tpl)   # keep AcroForm
-    for pg_idx, builder in enumerate(builders):
-        ovr_bytes = builder(char, font_bytes)
-        ovr_page  = PdfReader(io.BytesIO(ovr_bytes)).pages[0]
-        writer.pages[pg_idx].merge_page(ovr_page)
-
+    # pypdf записывает заполненные поля
     out = io.BytesIO()
     writer.write(out)
     out.seek(0)
+
+    if has_portrait:
+        # pikepdf корректно вставляет XObject с портретом
+        import pikepdf
+        doc = pikepdf.open(out)
+        _insert_portrait_pikepdf(doc, portrait_src, portrait_file)
+        result = io.BytesIO()
+        doc.save(result)
+        result.seek(0)
+        return result.read()
+
     return out.read()

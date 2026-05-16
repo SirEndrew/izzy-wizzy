@@ -14,6 +14,24 @@ if str(_APP_DIR) not in sys.path:
 
 from fill_pdf import fill_character_sheet
 
+import re as _re
+
+def _strip_html(text):
+    """Убирает HTML-теги и декодирует базовые HTML-сущности."""
+    if not text or not isinstance(text, str):
+        return text or ''
+    # Заменяем <br>, <p>, </p>, <div>, </div> на перенос строки
+    t = _re.sub(r'<br\s*/?>', '\n', text, flags=_re.IGNORECASE)
+    t = _re.sub(r'</?(p|div|li)[^>]*>', '\n', t, flags=_re.IGNORECASE)
+    # Убираем остальные теги
+    t = _re.sub(r'<[^>]+>', '', t)
+    # Декодируем HTML-сущности
+    t = t.replace('&amp;', '&').replace('&lt;', '<').replace('&gt;', '>') \
+         .replace('&nbsp;', ' ').replace('&quot;', '"').replace('&#39;', "'")
+    # Убираем лишние пустые строки
+    t = _re.sub(r'\n{3,}', '\n\n', t)
+    return t.strip()
+
 # Flask: point templates and static to bundle paths
 app = Flask(
     __name__,
@@ -111,13 +129,32 @@ SLOT_TABLE = {
 
 # LSS ability placeholder translation [DEX] -> [ЛОВ] etc.
 import re as _re
-_LSS_AB_RU = {"STR":"СИЛ","DEX":"ЛОВ","CON":"ТЕЛ","INT":"ИНТ","WIS":"МДР","CHA":"ХАР",
-               "PROF":"МАЕТ","LVL":"УР"}
+# Наши переменные {СИЛ} → LSS формат [STR]
+_RU_TO_LSS = {
+    "СИЛ": "STR", "ЛОВ": "DEX", "ТЕЛ": "CON",
+    "ИНТ": "INT", "МДР": "WIS", "ХАР": "CHA",
+    "МАЕТ": "PROF", "ПРОФ": "PROF", "УР": "LVL",
+}
 def _lss_dmg(s):
+    """Конвертирует {СИЛ}, {ЛОВ} и т.д. → [STR], [DEX] для LSS."""
     def _sub(m):
         key = m.group(1).upper()
-        return f"[{_LSS_AB_RU.get(key, key)}]"
-    return _re.sub(r'\[(\w+)\]', _sub, str(s or ""))
+        return f"[{_RU_TO_LSS.get(key, key)}]"
+    return _re.sub(r'\{(\w+)\}', _sub, str(s or ""))
+
+def _attacks_prosemirror(resources_lss: dict) -> dict:
+    """Строит ProseMirror doc для вкладки attacks со ссылками на ресурсы."""
+    content = []
+    for rid, res in resources_lss.items():
+        if res.get("location") == "attacks":
+            content.append({
+                "type": "resource",
+                "attrs": {"id": rid, "textName": "attacks"}
+            })
+    if not content:
+        content = [{"type": "paragraph"}]
+    return {"data": {"type": "doc", "content": content}}
+
 
 def char_to_lss(char: dict) -> dict:
     abilities = char.get("abilities", {})
@@ -164,7 +201,7 @@ def char_to_lss(char: dict) -> dict:
         mod_val = f"+{atk}" if atk >= 0 else str(atk)
         dmg_raw = w.get("damage", "")
         dmg_type = w.get("damageType", "")
-        dmg_str = f"{dmg_raw} / {dmg_type}".strip(" /") if dmg_type else dmg_raw
+        dmg_str = f"{_lss_dmg(dmg_raw)} / {dmg_type}".strip(" /") if dmg_type else _lss_dmg(dmg_raw)
         entry = {
             "id": f"weapon-{ts}",
             "name": {"value": w.get("name", "")},
@@ -172,7 +209,7 @@ def char_to_lss(char: dict) -> dict:
             "dmg": {"value": dmg_str},
             "ability": ABILITY_MAP.get(w.get("ability", ""), w.get("ability", "str")),
             "isProf": w.get("isProf", True),
-            "modBonus": {"value": 0},
+            "modBonus": {"value": atk},
         }
         notes_parts = []
         if w.get("range"):
@@ -200,19 +237,25 @@ def char_to_lss(char: dict) -> dict:
     spell_ability_en = ABILITY_MAP.get(char.get("spellAbility", ""), "wis")
 
     # Resources → LSS resources dict
+    # Наши поля: cur, max, type, restShort, restLong, note
+    # LSS поля:  current, resolvedMax, maxExpr, location, isShortRest, isLongRest
     resources_lss = {}
-    for res in char.get("resources", []):
-        rid = res.get("id") or f"resource-{int(time.time()*1000)}"
+    for i, res in enumerate(char.get("resources", []) or []):
+        rid = res.get("id") or f"resource-{int(time.time()*1000) + i}"
+        res_max = res.get("max", res.get("maximum", 1)) or 1
+        is_short = res.get("restShort", res.get("isShortRest", False))
+        is_long  = res.get("restLong",  res.get("isLongRest",  False))
         resources_lss[rid] = {
             "id": rid,
             "name": res.get("name", ""),
-            "current": res.get("current", 0),
-            "max": res.get("max", 0),
-            "location": "traits",
-            "isShortRest": res.get("isShortRest", False),
-            "isLongRest": res.get("isLongRest", False),
-            "icon": "long-rest" if res.get("isLongRest") else ("short-rest" if res.get("isShortRest") else ""),
-            **({"notes": res["notes"]} if res.get("notes") else {}),
+            "current": res.get("cur", res.get("current", 0)),
+            "resolvedMax": res_max,
+            "maxExpr": str(res_max),
+            "location": "attacks",
+            "isShortRest": is_short,
+            "isLongRest":  is_long,
+            "icon": "long-rest" if is_long else ("short-rest" if is_short else ""),
+            **({"notes": res["note"]} if res.get("note") else {}),
         }
 
     # Inventory → equipment text
@@ -306,7 +349,7 @@ def char_to_lss(char: dict) -> dict:
                 char.get("racialTraits", ""), char.get("classFeatures", "")])))},
             "equipment":   {"value": to_prosemirror(inv_text)},
             "prof":        {"value": to_prosemirror(prof_text)},
-            "attacks":     {"value": to_prosemirror("")},
+            "attacks":     {"value": _attacks_prosemirror(resources_lss)},
             "feats":       {"value": to_prosemirror("")},
             "quests":      {"value": to_prosemirror("")},
             **notes_dict,
@@ -565,7 +608,7 @@ def lss_to_char(lss: dict) -> dict:
         return v.get("value", default) if isinstance(v, dict) else (v if v is not None else default)
 
     weapons = [{"name":w.get("name",{}).get("value",""), "attackBonus":0,
-                "damage":w.get("dmg",{}).get("value",""), "damageType":"",
+                "damage":_lss_dmg(w.get("dmg",{}).get("value","")), "damageType":"",
                 "isProf":w.get("isProf",True), "ability":w.get("ability","str")}
                for w in inner.get("weaponsList",[])]
 
@@ -634,7 +677,8 @@ def list_characters():
             chars.append({"filename": f.name, "name": d.get("name","?"),
                 "race": d.get("raceName", d.get("race","")), "subrace": d.get("subraceName",""),
                 "class": d.get("className", d.get("class","")), "background": d.get("backgroundName",""),
-                "level": d.get("level",1), "portrait": portrait})
+                "level": d.get("level",1), "portrait": portrait,
+                "portraitCrop": d.get("portraitCrop", None)})
         except: pass
     return jsonify(chars)
 
@@ -775,14 +819,24 @@ def export_lss(filename):
         char = json.load(f)
     lss = char_to_lss(char)
     name = char.get("name","Character").replace(" ","_")
-    buf = io.BytesIO(json.dumps(lss,ensure_ascii=False,indent=2).encode('utf-8'))
+    out_name = f"{name}___Long_Story_Short.json"
+    lss_bytes = json.dumps(lss,ensure_ascii=False,indent=2).encode('utf-8')
+    # В режиме pywebview — сохраняем рядом с персонажами
+    if app.config.get("USE_WEBVIEW", False):
+        out_path = SAVE_DIR / out_name
+        out_path.write_bytes(lss_bytes)
+        return jsonify({"saved": True, "path": str(out_path), "name": out_name})
+    buf = io.BytesIO(lss_bytes)
     buf.seek(0)
-    return send_file(buf,as_attachment=True,download_name=f"{name}___Long_Story_Short.json",mimetype='application/json')
+    return send_file(buf,as_attachment=True,download_name=out_name,mimetype='application/json')
 
 @app.route("/api/export/raw/<filename>")
 def export_raw(filename):
     path = SAVE_DIR/filename
     if not path.exists(): return jsonify({"error":"Not found"}), 404
+    # В режиме pywebview файл уже на диске — просто сообщаем путь
+    if app.config.get("USE_WEBVIEW", False):
+        return jsonify({"saved": True, "path": str(path), "name": path.name})
     return send_file(path,as_attachment=True)
 
 @app.route("/api/import", methods=["POST"])
@@ -833,10 +887,54 @@ def export_pdf_direct():
                     break
         char["_spellLevels"] = spell_levels
 
-        template_path = str(_resource_path("static/sheet_template.pdf"))
-        pdf_bytes = fill_character_sheet(char, template_path)
+        # Очищаем HTML-форматирование из текстовых полей
+        _html_text_fields = [
+            'savedFeatText', 'abilitiesText', 'abilities_text', '_profText',
+            'attacksNotes', 'attackNotes', 'inventoryNotes', 'spellsNotes',
+            'appearance', 'backstory', 'traits', 'ideals', 'bonds', 'flaws',
+            'allies', 'racialTraits', 'subraceTraits', 'classFeatures',
+            'armorProf', 'weaponProf', 'toolProf', 'otherProf', 'languages',
+            'note', 'spellsNotes', 'spellNotes',
+        ]
+        for _f in _html_text_fields:
+            if _f in char and isinstance(char[_f], str):
+                char[_f] = _strip_html(char[_f])
+        # Заметки в оружии и инвентаре
+        for _w in char.get('weapons', []) or []:
+            if isinstance(_w, dict) and _w.get('note'):
+                _w['note'] = _strip_html(_w['note'])
+        for _i in char.get('inventory', []) or []:
+            if isinstance(_i, dict):
+                if _i.get('note'):        _i['note']        = _strip_html(_i['note'])
+                if _i.get('description'): _i['description'] = _strip_html(_i['description'])
 
+        template_path = str(_resource_path("static/sheet_template.pdf"))
         name = (char.get("name") or "Character").replace(" ", "_")
+
+        pdf_portrait = char.pop("_pdfPortrait", None)
+        if pdf_portrait:
+            char_for_pdf = {**char, "portrait": pdf_portrait}
+            pdf_bytes = fill_character_sheet(char_for_pdf, template_path, portrait_path=None)
+        else:
+            portrait_file = SAVE_DIR / f"{name}.jpg"
+            pdf_bytes = fill_character_sheet(
+                char, template_path,
+                portrait_path=portrait_file if portrait_file.exists() else None
+            )
+
+        # В режиме pywebview — сохраняем файл рядом с персонажами и возвращаем путь
+        if app.config.get("USE_WEBVIEW", False):
+            SAVE_DIR.mkdir(parents=True, exist_ok=True)
+            base_name = f"{name}_DnD5e"
+            pdf_path = SAVE_DIR / f"{base_name}.pdf"
+            # Если файл уже существует — итерируем: Name_DnD5e(1).pdf, (2).pdf ...
+            counter = 1
+            while pdf_path.exists():
+                pdf_path = SAVE_DIR / f"{base_name}({counter}).pdf"
+                counter += 1
+            pdf_path.write_bytes(pdf_bytes)
+            return jsonify({"saved": True, "path": str(pdf_path), "name": pdf_path.name})
+
         buf = io.BytesIO(pdf_bytes)
         buf.seek(0)
         return send_file(

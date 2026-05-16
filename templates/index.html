@@ -1845,6 +1845,7 @@ hr.divider { border: none; border-top: 1px solid #606b85; margin: .9rem 0 }
   padding: .32rem .55rem;
   background: #1a2236; border: 1px solid #2a3450; border-radius: 5px;
   font-size: .84rem; margin-bottom: .2rem; transition: border-color .15s;
+  overflow: hidden; min-width: 0;
 }
 .inv-row { cursor: pointer }
 .inv-row:hover { border-color: #4a6080 }
@@ -1853,7 +1854,7 @@ hr.divider { border: none; border-top: 1px solid #606b85; margin: .9rem 0 }
 .inv-main        { flex: 1; min-width: 0 }
 .inv-name-row    { display: flex; align-items: center; gap: .4rem; flex-wrap: wrap }
 .inv-item-name   { font-size: .84rem; font-weight: 600; color: var(--text); overflow-wrap: break-word; word-break: break-word; white-space: normal; max-width: 100% }
-.inv-subinfo     { font-size: .67rem; color: var(--text3); margin-top: .04rem }
+.inv-subinfo     { font-size: .67rem; color: var(--text3); margin-top: .04rem; overflow-wrap: break-word; word-break: break-word; white-space: normal }
 .inv-key-stat    { font-size: .67rem; font-weight: 700; border-radius: 3px; padding: .04rem .28rem; flex-shrink: 0; white-space: nowrap }
 .inv-stat-dmg    { color: #e07070; background: rgba(180,60,60,.15); border: 1px solid rgba(180,60,60,.3) }
 .inv-stat-ac     { color: #7bafd4; background: rgba(60,100,180,.15); border: 1px solid rgba(60,100,180,.3) }
@@ -2546,8 +2547,8 @@ hr.divider { border: none; border-top: 1px solid #606b85; margin: .9rem 0 }
 }
 .crop-dialog h3 { margin: 0; font-size: var(--dlg-title-fs); font-weight: var(--dlg-title-fw); color: var(--text) }
 .crop-viewport {
-  position: relative; width: 100%; aspect-ratio: 1;
-  max-height: 60vh; overflow: hidden;
+  position: relative; width: 100%;
+  overflow: hidden;
   background: #111; border-radius: 6px; cursor: grab; touch-action: none;
   user-select: none;
 }
@@ -2594,7 +2595,7 @@ hr.divider { border: none; border-top: 1px solid #606b85; margin: .9rem 0 }
 .weapon-card {
   background: #1e253a; border: 1px solid #3d4a65; border-radius: 6px;
   padding: 0; display: flex; align-items: stretch; gap: 0;
-  transition: border-color .15s; min-height: 2.4rem;
+  transition: border-color .15s; min-height: 2.4rem; overflow: hidden; min-width: 0;
 }
 .weapon-card { cursor: pointer }
 .weapon-card:hover { border-color: #606b85 }
@@ -2614,7 +2615,7 @@ hr.divider { border: none; border-top: 1px solid #606b85; margin: .9rem 0 }
 .weapon-card-atk:hover { background: rgba(255,255,255,.1) }
 .weapon-card-dmg:hover { background: rgba(255,255,255,.1) }
 .weapon-card-del:hover { color: #e05; background: rgba(220,0,50,.1) }
-.weapon-card-note  { font-size: .68rem; color: var(--text3); padding: .05rem 0 0; font-style: italic; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+.weapon-card-note  { font-size: .68rem; color: var(--text3); padding: .05rem 0 0; font-style: italic; white-space: normal; overflow-wrap: break-word; word-break: break-word; min-width: 0 }
 
 /* ══ SPELL CARDS ══════════════════════════════════════════════════════ */
 /* Column widths — shared between group header and cards */
@@ -4230,7 +4231,7 @@ document.getElementById('ability-pb-grid').innerHTML =
 <!-- ══ PORTRAIT CROP DIALOG ══ -->
 <div id="crop-overlay" class="crop-overlay hidden" data-dlg-close="closeCropDialog">
   <div class="crop-dialog">
-    <h3>✂️ Кадрировать портрет</h3>
+    <h3 id="crop-title">✂️ Кадрировать портрет</h3>
     <div class="crop-viewport" id="crop-viewport">
       <img id="crop-img" class="crop-img" src="" alt="">
       <div class="crop-frame"></div>
@@ -4240,7 +4241,7 @@ document.getElementById('ability-pb-grid').innerHTML =
       <input type="range" id="crop-zoom" min="1" max="5" step="0.01" value="1"
         oninput="cropZoomChange(this.value);autoSave()">
     </div>
-    <p class="crop-hint">Перетащите изображение для выбора нужного фрагмента. Результат — квадрат.</p>
+    <p class="crop-hint" id="crop-hint">Перетащите изображение для выбора нужного фрагмента.</p>
     <div class="crop-actions">
       <button class="btn btn-secondary" onclick="closeCropDialog()">Отмена</button>
       <button class="btn btn-secondary" onclick="applyCrop()">Применить</button>
@@ -4700,7 +4701,7 @@ document.getElementById('ability-pb-grid').innerHTML =
         <img src="/static/img/icon.svg" alt="" class="about-icon">
         <div>
           <div class="about-appname">Izzy Wizzy</div>
-          <div class="about-version">версия 0.9.02B</div>
+          <div class="about-version">версия 0.9.03B</div>
         </div>
       </div>
       <div class="about-desc">Менеджер персонажей для D&amp;D 5e на русском языке.<br>Работает локально, не требует интернета.</div>
@@ -4719,7 +4720,7 @@ document.getElementById('ability-pb-grid').innerHTML =
       </div>
       <div class="about-legal">Dungeons &amp; Dragons и связанные материалы являются интеллектуальной собственностью Wizards of the Coast / Hasbro. Все права на контент принадлежат их соответствующим владельцам.</div>
       <div class="about-divider"></div>
-      <div class="about-legal" style="text-align:center">Спасибо моему первому и пока единственному бустеру:<br><strong style="color:var(--accent)">Дима Зверев</strong></div>
+      <div class="about-legal" style="text-align:center">Спасибо моей любимой семейке бустеров:<br><strong style="color:var(--accent)">Дима Зверев, Alena Zvereva</strong></div>
     </div>
     <div style="display:flex;justify-content:flex-end;margin-top:1rem">
       <button class="btn btn-secondary" onclick="closeAboutDialog()">Закрыть</button>
@@ -4877,6 +4878,8 @@ document.getElementById('ability-pb-grid').innerHTML =
         <option value="weapon">Оружие</option>
         <option value="armor">Доспех / Щит</option>
         <option value="tool">Инструмент</option>
+        <option value="potion">Зелье</option>
+        <option value="scroll">Свиток</option>
         <option value="kit">Набор</option>
       </select>
     </div>
@@ -4952,6 +4955,8 @@ document.getElementById('ability-pb-grid').innerHTML =
         <option value="firearm">Огнестрел</option>
         <option value="firearm_ammo">Огнестрельные боеприпасы</option>
         <option value="explosive">Взрывчатка</option>
+        <option value="potion">Зелья</option>
+        <option value="scroll">Свитки</option>
       </select>
       <select id="ib-sort" onchange="renderItemsBrowserList();autoSave()"
         style="background:var(--dlg-input-bg);border:1px solid var(--dlg-input-border);border-radius:var(--dlg-input-radius);color:var(--text);font-family:inherit;font-size:var(--dlg-input-fs);padding:var(--dlg-input-pad);width:100%;box-sizing:border-box;outline:none">

@@ -107,6 +107,24 @@ window.ITEMS_AMMO = [
   { id:"sling_bullets_20",  name:"Снаряды для пращи (20)",   category:"Боеприпасы", stackSize:20, costGp:0.04, weightLbs:1.5  },
 ];
 
+window.ITEMS_POTIONS = [
+  {
+    id:"potion_healing",    name:"Зелье лечения",    category:"Зелье",       costGp:50,    weightLbs:0.5,
+    description:"Существо, выпившее магическую красную жидкость из этого флакона, восстанавливает 2к4 + 2 хита. Зелье выпивается или заливается в рот другому действием.",
+  },
+  {
+    id:"potion_of_greater_healing",    name:"Зелье большого лечения",    category:"Зелье",       costGp:250,    weightLbs:0.5,
+    description:"Существо, выпившее магическую красную жидкость из этого флакона, восстанавливает 4к4 + 4 хита. Зелье выпивается или заливается в рот другому действием.",
+  },
+  {
+    id:"potion_of_superior_healing",    name:"Зелье отличного лечения",    category:"Зелье",        costGp:2500,    weightLbs:0.5,
+    description:"Существо, выпившее магическую красную жидкость из этого флакона, восстанавливает 8к4 + 8 хита. Зелье выпивается или заливается в рот другому действием.",
+  },
+   {
+    id:"potion_of_supreme_healing",    name:"Зелье превосходного лечения",    category:"Зелье",        costGp:25000,    weightLbs:0.5,
+    description:"Существо, выпившее магическую красную жидкость из этого флакона, восстанавливает 10к4 + 20 хита. Зелье выпивается или заливается в рот другому действием.",
+  },
+];
 window.ITEMS_GEAR = [
   { id:"abacus", name:"Абак", category:"Прочее", costGp:2, weightLbs:2 },
   {
@@ -161,22 +179,6 @@ window.ITEMS_GEAR = [
   {
     id:"lock",    name:"Замок",    category:"Прочее",    costGp:10,    weightLbs:1,
     description:"Вместе с замком идёт и ключ. Без ключа существо, владеющее воровскими инструментами, может вскрыть замок успешной проверкой Ловкости Сл 15. Мастер может решить, что есть более качественные замки, стоящие больше.",
-  },
-  {
-    id:"potion_healing",    name:"Зелье лечения",    category:"Прочее",    costGp:50,    weightLbs:0.5,
-    description:"Существо, выпившее магическую красную жидкость из этого флакона, восстанавливает 2к4 + 2 хита. Зелье выпивается или заливается в рот другому действием.",
-  },
-  {
-    id:"potion_of_greater_healing",    name:"Зелье большого лечения",    category:"Прочее",    costGp:250,    weightLbs:0.5,
-    description:"Существо, выпившее магическую красную жидкость из этого флакона, восстанавливает 4к4 + 4 хита. Зелье выпивается или заливается в рот другому действием.",
-  },
-  {
-    id:"potion_of_superior_healing",    name:"Зелье отличного лечения",    category:"Прочее",    costGp:2500,    weightLbs:0.5,
-    description:"Существо, выпившее магическую красную жидкость из этого флакона, восстанавливает 8к4 + 8 хита. Зелье выпивается или заливается в рот другому действием.",
-  },
-   {
-    id:"potion_of_supreme_healing",    name:"Зелье превосходного лечения",    category:"Прочее",    costGp:25000,    weightLbs:0.5,
-    description:"Существо, выпившее магическую красную жидкость из этого флакона, восстанавливает 10к4 + 20 хита. Зелье выпивается или заливается в рот другому действием.",
   },
   { id:"mirror_steel", name:"Зеркало, стальное", category:"Прочее", costGp:5, weightLbs:0.5 },
   {
@@ -787,6 +789,7 @@ window.ITEMS_ALL = [
   ...window.ITEMS_FIREARMS_AMMO.map(i=>({...i, itemClass:'firearm_ammo'})),
   ...window.ITEMS_EXPLOSIVES   .map(i=>({...i, itemClass:'explosive'})),
   ...window.ITEMS_ARMOR        .map(i=>({...i, itemClass:'armor'})),
+  ...window.ITEMS_POTIONS      .map(i=>({...i, itemClass:'potion'})),
   ...window.ITEMS_GEAR         .map(i=>({...i, itemClass:'gear'})),
   ...window.ITEMS_TOOLS        .map(i=>({...i, itemClass:'tool'})),
   ...window.ITEMS_SPECIAL      .map(i=>({...i, itemClass:'special'})),
