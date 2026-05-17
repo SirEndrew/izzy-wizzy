@@ -2891,10 +2891,10 @@ hr.divider { border: none; border-top: 1px solid #606b85; margin: .9rem 0 }
 .resource-card {
   background:#1e253a;border:1px solid #3d4a65;border-radius:6px;
   padding:.3rem 0 .3rem .55rem;display:flex;align-items:stretch;gap:0;min-height:2.2rem;
-  transition:border-color .15s;
+  transition:border-color .15s; overflow:hidden; min-width:0;
 }
 .resource-card:hover { border-color:#606b85 }
-.resource-card-name { font-size:.86rem;font-weight:600;color:var(--text);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:.4rem }
+.resource-card-name { font-size:.86rem;font-weight:600;color:var(--text);flex:1;min-width:0;white-space:normal;overflow-wrap:break-word;word-break:break-word;display:flex;align-items:center;gap:.4rem;flex-wrap:wrap }
 .resource-card-tags { display:flex;gap:.25rem;align-items:center }
 .resource-card-tag { font-size:.6rem;padding:.05rem .3rem;border-radius:8px;border:1px solid #3d4a65;color:var(--text3) }
 .resource-pips { display:flex;gap:.2rem;align-items:center;flex-wrap:wrap }
@@ -2906,6 +2906,7 @@ hr.divider { border: none; border-top: 1px solid #606b85; margin: .9rem 0 }
 .resource-pip:hover { opacity:.75 }
 .resource-card-count { font-size:.72rem;font-family:'PT Mono',monospace;color:var(--text3);min-width:2.2rem;text-align:center }
 .resource-card .weapon-card-del { margin-left: auto }
+.resource-card-note { font-size:.68rem;color:var(--text3);font-style:italic;white-space:normal;overflow-wrap:break-word;word-break:break-word;min-width:0;padding:.05rem 0 0 }
 /* resource dialog */
 .res-dialog-overlay { position:fixed;inset:0;background:var(--dlg-overlay);z-index:9500;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(2px) }
 .res-dialog-overlay.hidden { display:none }
