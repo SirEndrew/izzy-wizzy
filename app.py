@@ -991,7 +991,10 @@ if __name__ == "__main__":
     import threading
     import argparse
 
-    PORT = 5000
+    # На Amvera/облаке PORT задаётся через переменную окружения
+    # Локально всегда 5000
+    PORT = int(os.environ.get("PORT", 5000))
+    WEB_MODE = os.environ.get("WEB_MODE", "").lower() in ("1", "true", "yes")
     is_frozen = getattr(sys, "frozen", False)
 
     parser = argparse.ArgumentParser(add_help=False)
@@ -1000,14 +1003,19 @@ if __name__ == "__main__":
     use_browser = args.browser
 
     def _start_flask():
-        app.run(host="127.0.0.1", port=PORT, debug=False, use_reloader=False, threaded=True)
+        host = "0.0.0.0" if WEB_MODE else "127.0.0.1"
+        app.run(host=host, port=PORT, debug=False, use_reloader=False, threaded=True)
 
     def _open_browser():
         import time as _t; _t.sleep(1.2)
         import webbrowser
         webbrowser.open(f"http://localhost:{PORT}")
 
-    if use_browser:
+    if WEB_MODE:
+        # Облачный режим — просто запускаем Flask на 0.0.0.0
+        print(f"Izzy Wizzy web mode: http://0.0.0.0:{PORT}")
+        app.run(host="0.0.0.0", port=PORT, debug=False, use_reloader=False, threaded=True)
+    elif use_browser:
         # Явно запрошен браузер
         threading.Thread(target=_open_browser, daemon=True).start()
         print(f"Izzy Wizzy: http://localhost:{PORT}")
