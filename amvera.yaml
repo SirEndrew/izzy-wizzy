@@ -11,4 +11,4 @@ build:
     - zlib1g-dev
 run:
   persistenceMount: /data
-  command: gunicorn app:app --bind 0.0.0.0:8080 --workers 1 --timeout 120 --log-level debug --capture-output
+  command: python -c "import app; print('OK')"
