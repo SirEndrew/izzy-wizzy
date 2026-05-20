@@ -7,4 +7,4 @@ build:
   requirementsPath: requirements.txt
 run:
   persistenceMount: /data
-  command: python -c "import app; print('OK')"
+  command: python check_import.py
