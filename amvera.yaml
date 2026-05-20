@@ -5,10 +5,6 @@ meta:
     version: "3.11"
 build:
   requirementsPath: requirements.txt
-  systemPackages:
-    - libqpdf-dev
-    - libjpeg-dev
-    - zlib1g-dev
 run:
   persistenceMount: /data
   command: python -c "import app; print('OK')"
