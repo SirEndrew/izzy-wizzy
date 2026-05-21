@@ -7,5 +7,5 @@ build:
   requirementsPath: requirements.txt
 run:
   persistenceMount: /data
-  containerPort: 5000
+  containerPort: 8080
   command: gunicorn app:app --bind 0.0.0.0:8080 --workers 1 --timeout 120
