@@ -991,9 +991,7 @@ if __name__ == "__main__":
     import threading
     import argparse
 
-    # На Amvera/облаке PORT задаётся через переменную окружения
-    # Локально всегда 5000
-    PORT = int(os.environ.get("PORT", 5000))
+    PORT = int(os.environ.get("PORT", 8080))
     WEB_MODE = os.environ.get("WEB_MODE", "").lower() in ("1", "true", "yes")
     is_frozen = getattr(sys, "frozen", False)
 
@@ -1003,8 +1001,7 @@ if __name__ == "__main__":
     use_browser = args.browser
 
     def _start_flask():
-        host = "0.0.0.0" if WEB_MODE else "127.0.0.1"
-        app.run(host=host, port=PORT, debug=False, use_reloader=False, threaded=True)
+        app.run(host="0.0.0.0", port=PORT, debug=False, use_reloader=False, threaded=True)
 
     def _open_browser():
         import time as _t; _t.sleep(1.2)
@@ -1019,7 +1016,7 @@ if __name__ == "__main__":
         # Явно запрошен браузер
         threading.Thread(target=_open_browser, daemon=True).start()
         print(f"Izzy Wizzy: http://localhost:{PORT}")
-        app.run(host="127.0.0.1", port=PORT,
+        app.run(host="0.0.0.0", port=PORT,
                 debug=not is_frozen, use_reloader=not is_frozen)
     else:
         # Пробуем открыть в своём окне через pywebview
