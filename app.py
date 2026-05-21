@@ -46,8 +46,13 @@ if getattr(sys, "frozen", False):
 else:
     _DATA_DIR = Path(__file__).parent
 
-SAVE_DIR = _DATA_DIR / "characters"
-SAVE_DIR.mkdir(exist_ok=True)
+# В веб-режиме (Amvera) используем persistent volume /data
+# В десктопном режиме — локальная папка рядом с приложением
+if os.environ.get("WEB_MODE", "").lower() in ("1", "true", "yes"):
+    SAVE_DIR = Path("/data/characters")
+else:
+    SAVE_DIR = _DATA_DIR / "characters"
+SAVE_DIR.mkdir(parents=True, exist_ok=True)
 BASE_DIR = _resource_path("")
 
 # ── Version & update check ────────────────────────────────────────────────────
