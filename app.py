@@ -1,6 +1,8 @@
-from flask import Flask, render_template, request, jsonify, send_file
-import json, os, io, time, sys
+from flask import Flask, render_template, request, jsonify, send_file, session, redirect, url_for
+import json, os, io, time, sys, hashlib, secrets
 from pathlib import Path
+
+WEB_MODE = os.environ.get("WEB_MODE", "").lower() in ("1", "true", "yes")
 
 # ── PyInstaller / dev path resolution ────────────────────────────────────────
 def _resource_path(rel: str) -> Path:
@@ -13,24 +15,6 @@ if str(_APP_DIR) not in sys.path:
     sys.path.insert(0, str(_APP_DIR))
 
 from fill_pdf import fill_character_sheet
-
-import re as _re
-
-def _strip_html(text):
-    """Убирает HTML-теги и декодирует базовые HTML-сущности."""
-    if not text or not isinstance(text, str):
-        return text or ''
-    # Заменяем <br>, <p>, </p>, <div>, </div> на перенос строки
-    t = _re.sub(r'<br\s*/?>', '\n', text, flags=_re.IGNORECASE)
-    t = _re.sub(r'</?(p|div|li)[^>]*>', '\n', t, flags=_re.IGNORECASE)
-    # Убираем остальные теги
-    t = _re.sub(r'<[^>]+>', '', t)
-    # Декодируем HTML-сущности
-    t = t.replace('&amp;', '&').replace('&lt;', '<').replace('&gt;', '>') \
-         .replace('&nbsp;', ' ').replace('&quot;', '"').replace('&#39;', "'")
-    # Убираем лишние пустые строки
-    t = _re.sub(r'\n{3,}', '\n\n', t)
-    return t.strip()
 
 # Flask: point templates and static to bundle paths
 app = Flask(
@@ -46,18 +30,66 @@ if getattr(sys, "frozen", False):
 else:
     _DATA_DIR = Path(__file__).parent
 
-# В веб-режиме (Amvera) используем persistent volume /data
-# В десктопном режиме — локальная папка рядом с приложением
-if os.environ.get("WEB_MODE", "").lower() in ("1", "true", "yes"):
-    SAVE_DIR = Path("/data/characters")
-else:
-    SAVE_DIR = _DATA_DIR / "characters"
-SAVE_DIR.mkdir(parents=True, exist_ok=True)
+SAVE_DIR = _DATA_DIR / "characters"
+SAVE_DIR.mkdir(exist_ok=True)
 BASE_DIR = _resource_path("")
 
+app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-change-me-in-production")
+
+# Web mode: persistent data on /data volume (Amvera)
+if WEB_MODE:
+    _WEB_DATA = Path("/data")
+    _WEB_DATA.mkdir(exist_ok=True)
+    (_WEB_DATA / "characters").mkdir(exist_ok=True)
+    USERS_FILE = _WEB_DATA / "users.json"
+else:
+    USERS_FILE = None
+
+# ── Auth helpers ──────────────────────────────────────────────────────────────
+
+def _load_users() -> dict:
+    if USERS_FILE and USERS_FILE.exists():
+        try:
+            return json.loads(USERS_FILE.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+    return {}
+
+def _save_users(users: dict):
+    USERS_FILE.write_text(json.dumps(users, ensure_ascii=False, indent=2), encoding="utf-8")
+
+def _hash_password(password: str, salt: str = None) -> tuple:
+    if salt is None:
+        salt = secrets.token_hex(16)
+    h = hashlib.sha256((salt + password).encode()).hexdigest()
+    return h, salt
+
+def _check_password(password: str, stored_hash: str, salt: str) -> bool:
+    h, _ = _hash_password(password, salt)
+    return h == stored_hash
+
+def _get_save_dir() -> Path:
+    """Return per-user save directory in WEB_MODE, else the global SAVE_DIR."""
+    if WEB_MODE:
+        uid = session.get("user_id")
+        if uid:
+            d = Path("/data/characters") / uid
+            d.mkdir(parents=True, exist_ok=True)
+            return d
+    return SAVE_DIR
+
+def _sd() -> Path:
+    return _get_save_dir()
+
+def _require_auth():
+    """In WEB_MODE redirect to /login if not logged in. Returns response or None."""
+    if WEB_MODE and not session.get("user_id"):
+        return redirect(url_for("login_page"))
+    return None
+
 # ── Version & update check ────────────────────────────────────────────────────
-APP_VERSION = "0.10B"
-GITHUB_REPO = "your-username/izzy-wizzy"  # TODO: replace with real repo
+APP_VERSION = "0.9B"
+GITHUB_REPO = "SirEndrew/izzy-wizzy"  # TODO: replace with real repo
 
 @app.route("/api/version")
 def get_version():
@@ -134,32 +166,13 @@ SLOT_TABLE = {
 
 # LSS ability placeholder translation [DEX] -> [ЛОВ] etc.
 import re as _re
-# Наши переменные {СИЛ} → LSS формат [STR]
-_RU_TO_LSS = {
-    "СИЛ": "STR", "ЛОВ": "DEX", "ТЕЛ": "CON",
-    "ИНТ": "INT", "МДР": "WIS", "ХАР": "CHA",
-    "МАЕТ": "PROF", "ПРОФ": "PROF", "УР": "LVL",
-}
+_LSS_AB_RU = {"STR":"СИЛ","DEX":"ЛОВ","CON":"ТЕЛ","INT":"ИНТ","WIS":"МДР","CHA":"ХАР",
+               "PROF":"МАЕТ","LVL":"УР"}
 def _lss_dmg(s):
-    """Конвертирует {СИЛ}, {ЛОВ} и т.д. → [STR], [DEX] для LSS."""
     def _sub(m):
         key = m.group(1).upper()
-        return f"[{_RU_TO_LSS.get(key, key)}]"
-    return _re.sub(r'\{(\w+)\}', _sub, str(s or ""))
-
-def _attacks_prosemirror(resources_lss: dict) -> dict:
-    """Строит ProseMirror doc для вкладки attacks со ссылками на ресурсы."""
-    content = []
-    for rid, res in resources_lss.items():
-        if res.get("location") == "attacks":
-            content.append({
-                "type": "resource",
-                "attrs": {"id": rid, "textName": "attacks"}
-            })
-    if not content:
-        content = [{"type": "paragraph"}]
-    return {"data": {"type": "doc", "content": content}}
-
+        return f"[{_LSS_AB_RU.get(key, key)}]"
+    return _re.sub(r'\[(\w+)\]', _sub, str(s or ""))
 
 def char_to_lss(char: dict) -> dict:
     abilities = char.get("abilities", {})
@@ -206,7 +219,7 @@ def char_to_lss(char: dict) -> dict:
         mod_val = f"+{atk}" if atk >= 0 else str(atk)
         dmg_raw = w.get("damage", "")
         dmg_type = w.get("damageType", "")
-        dmg_str = f"{_lss_dmg(dmg_raw)} / {dmg_type}".strip(" /") if dmg_type else _lss_dmg(dmg_raw)
+        dmg_str = f"{dmg_raw} / {dmg_type}".strip(" /") if dmg_type else dmg_raw
         entry = {
             "id": f"weapon-{ts}",
             "name": {"value": w.get("name", "")},
@@ -214,7 +227,7 @@ def char_to_lss(char: dict) -> dict:
             "dmg": {"value": dmg_str},
             "ability": ABILITY_MAP.get(w.get("ability", ""), w.get("ability", "str")),
             "isProf": w.get("isProf", True),
-            "modBonus": {"value": atk},
+            "modBonus": {"value": 0},
         }
         notes_parts = []
         if w.get("range"):
@@ -242,25 +255,19 @@ def char_to_lss(char: dict) -> dict:
     spell_ability_en = ABILITY_MAP.get(char.get("spellAbility", ""), "wis")
 
     # Resources → LSS resources dict
-    # Наши поля: cur, max, type, restShort, restLong, note
-    # LSS поля:  current, resolvedMax, maxExpr, location, isShortRest, isLongRest
     resources_lss = {}
-    for i, res in enumerate(char.get("resources", []) or []):
-        rid = res.get("id") or f"resource-{int(time.time()*1000) + i}"
-        res_max = res.get("max", res.get("maximum", 1)) or 1
-        is_short = res.get("restShort", res.get("isShortRest", False))
-        is_long  = res.get("restLong",  res.get("isLongRest",  False))
+    for res in char.get("resources", []):
+        rid = res.get("id") or f"resource-{int(time.time()*1000)}"
         resources_lss[rid] = {
             "id": rid,
             "name": res.get("name", ""),
-            "current": res.get("cur", res.get("current", 0)),
-            "resolvedMax": res_max,
-            "maxExpr": str(res_max),
-            "location": "attacks",
-            "isShortRest": is_short,
-            "isLongRest":  is_long,
-            "icon": "long-rest" if is_long else ("short-rest" if is_short else ""),
-            **({"notes": res["note"]} if res.get("note") else {}),
+            "current": res.get("current", 0),
+            "max": res.get("max", 0),
+            "location": "traits",
+            "isShortRest": res.get("isShortRest", False),
+            "isLongRest": res.get("isLongRest", False),
+            "icon": "long-rest" if res.get("isLongRest") else ("short-rest" if res.get("isShortRest") else ""),
+            **({"notes": res["notes"]} if res.get("notes") else {}),
         }
 
     # Inventory → equipment text
@@ -354,7 +361,7 @@ def char_to_lss(char: dict) -> dict:
                 char.get("racialTraits", ""), char.get("classFeatures", "")])))},
             "equipment":   {"value": to_prosemirror(inv_text)},
             "prof":        {"value": to_prosemirror(prof_text)},
-            "attacks":     {"value": _attacks_prosemirror(resources_lss)},
+            "attacks":     {"value": to_prosemirror("")},
             "feats":       {"value": to_prosemirror("")},
             "quests":      {"value": to_prosemirror("")},
             **notes_dict,
@@ -613,7 +620,7 @@ def lss_to_char(lss: dict) -> dict:
         return v.get("value", default) if isinstance(v, dict) else (v if v is not None else default)
 
     weapons = [{"name":w.get("name",{}).get("value",""), "attackBonus":0,
-                "damage":_lss_dmg(w.get("dmg",{}).get("value","")), "damageType":"",
+                "damage":w.get("dmg",{}).get("value",""), "damageType":"",
                 "isProf":w.get("isProf",True), "ability":w.get("ability","str")}
                for w in inner.get("weaponsList",[])]
 
@@ -652,6 +659,60 @@ def lss_to_char(lss: dict) -> dict:
         "notes":from_prosemirror(text.get("notes-1",{}).get("value",{})),"resources":[],
     }
 
+@app.route("/login")
+def login_page():
+    if WEB_MODE and session.get("user_id"):
+        return redirect(url_for("index"))
+    return render_template("login.html")
+
+@app.route("/api/auth/register", methods=["POST"])
+def auth_register():
+    if not WEB_MODE:
+        return jsonify({"error": "Not in web mode"}), 400
+    data = request.json or {}
+    email = (data.get("email") or "").strip().lower()
+    password = data.get("password") or ""
+    if not email or not password:
+        return jsonify({"error": "Email и пароль обязательны"}), 400
+    if len(password) < 6:
+        return jsonify({"error": "Пароль минимум 6 символов"}), 400
+    users = _load_users()
+    if email in users:
+        return jsonify({"error": "Пользователь с таким email уже существует"}), 409
+    h, salt = _hash_password(password)
+    uid = secrets.token_hex(8)
+    users[email] = {"id": uid, "email": email, "hash": h, "salt": salt}
+    _save_users(users)
+    session["user_id"] = uid
+    session["user_email"] = email
+    return jsonify({"status": "ok", "email": email})
+
+@app.route("/api/auth/login", methods=["POST"])
+def auth_login():
+    if not WEB_MODE:
+        return jsonify({"error": "Not in web mode"}), 400
+    data = request.json or {}
+    email = (data.get("email") or "").strip().lower()
+    password = data.get("password") or ""
+    users = _load_users()
+    user = users.get(email)
+    if not user or not _check_password(password, user["hash"], user["salt"]):
+        return jsonify({"error": "Неверный email или пароль"}), 401
+    session["user_id"] = user["id"]
+    session["user_email"] = email
+    return jsonify({"status": "ok", "email": email})
+
+@app.route("/api/auth/logout", methods=["POST"])
+def auth_logout():
+    session.clear()
+    return jsonify({"status": "ok"})
+
+@app.route("/api/auth/me")
+def auth_me():
+    if WEB_MODE and session.get("user_id"):
+        return jsonify({"email": session.get("user_email"), "id": session.get("user_id")})
+    return jsonify({"email": None, "id": None})
+
 @app.route("/favicon.ico")
 def favicon():
     from flask import redirect
@@ -659,69 +720,74 @@ def favicon():
 
 @app.route("/")
 def index():
-    use_webview = app.config.get("USE_WEBVIEW", False)
-    return render_template("index.html", pywebview=use_webview)
+    redir = _require_auth()
+    if redir: return redir
+    return render_template("index.html")
 
 @app.route("/api/characters", methods=["GET"])
 def list_characters():
+    redir = _require_auth()
+    if redir: return redir
     chars = []
-    for f in sorted(SAVE_DIR.glob("*.json"), key=lambda x: x.stat().st_mtime, reverse=True):
+    save_dir = _sd()
+    for f in sorted(save_dir.glob("*.json"), key=lambda x: x.stat().st_mtime, reverse=True):
         try:
             with open(f, encoding='utf-8') as fh:
                 d = json.load(fh)
-            # Portrait: prefer file URL, fall back to legacy base64
             stem = f.stem
-            portrait_file = SAVE_DIR / f"{stem}.jpg"
+            portrait_file = save_dir / f"{stem}.jpg"
             if portrait_file.exists():
                 portrait = f"/api/portrait/{stem}.jpg"
             else:
                 portrait = d.get("portrait", "") or ""
-                # Strip legacy base64 from list payload (still in JSON file)
                 if portrait.startswith("data:image"):
-                    portrait = ""  # don't send 100KB per char in list
+                    portrait = ""
             chars.append({"filename": f.name, "name": d.get("name","?"),
                 "race": d.get("raceName", d.get("race","")), "subrace": d.get("subraceName",""),
                 "class": d.get("className", d.get("class","")), "background": d.get("backgroundName",""),
-                "level": d.get("level",1), "portrait": portrait,
-                "portraitCrop": d.get("portraitCrop", None)})
+                "level": d.get("level",1), "portrait": portrait})
         except: pass
     return jsonify(chars)
 
 @app.route("/api/characters/<filename>", methods=["GET"])
 def get_character(filename):
+    redir = _require_auth()
+    if redir: return redir
     import base64 as _b64
-    path = SAVE_DIR / filename
+    save_dir = _sd()
+    path = save_dir / filename
     if not path.exists(): return jsonify({"error":"Not found"}), 404
     with open(path, encoding="utf-8") as f:
         d = json.load(f)
     stem = Path(filename).stem
-    portrait_file = SAVE_DIR / f"{stem}.jpg"
-    # Migrate legacy base64 portrait → .jpg file on first load
+    portrait_file = save_dir / f"{stem}.jpg"
     legacy = d.get("portrait") or ""
     if isinstance(legacy, str) and legacy.startswith("data:image") and not portrait_file.exists():
         try:
             b64 = legacy.split(",", 1)[1]
             portrait_file.write_bytes(_b64.b64decode(b64))
             d.pop("portrait", None)
-            # Rewrite JSON without base64
             with open(path, "w", encoding="utf-8") as fw:
                 json.dump(d, fw, ensure_ascii=False, indent=2)
         except Exception:
             pass
-    # Always serve URL if .jpg exists
     if portrait_file.exists():
         d["portrait"] = f"/api/portrait/{stem}.jpg"
     return jsonify(d)
 
 @app.route("/api/portrait/<path:filename>")
 def get_portrait(filename):
-    path = SAVE_DIR / filename
+    redir = _require_auth()
+    if redir: return redir
+    path = _sd() / filename
     if not path.exists(): return jsonify({"error":"Not found"}), 404
     return send_file(path, mimetype="image/jpeg")
 
 @app.route("/api/portrait/<path:stem>", methods=["POST"])
 def save_portrait(stem):
     """Accept base64 JPEG, save as characters/<stem>.jpg, return URL."""
+    redir = _require_auth()
+    if redir: return redir
     import base64 as _b64
     data = request.json
     b64 = data.get("data","")
@@ -731,7 +797,7 @@ def save_portrait(stem):
         img_bytes = _b64.b64decode(b64)
     except Exception as e:
         return jsonify({"error": str(e)}), 400
-    out_path = SAVE_DIR / f"{stem}.jpg"
+    out_path = _sd() / f"{stem}.jpg"
     out_path.write_bytes(img_bytes)
     return jsonify({"url": f"/api/portrait/{stem}.jpg"})
 
@@ -745,61 +811,23 @@ def debug_info():
         "files": [f.name for f in SAVE_DIR.glob("*.json")] if SAVE_DIR.exists() else [],
     })
 
-@app.route("/api/log/<stem>", methods=["GET"])
-def get_log(stem):
-    safe = stem.replace("/","_").replace("\\","_")[:80]
-    path = SAVE_DIR / f"{safe}.log.json"
-    if not path.exists():
-        return jsonify([])
-    with open(path, encoding="utf-8") as f:
-        return jsonify(json.load(f))
-
-@app.route("/api/log/<stem>", methods=["POST"])
-def append_log(stem):
-    safe = stem.replace("/","_").replace("\\","_")[:80]
-    path = SAVE_DIR / f"{safe}.log.json"
-    entry = request.json
-    if not entry:
-        return jsonify({"status":"error"}), 400
-    entries = []
-    if path.exists():
-        try:
-            with open(path, encoding="utf-8") as f:
-                entries = json.load(f)
-        except Exception:
-            entries = []
-    entries.append(entry)
-    if len(entries) > 500:
-        entries = entries[-500:]
-    SAVE_DIR.mkdir(exist_ok=True)
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(entries, f, ensure_ascii=False, indent=2)
-    return jsonify({"status":"ok"})
-
-@app.route("/api/log/<stem>", methods=["DELETE"])
-def clear_log(stem):
-    safe = stem.replace("/","_").replace("\\","_")[:80]
-    path = SAVE_DIR / f"{safe}.log.json"
-    if path.exists():
-        path.unlink()
-    return jsonify({"status":"cleared"})
-
 @app.route("/api/characters", methods=["POST"])
 def save_character():
+    redir = _require_auth()
+    if redir: return redir
     try:
         data = request.json
         if data is None:
             return jsonify({"status": "error", "message": "No JSON received"}), 400
-        # Always stamp our format marker so the file is importable anywhere
         if "_system" not in data:
             data["_system"] = "DnD5e"
-        # Strip base64 portrait from JSON — it lives as a separate .jpg file now
         if (data.get("portrait") or "").startswith("data:image"):
             data.pop("portrait", None)
         name = data.get("name","character").replace(" ","_").replace("/","_")[:60]
         filename = f"{name}.json"
-        SAVE_DIR.mkdir(exist_ok=True)  # на случай если папка пропала
-        with open(SAVE_DIR/filename,"w",encoding="utf-8") as f:
+        save_dir = _sd()
+        save_dir.mkdir(exist_ok=True)
+        with open(save_dir/filename,"w",encoding="utf-8") as f:
             json.dump(data,f,ensure_ascii=False,indent=2)
         return jsonify({"status":"saved","filename":filename})
     except Exception as e:
@@ -809,51 +837,47 @@ def save_character():
 
 @app.route("/api/characters/<filename>", methods=["DELETE"])
 def delete_character(filename):
-    path = SAVE_DIR/filename
+    redir = _require_auth()
+    if redir: return redir
+    save_dir = _sd()
+    path = save_dir/filename
     if path.exists(): path.unlink()
-    # Also remove portrait file
-    portrait = SAVE_DIR / f"{Path(filename).stem}.jpg"
+    portrait = save_dir / f"{Path(filename).stem}.jpg"
     if portrait.exists(): portrait.unlink()
     return jsonify({"status":"deleted"})
 
 @app.route("/api/export/lss/<filename>")
 def export_lss(filename):
-    path = SAVE_DIR/filename
+    redir = _require_auth()
+    if redir: return redir
+    path = _sd()/filename
     if not path.exists(): return jsonify({"error":"Not found"}), 404
     with open(path,encoding='utf-8') as f:
         char = json.load(f)
     lss = char_to_lss(char)
     name = char.get("name","Character").replace(" ","_")
-    out_name = f"{name}___Long_Story_Short.json"
-    lss_bytes = json.dumps(lss,ensure_ascii=False,indent=2).encode('utf-8')
-    # В режиме pywebview — сохраняем рядом с персонажами
-    if app.config.get("USE_WEBVIEW", False):
-        out_path = SAVE_DIR / out_name
-        out_path.write_bytes(lss_bytes)
-        return jsonify({"saved": True, "path": str(out_path), "name": out_name})
-    buf = io.BytesIO(lss_bytes)
+    buf = io.BytesIO(json.dumps(lss,ensure_ascii=False,indent=2).encode('utf-8'))
     buf.seek(0)
-    return send_file(buf,as_attachment=True,download_name=out_name,mimetype='application/json')
+    return send_file(buf,as_attachment=True,download_name=f"{name}___Long_Story_Short.json",mimetype='application/json')
 
 @app.route("/api/export/raw/<filename>")
 def export_raw(filename):
-    path = SAVE_DIR/filename
+    redir = _require_auth()
+    if redir: return redir
+    path = _sd()/filename
     if not path.exists(): return jsonify({"error":"Not found"}), 404
-    # В режиме pywebview файл уже на диске — просто сообщаем путь
-    if app.config.get("USE_WEBVIEW", False):
-        return jsonify({"saved": True, "path": str(path), "name": path.name})
     return send_file(path,as_attachment=True)
 
 @app.route("/api/import", methods=["POST"])
 def import_character():
+    redir = _require_auth()
+    if redir: return redir
     try:
         payload = request.json
         data = payload.get("data",{})
-        # LSS format: jsonType=="character" + nested data string
         if "jsonType" in data and data.get("jsonType") == "character" and "data" in data:
             char = lss_to_char(data)
             if not char: return jsonify({"error": "Не удалось прочитать LongStoryShort"}), 400
-        # Our native format: has name + any structural marker
         elif "name" in data and ("_system" in data or "abilities" in data
                                    or "weapons" in data or "className" in data
                                    or "raceName" in data or "_imported_from" in data):
@@ -864,7 +888,8 @@ def import_character():
             return jsonify({"error": "Неизвестный формат. Ожидается наш JSON или LongStoryShort JSON."}), 400
         name = char.get("name","import").replace(" ","_").replace("/","_")[:60]
         filename = f"{name}.json"
-        with open(SAVE_DIR/filename,"w",encoding='utf-8') as f:
+        save_dir = _sd()
+        with open(save_dir/filename,"w",encoding='utf-8') as f:
             json.dump(char,f,ensure_ascii=False,indent=2)
         return jsonify({"status":"imported","filename":filename,"name":char.get("name","")})
     except Exception as e:
@@ -873,6 +898,8 @@ def import_character():
 @app.route("/api/export/pdf", methods=["POST"])
 def export_pdf_direct():
     """Accept character JSON in body, return filled PDF."""
+    redir = _require_auth()
+    if redir: return redir
     try:
         char = request.json
         if not char:
@@ -892,54 +919,10 @@ def export_pdf_direct():
                     break
         char["_spellLevels"] = spell_levels
 
-        # Очищаем HTML-форматирование из текстовых полей
-        _html_text_fields = [
-            'savedFeatText', 'abilitiesText', 'abilities_text', '_profText',
-            'attacksNotes', 'attackNotes', 'inventoryNotes', 'spellsNotes',
-            'appearance', 'backstory', 'traits', 'ideals', 'bonds', 'flaws',
-            'allies', 'racialTraits', 'subraceTraits', 'classFeatures',
-            'armorProf', 'weaponProf', 'toolProf', 'otherProf', 'languages',
-            'note', 'spellsNotes', 'spellNotes',
-        ]
-        for _f in _html_text_fields:
-            if _f in char and isinstance(char[_f], str):
-                char[_f] = _strip_html(char[_f])
-        # Заметки в оружии и инвентаре
-        for _w in char.get('weapons', []) or []:
-            if isinstance(_w, dict) and _w.get('note'):
-                _w['note'] = _strip_html(_w['note'])
-        for _i in char.get('inventory', []) or []:
-            if isinstance(_i, dict):
-                if _i.get('note'):        _i['note']        = _strip_html(_i['note'])
-                if _i.get('description'): _i['description'] = _strip_html(_i['description'])
-
         template_path = str(_resource_path("static/sheet_template.pdf"))
+        pdf_bytes = fill_character_sheet(char, template_path)
+
         name = (char.get("name") or "Character").replace(" ", "_")
-
-        pdf_portrait = char.pop("_pdfPortrait", None)
-        if pdf_portrait:
-            char_for_pdf = {**char, "portrait": pdf_portrait}
-            pdf_bytes = fill_character_sheet(char_for_pdf, template_path, portrait_path=None)
-        else:
-            portrait_file = SAVE_DIR / f"{name}.jpg"
-            pdf_bytes = fill_character_sheet(
-                char, template_path,
-                portrait_path=portrait_file if portrait_file.exists() else None
-            )
-
-        # В режиме pywebview — сохраняем файл рядом с персонажами и возвращаем путь
-        if app.config.get("USE_WEBVIEW", False):
-            SAVE_DIR.mkdir(parents=True, exist_ok=True)
-            base_name = f"{name}_DnD5e"
-            pdf_path = SAVE_DIR / f"{base_name}.pdf"
-            # Если файл уже существует — итерируем: Name_DnD5e(1).pdf, (2).pdf ...
-            counter = 1
-            while pdf_path.exists():
-                pdf_path = SAVE_DIR / f"{base_name}({counter}).pdf"
-                counter += 1
-            pdf_path.write_bytes(pdf_bytes)
-            return jsonify({"saved": True, "path": str(pdf_path), "name": pdf_path.name})
-
         buf = io.BytesIO(pdf_bytes)
         buf.seek(0)
         return send_file(
@@ -956,7 +939,9 @@ def export_pdf_direct():
 
 @app.route("/api/export/pdf/<filename>")
 def export_pdf(filename):
-    path = SAVE_DIR / filename
+    redir = _require_auth()
+    if redir: return redir
+    path = _sd() / filename
     if not path.exists():
         return jsonify({"error": "Not found"}), 404
     with open(path, encoding='utf-8') as f:
@@ -996,8 +981,7 @@ if __name__ == "__main__":
     import threading
     import argparse
 
-    PORT = int(os.environ.get("PORT", 8080))
-    WEB_MODE = os.environ.get("WEB_MODE", "").lower() in ("1", "true", "yes")
+    PORT = 5000
     is_frozen = getattr(sys, "frozen", False)
 
     parser = argparse.ArgumentParser(add_help=False)
@@ -1006,22 +990,18 @@ if __name__ == "__main__":
     use_browser = args.browser
 
     def _start_flask():
-        app.run(host="0.0.0.0", port=PORT, debug=False, use_reloader=False, threaded=True)
+        app.run(host="127.0.0.1", port=PORT, debug=False, use_reloader=False, threaded=True)
 
     def _open_browser():
         import time as _t; _t.sleep(1.2)
         import webbrowser
         webbrowser.open(f"http://localhost:{PORT}")
 
-    if WEB_MODE:
-        # Облачный режим — просто запускаем Flask на 0.0.0.0
-        print(f"Izzy Wizzy web mode: http://0.0.0.0:{PORT}")
-        app.run(host="0.0.0.0", port=PORT, debug=False, use_reloader=False, threaded=True)
-    elif use_browser:
+    if use_browser:
         # Явно запрошен браузер
         threading.Thread(target=_open_browser, daemon=True).start()
         print(f"Izzy Wizzy: http://localhost:{PORT}")
-        app.run(host="0.0.0.0", port=PORT,
+        app.run(host="127.0.0.1", port=PORT,
                 debug=not is_frozen, use_reloader=not is_frozen)
     else:
         # Пробуем открыть в своём окне через pywebview
@@ -1031,9 +1011,6 @@ if __name__ == "__main__":
             flask_thread = threading.Thread(target=_start_flask, daemon=True)
             flask_thread.start()
             import time as _t; _t.sleep(0.8)
-
-            # Флаг: зум-скрипт нужен в окне pywebview
-            app.config["USE_WEBVIEW"] = True
 
             webview.create_window(
                 "Izzy Wizzy",
