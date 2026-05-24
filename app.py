@@ -756,7 +756,7 @@ def auth_logout():
 @app.route("/api/auth/me")
 def auth_me():
     if WEB_MODE and session.get("user_id"):
-        return jsonify({"loggedIn": True, "email": session.get("user_email"), "id": session.get("user_id")})
+        return jsonify({"loggedIn": True, "email": session.get("user_email"), "id": session.get("user_id"), "webMode": True})
     return jsonify({"loggedIn": False, "email": None, "id": None, "webMode": WEB_MODE})
 
 @app.route("/api/auth/reset-request", methods=["POST"])
