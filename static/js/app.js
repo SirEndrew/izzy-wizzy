@@ -12045,8 +12045,101 @@ function _dpInitDrag() {
 
 
 function _dpOpenPanelHeight() {
-  // dp-top: die+8, d20+5 обычных: die×6, формула: 28px, dp-roll: 50px
-  return (_dpDie() + 8) + _dpDie() * 6 + 28 + 50;
+  // Считаем реальный размер через CSS переменную --dp-die с учётом zoom
+  const die = _dpDie();
+  // dp-top: die+8, d20, 5 обычных (bot-1..5), dp-roll: ~50px, dp-formula: ~28px
+  return (die + 8) + die + die * 5 + 50 + 28;
+}
+
+function _dpClampAnchorNow() {
+  // Вызывается после анимации — корректирует позицию по реальной высоте панели
+  const anchor = document.querySelector('.dice-panel-anchor');
+  const panel  = document.getElementById('dice-panel');
+  if (!anchor || !panel || !_dicePanelOpen) return;
+
+  const H    = _dpViewH();
+  const navH = _dpNavBottom();
+  const die  = _dpDie();
+
+  // Реальная высота после завершения анимации
+  const realH = panel.getBoundingClientRect().height / _dpZ();
+  if (!realH) return;
+
+  if (anchor.classList.contains('dp-lower')) {
+    // Режим bottom: проверяем что верх панели не уходит за навбар
+    const bottomVal = parseFloat(anchor.style.bottom) || 0;
+    const panelTop  = H - bottomVal - realH;
+    if (panelTop < navH) {
+      const newBottom = H - navH - realH;
+      anchor.style.bottom = Math.max(0, newBottom) + 'px';
+      _dpSavedBottom = parseFloat(anchor.style.bottom);
+    }
+  } else {
+    // Режим top: проверяем что панель не выходит за нижний край
+    const curTop = parseFloat(anchor.style.top) || 0;
+    const newTop = Math.max(navH, Math.min(H - realH, curTop));
+    if (Math.abs(newTop - curTop) > 1) anchor.style.top = newTop + 'px';
+  }
+}
+
+function _openDicePanel() {
+  _dicePanelOpen = true;
+  const panel = document.getElementById('dice-panel');
+  if (!panel) return;
+  const anchor = document.querySelector('.dice-panel-anchor');
+  if (anchor) anchor.classList.remove('dp-open-horiz', 'dp-reversed');
+
+  if (!anchor) { panel.classList.add('open'); return; }
+
+  const die    = _dpDie();
+  const H      = _dpViewH();
+  const navH   = _dpNavBottom();
+
+  // Вычисляем текущий top якоря
+  let curTop;
+  if (anchor.style.bottom && anchor.style.bottom !== 'auto' && anchor.style.bottom !== '') {
+    curTop = H - (parseFloat(anchor.style.bottom) || 0) - die;
+  } else {
+    curTop = parseFloat(anchor.style.top) || 0;
+  }
+  _dpPreOpenTop = curTop;
+
+  const ph        = _dpOpenPanelHeight();
+  const d20center = curTop + die / 2;
+  const isLower   = d20center > H / 2;
+  anchor.classList.toggle('dp-lower', isLower);
+
+  if (isLower) {
+    if (_dpLowerTimer) { clearTimeout(_dpLowerTimer); _dpLowerTimer = null; }
+    let bottomVal = H - curTop - die;
+    const maxBottom = H - navH - ph;
+    if (bottomVal > maxBottom) bottomVal = Math.max(0, maxBottom);
+
+    const side = _dpSnap === 'left' ? 'left:0;right:auto' : _dpSnap === 'right' ? 'right:0;left:auto' : `left:${anchor.style.left || 'auto'};right:auto`;
+    anchor.style.cssText = `position:fixed;${side};bottom:${bottomVal}px;top:auto;transform:none;width:var(--dp-w);height:auto;touch-action:none;user-select:none;z-index:900`;
+    _dpSavedBottom = bottomVal;
+    panel.style.position    = 'absolute';
+    panel.style.bottom      = '0';
+    panel.style.top         = 'auto';
+    panel.style.flexDirection = '';
+  } else {
+    panel.style.position    = '';
+    panel.style.bottom      = '';
+    panel.style.top         = '';
+    panel.style.flexDirection = '';
+    const newTop = Math.max(navH, Math.min(H - ph, curTop));
+    if (newTop !== curTop) anchor.style.top = newTop + 'px';
+    anchor.style.bottom = 'auto';
+  }
+
+  if (_dpSnap === 'free') anchor.classList.add('dp-open');
+  panel.classList.add('open');
+  _resetDiceAutoClose();
+  setTimeout(() => document.addEventListener('click', _diceOutsideClick), 10);
+
+  // После завершения анимации (макс. delay 110ms + transition 120ms = ~250ms)
+  // корректируем позицию по реальной высоте
+  setTimeout(_dpClampAnchorNow, 280);
 }
 
 function _dpShiftAnchor() {
@@ -12075,9 +12168,7 @@ function _openDicePanel() {
 
   const die    = _dpDie();
   const H      = _dpViewH();
-  const navH   = _dpNavBottom();
-
-  // Вычисляем текущий top якоря
+  // Якорь может быть в bottom-режиме — вычисляем top из bottom
   let curTop;
   if (anchor.style.bottom && anchor.style.bottom !== 'auto' && anchor.style.bottom !== '') {
     curTop = H - (parseFloat(anchor.style.bottom) || 0) - die;
@@ -12086,46 +12177,49 @@ function _openDicePanel() {
   }
   _dpPreOpenTop = curTop;
 
-  // Открываем панель чтобы браузер отрисовал её
+  // Определяем направление по положению d20 (= top якоря в свёрнутом виде)
+  const d20center = curTop + die / 2;
+  const isLower   = d20center > H / 2;
+  anchor.classList.toggle('dp-lower', isLower);
+
+  if (isLower) {
+    // Отменяем незавершённый таймер предыдущего закрытия
+    if (_dpLowerTimer) { clearTimeout(_dpLowerTimer); _dpLowerTimer = null; }
+    // Нижняя половина: якорь фиксируем через bottom, панель растёт вверх
+    const ph     = _dpOpenPanelHeight();
+    const navH   = _dpNavBottom();
+    // Если раскрытая панель уйдёт выше навбара — поднимаем bottomVal
+    // Верх панели = H - bottomVal - ph, должен быть >= navH
+    // bottomVal <= H - navH - ph
+    let bottomVal = H - curTop - die;
+    const maxBottom = H - navH - ph;
+    if (bottomVal > maxBottom) bottomVal = maxBottom;
+
+    const side = _dpSnap === 'left' ? 'left:0;right:auto' : _dpSnap === 'right' ? 'right:0;left:auto' : `left:${anchor.style.left || 'auto'};right:auto`;
+    const w = 'var(--dp-w)';  // всегда полная ширина при открытии
+    anchor.style.cssText = `position:fixed;${side};bottom:${bottomVal}px;top:auto;transform:none;width:${w};height:auto;touch-action:none;user-select:none;z-index:900`;
+    _dpSavedBottom = bottomVal;  // запоминаем для восстановления
+    // Панель позиционируется абсолютно снизу якоря — элементы в обычном порядке
+    panel.style.position = 'absolute';
+    panel.style.bottom   = '0';
+    panel.style.top      = 'auto';
+    panel.style.flexDirection = '';
+  } else {
+    // Верхняя половина: панель растёт вниз как обычно
+    panel.style.position = '';
+    panel.style.bottom   = '';
+    panel.style.top      = '';
+    panel.style.flexDirection = '';
+    const ph   = _dpOpenPanelHeight();
+    const navH = _dpNavBottom();
+    const newTop = Math.max(navH, Math.min(H - ph, curTop));
+    if (newTop !== curTop) anchor.style.top = newTop + 'px';
+  }
+
   if (_dpSnap === 'free') anchor.classList.add('dp-open');
   panel.classList.add('open');
   _resetDiceAutoClose();
   setTimeout(() => document.addEventListener('click', _diceOutsideClick), 10);
-
-  // После рендера замеряем реальную высоту и корректируем позицию
-  requestAnimationFrame(() => {
-    const realH = panel.getBoundingClientRect().height || _dpOpenPanelHeight();
-    const d20center = curTop + die / 2;
-    const isLower   = d20center > H / 2;
-    anchor.classList.toggle('dp-lower', isLower);
-
-    if (isLower) {
-      if (_dpLowerTimer) { clearTimeout(_dpLowerTimer); _dpLowerTimer = null; }
-      // Нижняя половина: якорь через bottom, панель растёт вверх
-      let bottomVal = H - curTop - die;
-      const maxBottom = H - navH - realH;
-      if (bottomVal > maxBottom) bottomVal = Math.max(0, maxBottom);
-      // Не даём панели уйти ниже экрана
-      if (bottomVal < 0) bottomVal = 0;
-
-      const side = _dpSnap === 'left' ? 'left:0;right:auto' : _dpSnap === 'right' ? 'right:0;left:auto' : `left:${anchor.style.left || 'auto'};right:auto`;
-      anchor.style.cssText = `position:fixed;${side};bottom:${bottomVal}px;top:auto;transform:none;width:var(--dp-w);height:auto;touch-action:none;user-select:none;z-index:900`;
-      _dpSavedBottom = bottomVal;
-      panel.style.position = 'absolute';
-      panel.style.bottom   = '0';
-      panel.style.top      = 'auto';
-      panel.style.flexDirection = '';
-    } else {
-      // Верхняя половина: панель растёт вниз
-      panel.style.position = '';
-      panel.style.bottom   = '';
-      panel.style.top      = '';
-      panel.style.flexDirection = '';
-      const newTop = Math.max(navH, Math.min(H - realH, curTop));
-      anchor.style.top = newTop + 'px';
-      anchor.style.bottom = 'auto';
-    }
-  });
 }
 
 function _closeDicePanel() {
