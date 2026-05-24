@@ -12065,7 +12065,10 @@ function _openDicePanel() {
 
   // Вычисляем текущий top якоря
   let curTop;
-  if (anchor.style.bottom && anchor.style.bottom !== 'auto' && anchor.style.bottom !== '') {
+  if (_dpSnap === 'free') {
+    // В free режиме всегда берём из getBoundingClientRect — стиль может быть устаревшим
+    curTop = anchor.getBoundingClientRect().top / _dpZ();
+  } else if (anchor.style.bottom && anchor.style.bottom !== 'auto' && anchor.style.bottom !== '') {
     curTop = H - (parseFloat(anchor.style.bottom) || 0) - die;
   } else {
     curTop = parseFloat(anchor.style.top) || 0;
@@ -12250,13 +12253,25 @@ function _closeDicePanel() {
       panel.style.position = '';
       panel.style.bottom   = '';
       panel.style.top      = '';
-      // Восстанавливаем bottom якоря из сохранённого значения (не из style который мог быть сброшен)
+      // Восстанавливаем позицию якоря
       if (_dpSavedBottom !== null) {
+        const die = _dpDie();
+        const H   = _dpViewH();
+        if (_dpSnap === 'free') {
+          // В free режиме всегда переводим в top чтобы избежать путаницы
+          const restoredTop = H - _dpSavedBottom - die;
+          const clampedTop  = _dpClampTop(restoredTop, die);
+          const left = anchor.style.left || '0px';
+          anchor.style.cssText = `position:fixed;left:${left};right:auto;top:${clampedTop}px;bottom:auto;transform:none;width:${die}px;height:${die}px;touch-action:none;user-select:none;z-index:900`;
+          _dpSavedBottom = null;
+          anchor.classList.remove('dp-lower');
+          return;
+        }
         let side;
         if (_dpSnap === 'left')       side = 'left:0;right:auto';
         else if (_dpSnap === 'right') side = 'right:0;left:auto';
         else                          side = `left:${anchor.style.left || '0px'};right:auto`;
-        const w = (_dpSnap === 'free') ? `${_dpDie()}px` : 'var(--dp-w)';
+        const w = 'var(--dp-w)';
         anchor.style.cssText = `position:fixed;${side};bottom:${_dpSavedBottom}px;top:auto;transform:none;width:${w};height:auto;touch-action:none;user-select:none;z-index:900`;
       }
       const _snap = _dpSnap;
