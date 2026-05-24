@@ -5987,73 +5987,70 @@ async function _getCharData(filename) {
 
 async function exportCharLSS(filename) {
   try {
-    let char = await _getCharData(filename);
-    if (!char) {
-      toast('❌ Не удалось получить данные персонажа', 'error');
-      return;
-    }
+    const char = await _getCharData(filename);
+    if (!char) { toast('❌ Не удалось получить данные персонажа', 'error'); return; }
     const response = await fetch('/api/export/lss/' + filename, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({char})
     });
-    if (!response.ok) throw new Error('HTTP ' + response.status);
     const ct = response.headers.get('content-type') || '';
+    if (!response.ok) {
+      let msg = `HTTP ${response.status}`;
+      try { const e = await response.json(); msg = e.error || msg; } catch(_){}
+      throw new Error(msg);
+    }
     if (ct.includes('application/json')) {
       const data = await response.json();
-      if (data.saved) {
-        toast('📋 LSS сохранён: ' + data.name, 'success');
-      } else {
-        throw new Error(data.error || 'Ошибка');
-      }
+      if (data.saved) toast('📋 LSS сохранён: ' + data.name, 'success');
+      else throw new Error(data.error || JSON.stringify(data));
     } else {
       const blob = await response.blob();
       const url  = URL.createObjectURL(blob);
       const a    = document.createElement('a');
-      a.href     = url;
-      a.download = filename.replace('.json', '') + '___Long_Story_Short.json';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+      a.href = url;
+      a.download = filename.replace(/\.json$/i, '') + '___Long_Story_Short.json';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
       setTimeout(() => URL.revokeObjectURL(url), 5000);
       toast('📋 LSS скачан!', 'success');
     }
   } catch(e) {
     toast('❌ Ошибка LSS: ' + e.message, 'error');
+    console.error('exportCharLSS:', e);
   }
 }
 async function exportCharRaw(filename) {
   try {
-    let char = await _getCharData(filename);
-    if (!char) {
-      toast('❌ Не удалось получить данные персонажа', 'error');
-      return;
-    }
+    const char = await _getCharData(filename);
+    if (!char) { toast('❌ Не удалось получить данные персонажа', 'error'); return; }
     const response = await fetch('/api/export/raw/' + filename, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({char})
     });
-    if (!response.ok) throw new Error('HTTP ' + response.status);
     const ct = response.headers.get('content-type') || '';
+    if (!response.ok) {
+      let msg = `HTTP ${response.status}`;
+      try { const e = await response.json(); msg = e.error || msg; } catch(_){}
+      throw new Error(msg);
+    }
     if (ct.includes('application/json')) {
       const data = await response.json();
       if (data.saved) toast('💾 JSON сохранён: ' + data.name, 'success');
-      else throw new Error(data.error || 'Ошибка');
+      else throw new Error(data.error || JSON.stringify(data));
     } else {
       const blob = await response.blob();
       const url  = URL.createObjectURL(blob);
       const a    = document.createElement('a');
-      a.href     = url;
+      a.href = url;
       a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
       setTimeout(() => URL.revokeObjectURL(url), 5000);
       toast('💾 JSON скачан!', 'success');
     }
   } catch(e) {
-    toast('❌ Ошибка экспорта: ' + e.message, 'error');
+    toast('❌ Ошибка JSON: ' + e.message, 'error');
+    console.error('exportCharRaw:', e);
   }
 }
 function exportSheet() { if(currentFilename) exportCharLSS(currentFilename); }

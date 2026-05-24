@@ -1050,45 +1050,54 @@ def delete_character(filename):
 
 @app.route("/api/export/lss/<filename>", methods=["GET","POST"])
 def export_lss(filename):
-    if request.method == "POST" and request.json:
-        char = request.json.get("char", {})
-    else:
-        auth_err = _require_auth()
-        if auth_err: return auth_err
-        save_dir = _sd()
-        path = save_dir/filename
-        if not path.exists(): return jsonify({"error":"Not found"}), 404
-        with open(path,encoding='utf-8') as f:
-            char = json.load(f)
-    lss = char_to_lss(char)
-    name = char.get("name","Character").replace(" ","_")
-    out_name = f"{name}___Long_Story_Short.json"
-    lss_bytes = json.dumps(lss,ensure_ascii=False,indent=2).encode('utf-8')
-    if app.config.get("USE_WEBVIEW", False) and _sd():
-        out_path = _sd() / out_name
-        out_path.write_bytes(lss_bytes)
-        return jsonify({"saved": True, "path": str(out_path), "name": out_name})
-    buf = io.BytesIO(lss_bytes)
-    buf.seek(0)
-    return send_file(buf,as_attachment=True,download_name=out_name,mimetype='application/json')
+    try:
+        if request.method == "POST" and request.json:
+            char = request.json.get("char", {})
+        else:
+            auth_err = _require_auth()
+            if auth_err: return auth_err
+            save_dir = _sd()
+            path = save_dir / filename
+            if not path.exists(): return jsonify({"error": "Not found"}), 404
+            with open(path, encoding='utf-8') as f:
+                char = json.load(f)
+        lss = char_to_lss(char)
+        name = char.get("name", "Character").replace(" ", "_")
+        out_name = f"{name}___Long_Story_Short.json"
+        lss_bytes = json.dumps(lss, ensure_ascii=False, indent=2).encode('utf-8')
+        sd = _sd()
+        if app.config.get("USE_WEBVIEW", False) and sd:
+            out_path = sd / out_name
+            out_path.write_bytes(lss_bytes)
+            return jsonify({"saved": True, "path": str(out_path), "name": out_name})
+        buf = io.BytesIO(lss_bytes)
+        buf.seek(0)
+        return send_file(buf, as_attachment=True, download_name=out_name, mimetype='application/json')
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
 
 @app.route("/api/export/raw/<filename>", methods=["GET","POST"])
 def export_raw(filename):
-    if request.method == "POST" and request.json:
-        char = request.json.get("char", {})
-        name = char.get("name","character").replace(" ","_").replace("/","_")[:60]
-        out_name = f"{name}.json"
-        raw_bytes = json.dumps(char,ensure_ascii=False,indent=2).encode('utf-8')
-        buf = io.BytesIO(raw_bytes)
-        buf.seek(0)
-        return send_file(buf,as_attachment=True,download_name=out_name,mimetype='application/json')
-    auth_err = _require_auth()
-    if auth_err: return auth_err
-    path = _sd()/filename
-    if not path.exists(): return jsonify({"error":"Not found"}), 404
-    if app.config.get("USE_WEBVIEW", False):
-        return jsonify({"saved": True, "path": str(path), "name": path.name})
-    return send_file(path,as_attachment=True)
+    try:
+        if request.method == "POST" and request.json:
+            char = request.json.get("char", {})
+            name = char.get("name", "character").replace(" ", "_").replace("/", "_")[:60]
+            out_name = f"{name}.json"
+            raw_bytes = json.dumps(char, ensure_ascii=False, indent=2).encode('utf-8')
+            buf = io.BytesIO(raw_bytes)
+            buf.seek(0)
+            return send_file(buf, as_attachment=True, download_name=out_name, mimetype='application/json')
+        auth_err = _require_auth()
+        if auth_err: return auth_err
+        path = _sd() / filename
+        if not path.exists(): return jsonify({"error": "Not found"}), 404
+        if app.config.get("USE_WEBVIEW", False):
+            return jsonify({"saved": True, "path": str(path), "name": path.name})
+        return send_file(path, as_attachment=True)
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
 
 @app.route("/api/import", methods=["POST"])
 def import_character():
@@ -1169,23 +1178,25 @@ def export_pdf_direct():
             char_for_pdf = {**char, "portrait": pdf_portrait}
             pdf_bytes = fill_character_sheet(char_for_pdf, template_path, portrait_path=None)
         else:
-            portrait_file = _sd() / f"{name}.jpg"
+            sd = _sd()
+            portrait_file = (sd / f"{name}.jpg") if sd else None
             pdf_bytes = fill_character_sheet(
                 char, template_path,
-                portrait_path=portrait_file if portrait_file.exists() else None
+                portrait_path=portrait_file if portrait_file and portrait_file.exists() else None
             )
 
         if app.config.get("USE_WEBVIEW", False):
             sd = _sd()
-            sd.mkdir(parents=True, exist_ok=True)
-            base_name = f"{name}_DnD5e"
-            pdf_path = sd / f"{base_name}.pdf"
-            counter = 1
-            while pdf_path.exists():
-                pdf_path = sd / f"{base_name}({counter}).pdf"
-                counter += 1
-            pdf_path.write_bytes(pdf_bytes)
-            return jsonify({"saved": True, "path": str(pdf_path), "name": pdf_path.name})
+            if sd:
+                sd.mkdir(parents=True, exist_ok=True)
+                base_name = f"{name}_DnD5e"
+                pdf_path = sd / f"{base_name}.pdf"
+                counter = 1
+                while pdf_path.exists():
+                    pdf_path = sd / f"{base_name}({counter}).pdf"
+                    counter += 1
+                pdf_path.write_bytes(pdf_bytes)
+                return jsonify({"saved": True, "path": str(pdf_path), "name": pdf_path.name})
 
         buf = io.BytesIO(pdf_bytes)
         buf.seek(0)
