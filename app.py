@@ -92,17 +92,24 @@ def _check_password(password: str, stored_hash: str, salt: str) -> bool:
     return h == stored_hash
 
 def _get_save_dir() -> Path:
-    """Return per-user save dir in WEB_MODE, else global SAVE_DIR."""
+    """Return per-user save dir in WEB_MODE, else global SAVE_DIR. Returns None if not logged in."""
     if WEB_MODE:
         uid = session.get("user_id")
         if uid:
             d = Path("/data/characters") / uid
             d.mkdir(parents=True, exist_ok=True)
             return d
+        return None  # не залогинен
     return SAVE_DIR
 
 def _sd() -> Path:
     return _get_save_dir()
+
+def _require_auth():
+    """В WEB_MODE возвращает JSON 401 если не залогинен, иначе None."""
+    if WEB_MODE and not session.get("user_id"):
+        return jsonify({"error": "Требуется авторизация", "auth_required": True}), 401
+    return None
 
 # ── Version & update check ────────────────────────────────────────────────────
 APP_VERSION = "0.10B"
@@ -764,6 +771,8 @@ def index():
 
 @app.route("/api/characters", methods=["GET"])
 def list_characters():
+    auth_err = _require_auth()
+    if auth_err: return auth_err
     chars = []
     save_dir = _sd()
     for f in sorted(save_dir.glob("*.json"), key=lambda x: x.stat().st_mtime, reverse=True):
@@ -788,6 +797,8 @@ def list_characters():
 
 @app.route("/api/characters/<filename>", methods=["GET"])
 def get_character(filename):
+    auth_err = _require_auth()
+    if auth_err: return auth_err
     import base64 as _b64
     save_dir = _sd()
     path = save_dir / filename
@@ -812,6 +823,8 @@ def get_character(filename):
 
 @app.route("/api/portrait/<path:filename>")
 def get_portrait(filename):
+    auth_err = _require_auth()
+    if auth_err: return auth_err
     path = _sd() / filename
     if not path.exists(): return jsonify({"error":"Not found"}), 404
     return send_file(path, mimetype="image/jpeg")
@@ -819,6 +832,8 @@ def get_portrait(filename):
 @app.route("/api/portrait/<path:stem>", methods=["POST"])
 def save_portrait(stem):
     """Accept base64 JPEG, save as characters/<stem>.jpg, return URL."""
+    auth_err = _require_auth()
+    if auth_err: return auth_err
     import base64 as _b64
     data = request.json
     b64 = data.get("data","")
@@ -886,6 +901,8 @@ def clear_log(stem):
 
 @app.route("/api/characters", methods=["POST"])
 def save_character():
+    auth_err = _require_auth()
+    if auth_err: return auth_err
     try:
         data = request.json
         if data is None:
@@ -908,6 +925,8 @@ def save_character():
 
 @app.route("/api/characters/<filename>", methods=["DELETE"])
 def delete_character(filename):
+    auth_err = _require_auth()
+    if auth_err: return auth_err
     save_dir = _sd()
     path = save_dir/filename
     if path.exists(): path.unlink()
@@ -917,6 +936,8 @@ def delete_character(filename):
 
 @app.route("/api/export/lss/<filename>")
 def export_lss(filename):
+    auth_err = _require_auth()
+    if auth_err: return auth_err
     save_dir = _sd()
     path = save_dir/filename
     if not path.exists(): return jsonify({"error":"Not found"}), 404
@@ -936,6 +957,8 @@ def export_lss(filename):
 
 @app.route("/api/export/raw/<filename>")
 def export_raw(filename):
+    auth_err = _require_auth()
+    if auth_err: return auth_err
     path = _sd()/filename
     if not path.exists(): return jsonify({"error":"Not found"}), 404
     if app.config.get("USE_WEBVIEW", False):
@@ -944,6 +967,8 @@ def export_raw(filename):
 
 @app.route("/api/import", methods=["POST"])
 def import_character():
+    auth_err = _require_auth()
+    if auth_err: return auth_err
     try:
         payload = request.json
         data = payload.get("data",{})
@@ -971,6 +996,8 @@ def import_character():
 @app.route("/api/export/pdf", methods=["POST"])
 def export_pdf_direct():
     """Accept character JSON in body, return filled PDF."""
+    auth_err = _require_auth()
+    if auth_err: return auth_err
     try:
         char = request.json
         if not char:
@@ -1053,6 +1080,8 @@ def export_pdf_direct():
 
 @app.route("/api/export/pdf/<filename>")
 def export_pdf(filename):
+    auth_err = _require_auth()
+    if auth_err: return auth_err
     path = _sd() / filename
     if not path.exists():
         return jsonify({"error": "Not found"}), 404

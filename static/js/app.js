@@ -5891,6 +5891,17 @@ function _globalSheetChange(e) {
 
 async function loadCharList() {
   const res  = await fetch('/api/characters');
+  if (res.status === 401) {
+    const c=document.getElementById('char-list-container');
+    c.innerHTML=`<div style="max-width:860px;margin:1.5rem auto;padding:1rem">
+      <div class="empty-state">
+        <span class="big-icon">🔒</span>
+        Войдите, чтобы увидеть своих персонажей
+        <br><br>
+        <button class="btn btn-primary" onclick="openAuthDialog('login')" style="margin-top:.5rem">Войти / Зарегистрироваться</button>
+      </div></div>`;
+    return;
+  }
   const chars= await res.json();
   const c=document.getElementById('char-list-container');
   if (!chars.length) {
@@ -6167,17 +6178,52 @@ async function createBlankChar() {
 async function importChar() {
   _logTextFlush();
   const input=document.createElement('input');
-  input.type='file'; input.accept='.json';
+  input.type='file';
+  input.accept='.json,image/*';
+  input.multiple=true;
   input.onchange=async e=>{
-    const file=e.target.files[0]; if(!file) return;
+    const files=Array.from(e.target.files);
+    if(!files.length) return;
+
+    const jsonFile = files.find(f=>f.name.toLowerCase().endsWith('.json'));
+    const imgFiles = files.filter(f=>f.type.startsWith('image/'));
+
+    if(!jsonFile){ toast('❌ Выберите JSON-файл персонажа','error'); return; }
+
     try {
-      const text=await file.text();
+      const text=await jsonFile.text();
       const data=JSON.parse(text);
-      const res=await fetch('/api/import',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({data,filename:file.name})});
+
+      // Ищем портрет с таким же именем (без расширения)
+      const baseName = jsonFile.name.replace(/\.json$/i,'');
+      const matchedImg = imgFiles.find(f=>
+        f.name.replace(/\.[^.]+$/,'').toLowerCase() === baseName.toLowerCase()
+      );
+      let portraitB64 = null;
+      if(matchedImg){
+        portraitB64 = await new Promise(resolve=>{
+          const reader=new FileReader();
+          reader.onload=ev=>resolve(ev.target.result);
+          reader.readAsDataURL(matchedImg);
+        });
+      }
+
+      const res=await fetch('/api/import',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({data,filename:jsonFile.name})});
       const result=await res.json();
-      if (result.status==='imported') { toast('✅ Импортировано: '+result.name,'success'); loadCharList(); }
-      else toast('❌ Ошибка: '+result.error,'error');
-    } catch(err) { toast('❌ Не удалось прочитать JSON','error'); }
+      if(result.status==='imported'){
+        if(portraitB64){
+          const stem=result.filename.replace(/\.json$/i,'');
+          try{
+            await fetch(`/api/portrait/${encodeURIComponent(stem)}`,{
+              method:'POST',headers:{'Content-Type':'application/json'},
+              body:JSON.stringify({data:portraitB64})
+            });
+          }catch(err){ /* не критично */ }
+        }
+        toast('✅ Импортировано: '+result.name+(portraitB64?' + портрет':''),'success');
+        loadCharList();
+      } else toast('❌ Ошибка: '+result.error,'error');
+    } catch(err){ toast('❌ Не удалось прочитать JSON','error'); }
   };
   input.click();
 }
