@@ -3,6 +3,72 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
+{% if pywebview %}
+<script>
+(function () {
+  // Масштабирование через Ctrl+колесо и Ctrl+Plus/Minus/0 для pywebview-окна
+  var ZOOM_MIN = 0.5, ZOOM_MAX = 2.0, ZOOM_STEP = 0.1;
+  var zoom = parseFloat(localStorage.getItem('iwZoom') || '1');
+
+  function applyZoom() {
+    document.documentElement.style.zoom = zoom;
+    localStorage.setItem('iwZoom', zoom);
+    var ind = document.getElementById('zoom-indicator');
+    if (ind) {
+      ind.textContent = Math.round(zoom * 100) + '%';
+      ind.style.opacity = '1';
+      clearTimeout(ind._hideTimer);
+      ind._hideTimer = setTimeout(function() { ind.style.opacity = '0'; }, 1200);
+    }
+    // Пересчитываем позицию панели кубов после зума
+    setTimeout(function() { window.dispatchEvent(new Event('resize')); }, 30);
+  }
+
+  // Ждём DOM чтобы вставить индикатор
+  document.addEventListener('DOMContentLoaded', function () {
+    var ind = document.createElement('div');
+    ind.id = 'zoom-indicator';
+    ind.style.cssText = [
+      'position:fixed', 'bottom:18px', 'right:18px', 'z-index:999999',
+      'background:rgba(0,0,0,.72)', 'color:#fff', 'font-size:13px',
+      'font-family:sans-serif', 'padding:4px 10px', 'border-radius:6px',
+      'pointer-events:none', 'opacity:0',
+      'transition:opacity .25s'
+    ].join(';');
+    document.body.appendChild(ind);
+    applyZoom(); // применить сохранённый зум без показа индикатора
+    ind.style.opacity = '0'; // не показываем при старте
+  });
+
+  // Ctrl + колесо
+  window.addEventListener('wheel', function (e) {
+    if (!e.ctrlKey) return;
+    e.preventDefault();
+    var delta = e.deltaY < 0 ? ZOOM_STEP : -ZOOM_STEP;
+    zoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round((zoom + delta) * 10) / 10));
+    applyZoom();
+  }, { passive: false });
+
+  // Ctrl + Plus / Minus / 0
+  window.addEventListener('keydown', function (e) {
+    if (!e.ctrlKey) return;
+    if (e.key === '=' || e.key === '+') {
+      e.preventDefault();
+      zoom = Math.min(ZOOM_MAX, Math.round((zoom + ZOOM_STEP) * 10) / 10);
+      applyZoom();
+    } else if (e.key === '-') {
+      e.preventDefault();
+      zoom = Math.max(ZOOM_MIN, Math.round((zoom - ZOOM_STEP) * 10) / 10);
+      applyZoom();
+    } else if (e.key === '0') {
+      e.preventDefault();
+      zoom = 1;
+      applyZoom();
+    }
+  });
+})();
+</script>
+{% endif %}
 <title>Izzy Wizzy</title>
 <link rel="icon" type="image/svg+xml" href="/static/img/icon.svg">
 <link rel="shortcut icon" href="/static/img/icon.svg">
@@ -646,8 +712,8 @@ hr.divider { border: none; border-top: 1px solid #606b85; margin: .9rem 0 }
 
 /* ════════ WIZARD ════════ */
 #view-create { max-width: 960px; margin: 0 auto; padding: 1.2rem }
-.wizard-steps { display: flex; flex-wrap: wrap; gap: .3rem; margin-bottom: 1rem; justify-content: center }
-.step-indicator { font-size: .73rem; font-weight: 600; padding: .3rem .85rem; color: var(--text3); border: 1px solid #606b85; background: #272e43; border-radius: 20px; cursor: pointer; transition: all .2s }
+.wizard-steps { display: flex; flex-wrap: nowrap; gap: .2rem; margin-bottom: 1rem; width: 100%; box-sizing: border-box; justify-content: space-between; }
+.step-indicator { font-size: .82rem; font-weight: 600; padding: .28rem .45rem; color: var(--text3); border: 1px solid #606b85; background: #272e43; border-radius: 20px; cursor: pointer; transition: all .2s; white-space: nowrap; flex-shrink: 0; }
 .step-indicator:hover { color: var(--text); border-color: #4a5570 }
 .step-indicator.done { background: rgba(74,111,165,.2); color: var(--accent2); border-color: rgba(74,111,165,.4) }
 .step-indicator.current { background: var(--accent); color: #fff; border-color: var(--accent2); font-weight: 700 }
@@ -1153,6 +1219,23 @@ hr.divider { border: none; border-top: 1px solid #606b85; margin: .9rem 0 }
 .pers-trait-cell.collapsed .pers-collapse-btn { transform: rotate(180deg) }
 .pers-field-block.collapsed .pers-field-ta,
 .pers-trait-cell.collapsed .pers-field-ta { display: none }
+.rte-body.rte-pers {
+  background: var(--dlg-btn-bg, #1e2638);
+  border: 1px solid var(--dlg-input-border, #3d4a65);
+  border-radius: var(--dlg-input-radius, 4px);
+  color: var(--text1, #dde3f0);
+  font-size: .9rem;
+  line-height: 1.55;
+  resize: vertical;
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 70px;
+  padding: .35rem .5rem;
+  outline: none;
+}
+.rte-body.rte-pers:focus {
+  border-color: var(--accent2, #5b8dee);
+}
 .pers-field-ta {
   width: 100%; box-sizing: border-box; resize: vertical;
   background: var(--dlg-btn-bg); border: 1px solid var(--dlg-input-border);
@@ -1762,6 +1845,7 @@ hr.divider { border: none; border-top: 1px solid #606b85; margin: .9rem 0 }
   padding: .32rem .55rem;
   background: #1a2236; border: 1px solid #2a3450; border-radius: 5px;
   font-size: .84rem; margin-bottom: .2rem; transition: border-color .15s;
+  overflow: hidden; min-width: 0;
 }
 .inv-row { cursor: pointer }
 .inv-row:hover { border-color: #4a6080 }
@@ -1770,7 +1854,7 @@ hr.divider { border: none; border-top: 1px solid #606b85; margin: .9rem 0 }
 .inv-main        { flex: 1; min-width: 0 }
 .inv-name-row    { display: flex; align-items: center; gap: .4rem; flex-wrap: wrap }
 .inv-item-name   { font-size: .84rem; font-weight: 600; color: var(--text); overflow-wrap: break-word; word-break: break-word; white-space: normal; max-width: 100% }
-.inv-subinfo     { font-size: .67rem; color: var(--text3); margin-top: .04rem }
+.inv-subinfo     { font-size: .67rem; color: var(--text3); margin-top: .04rem; overflow-wrap: break-word; word-break: break-word; white-space: normal }
 .inv-key-stat    { font-size: .67rem; font-weight: 700; border-radius: 3px; padding: .04rem .28rem; flex-shrink: 0; white-space: nowrap }
 .inv-stat-dmg    { color: #e07070; background: rgba(180,60,60,.15); border: 1px solid rgba(180,60,60,.3) }
 .inv-stat-ac     { color: #7bafd4; background: rgba(60,100,180,.15); border: 1px solid rgba(60,100,180,.3) }
@@ -1959,10 +2043,78 @@ hr.divider { border: none; border-top: 1px solid #606b85; margin: .9rem 0 }
   top: 50%;
   z-index: 900;
   width: var(--dp-w);
-  /* transform set by JS to keep d20 at viewport centre */
-  transform: translateY(-50%);
-  transition: transform .28s cubic-bezier(.22,.9,.36,1);
+  transform: none;
+  touch-action: none;
+  user-select: none;
 }
+
+/* ── snap states ─────────────────────────────── */
+/* right (default) — left half-pill (collapsed) → full pill (open) */
+.dice-panel-anchor.dp-snap-right .dice-panel,
+.dice-panel-anchor.dp-snap-left .dice-panel {
+  overflow: hidden;
+  transition: border-radius .14s ease, box-shadow .14s ease;
+}
+.dice-panel-anchor.dp-snap-right .dice-panel {
+  border-radius: calc(var(--dp-w)/2) 0 0 calc(var(--dp-w)/2);
+  border-right: none;
+}
+.dice-panel-anchor.dp-snap-right .dice-panel.open,
+.dice-panel-anchor.dp-snap-left .dice-panel.open {
+  overflow: visible;
+}
+.dice-panel-anchor.dp-snap-right .dice-panel.open {
+  border-radius: calc(var(--dp-w)/2) 0 0 calc(var(--dp-w)/2);
+  border: 2px solid rgba(255,255,255,.18);
+  border-right: none;
+}
+/* left */
+.dice-panel-anchor.dp-snap-left .dice-panel {
+  border-radius: 0 calc(var(--dp-w)/2) calc(var(--dp-w)/2) 0;
+  border-left: none;
+  border-right: 2px solid rgba(255,255,255,.18);
+}
+.dice-panel-anchor.dp-snap-left .dice-panel.open {
+  border-radius: 0 calc(var(--dp-w)/2) calc(var(--dp-w)/2) 0;
+  border: 2px solid rgba(255,255,255,.18);
+  border-left: none;
+}
+
+/* free — full circle (collapsed = only d20 visible) */
+.dice-panel-anchor.dp-snap-free {
+  width: var(--dp-die);
+  height: var(--dp-die);
+  transform: none !important;
+  transition: width .14s ease;
+}
+.dice-panel-anchor.dp-snap-free .dice-panel {
+  border-radius: 999px;
+  border: 2px solid rgba(255,255,255,.18);
+  width: var(--dp-die);
+  overflow: hidden;
+  align-items: center;
+  justify-content: center;
+  transition: border-radius .14s ease, width .14s ease, box-shadow .14s ease;
+}
+/* слоты в свёрнутом free — вписываем в круг */
+.dice-panel-anchor.dp-snap-free .dice-panel:not(.open) .dp-slot.dp-d20 {
+  width: var(--dp-die) !important;
+  height: var(--dp-die) !important;
+}
+/* free + open */
+.dice-panel-anchor.dp-snap-free.dp-open {
+  width: var(--dp-w);
+}
+.dice-panel-anchor.dp-snap-free .dice-panel.open {
+  border-radius: 999px;
+  width: var(--dp-w);
+  overflow: hidden;
+  align-items: stretch;
+  justify-content: flex-start;
+  flex-direction: column;
+}
+
+
 
 .dice-panel {
   display: flex;
@@ -1976,16 +2128,18 @@ hr.divider { border: none; border-top: 1px solid #606b85; margin: .9rem 0 }
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   cursor: pointer;
-  transition: box-shadow .2s ease;
+  transition: border-radius .14s ease, width .14s ease, box-shadow .14s ease;
 }
 .dice-panel.open {
   box-shadow: -5px 0 28px rgba(0,0,0,.65);
   cursor: default;
+  overflow: hidden;
+  padding: 0;
 }
 
 /* Every slot */
 .dp-slot {
-  width: var(--dp-w);
+  width: 100%;
   height: var(--dp-die);
   display: flex;
   flex-direction: column;
@@ -1997,8 +2151,13 @@ hr.divider { border: none; border-top: 1px solid #606b85; margin: .9rem 0 }
   transition: background .12s;
   cursor: pointer;
   user-select: none;
+  overflow: hidden;
+  box-sizing: border-box;
 }
-.dp-slot:hover { background: rgba(255,255,255,.07) }
+.dp-slot:hover { background: rgba(255,255,255,.07); }
+/* В свёрнутом snap — без hover фона (overflow:hidden не работает с :active flash) */
+.dice-panel-anchor.dp-snap-right .dice-panel:not(.open) .dp-slot:hover,
+.dice-panel-anchor.dp-snap-left  .dice-panel:not(.open) .dp-slot:hover { background: transparent; }
 
 /* Hidden slots collapse to zero */
 .dp-slot.dp-hidden {
@@ -2007,9 +2166,9 @@ hr.divider { border: none; border-top: 1px solid #606b85; margin: .9rem 0 }
   opacity: 0;
   overflow: hidden;
   pointer-events: none;
-  transition: height .28s cubic-bezier(.22,.9,.36,1),
-              opacity .20s ease,
-              min-height .28s cubic-bezier(.22,.9,.36,1);
+  transition: height .12s cubic-bezier(.22,.9,.36,1),
+              opacity .09s ease,
+              min-height .12s cubic-bezier(.22,.9,.36,1);
 }
 .dice-panel.open .dp-slot.dp-hidden {
   height: var(--dp-die);
@@ -2019,23 +2178,89 @@ hr.divider { border: none; border-top: 1px solid #606b85; margin: .9rem 0 }
   pointer-events: all;
 }
 
-/* Stagger */
-.dice-panel.open .dp-slot.dp-top   { transition-delay: .04s }
-.dice-panel.open .dp-slot.dp-bot-1 { transition-delay: .04s }
-.dice-panel.open .dp-slot.dp-bot-2 { transition-delay: .09s }
-.dice-panel.open .dp-slot.dp-bot-3 { transition-delay: .14s }
-.dice-panel.open .dp-slot.dp-bot-4 { transition-delay: .19s }
-.dice-panel.open .dp-slot.dp-bot-5 { transition-delay: .24s }
+/* Stagger открытия — top-down (верхняя половина) */
+.dice-panel.open .dp-slot.dp-top   { transition-delay: 0.015s; height: calc(var(--dp-die) + 8px); border-radius: calc(var(--dp-w)/2) calc(var(--dp-w)/2) 0 0; }
+.dice-panel.open .dp-slot.dp-top:hover { border-radius: calc(var(--dp-w)/2) calc(var(--dp-w)/2) 0 0; }
+/* snap-right: левые углы закруглены, правые прямые */
+.dice-panel-anchor.dp-snap-right .dice-panel.open .dp-slot.dp-top  { border-radius: calc(var(--dp-w)/2) 0 0 0; }
+.dice-panel-anchor.dp-snap-right .dice-panel.open .dp-slot.dp-roll { border-radius: 0 0 0 calc(var(--dp-w)/2); }
+/* snap-left: правые углы закруглены, левые прямые */
+.dice-panel-anchor.dp-snap-left  .dice-panel.open .dp-slot.dp-top  { border-radius: 0 calc(var(--dp-w)/2) 0 0; }
+.dice-panel-anchor.dp-snap-left  .dice-panel.open .dp-slot.dp-roll { border-radius: 0 0 calc(var(--dp-w)/2) 0; }
+.dice-panel.open .dp-slot.dp-bot-1 { transition-delay: 0.015s }
+.dice-panel.open .dp-slot.dp-bot-2 { transition-delay: 0.030s }
+.dice-panel.open .dp-slot.dp-bot-3 { transition-delay: 0.055s }
+.dice-panel.open .dp-slot.dp-bot-4 { transition-delay: 0.075s }
+.dice-panel.open .dp-slot.dp-bot-5 { transition-delay: 0.090s }
 /* dp-roll stagger moved to .dp-slot.dp-roll rule */
+
+/* Stagger закрытия — верхняя половина (обратный порядок: bot-5 первым) */
+.dice-panel:not(.open) .dp-slot.dp-bot-5 { transition-delay: 0.015s }
+.dice-panel:not(.open) .dp-slot.dp-bot-4 { transition-delay: 0.030s }
+.dice-panel:not(.open) .dp-slot.dp-bot-3 { transition-delay: 0.055s }
+.dice-panel:not(.open) .dp-slot.dp-bot-2 { transition-delay: 0.075s }
+.dice-panel:not(.open) .dp-slot.dp-bot-1 { transition-delay: 0.090s }
+.dice-panel:not(.open) .dp-slot.dp-top   { transition-delay: 0.110s }
+
+/* Нижняя половина: якорь как контейнер для абсолютно позиционированной панели */
+.dice-panel-anchor.dp-lower {
+  position: fixed !important;
+}
+.dice-panel-anchor.dp-lower .dice-panel.open {
+  position: absolute;
+  bottom: 0;
+  top: auto;
+  width: 100%;
+  flex-direction: column;
+}
+
+/* Stagger открытия — bottom-up (нижняя половина): bot-5 первым, dp-top последним */
+.dice-panel-anchor.dp-lower .dice-panel.open .dp-slot.dp-bot-5 { transition-delay: 0.015s }
+.dice-panel-anchor.dp-lower .dice-panel.open .dp-slot.dp-bot-4 { transition-delay: 0.030s }
+.dice-panel-anchor.dp-lower .dice-panel.open .dp-slot.dp-bot-3 { transition-delay: 0.055s }
+.dice-panel-anchor.dp-lower .dice-panel.open .dp-slot.dp-bot-2 { transition-delay: 0.075s }
+.dice-panel-anchor.dp-lower .dice-panel.open .dp-slot.dp-bot-1 { transition-delay: 0.090s }
+.dice-panel-anchor.dp-lower .dice-panel.open .dp-slot.dp-top   { transition-delay: 0.110s }
+
+/* Stagger закрытия — нижняя половина (обратный: dp-top первым, bot-5 последним) */
+.dice-panel-anchor.dp-lower .dice-panel:not(.open) .dp-slot.dp-bot-5 { transition-delay: 0.110s }
+.dice-panel-anchor.dp-lower .dice-panel:not(.open) .dp-slot.dp-bot-4 { transition-delay: 0.090s }
+.dice-panel-anchor.dp-lower .dice-panel:not(.open) .dp-slot.dp-bot-3 { transition-delay: 0.075s }
+.dice-panel-anchor.dp-lower .dice-panel:not(.open) .dp-slot.dp-bot-2 { transition-delay: 0.055s }
+.dice-panel-anchor.dp-lower .dice-panel:not(.open) .dp-slot.dp-bot-1 { transition-delay: 0.030s }
+.dice-panel-anchor.dp-lower .dice-panel:not(.open) .dp-slot.dp-top   { transition-delay: 0.015s }
+
+
 
 /* D20 centre slot — always visible */
 .dp-slot.dp-d20 { cursor: pointer; }
+
+/* Free collapsed — показываем только d20 по центру */
+.dice-panel-anchor.dp-snap-free .dice-panel:not(.open) .dp-slot:not(.dp-d20) {
+  display: none;
+}
+.dice-panel-anchor.dp-snap-free .dice-panel:not(.open) .dp-slot.dp-d20 {
+  width: 100%;
+  height: var(--dp-die);
+  flex-shrink: 0;
+}
+
+/* free open: крайние слоты со скруглением и воздухом */
+.dice-panel-anchor.dp-snap-free .dice-panel.open .dp-slot.dp-top {
+  height: calc(var(--dp-die) + 8px);
+  border-radius: calc(var(--dp-w)/2) calc(var(--dp-w)/2) 0 0;
+}
+.dice-panel-anchor.dp-snap-free .dice-panel.open .dp-slot.dp-roll {
+  height: 50px;
+  min-height: 50px;
+  border-radius: 0 0 calc(var(--dp-w)/2) calc(var(--dp-w)/2);
+}
 
 /* Die image */
 .dp-img {
   width: 48px;
   height: 48px;
-  filter: brightness(0) invert(1) drop-shadow(0 0 2px rgba(200,220,255,.25));
+  filter: brightness(0) invert(.82) drop-shadow(0 0 2px rgba(200,220,255,.2));
   transition: filter .15s, transform .12s;
   flex-shrink: 0;
 }
@@ -2054,7 +2279,7 @@ hr.divider { border: none; border-top: 1px solid #606b85; margin: .9rem 0 }
 /* Counter badge */
 .dp-badge {
   position: absolute;
-  top: 5px;
+  bottom: 6px;
   right: 6px;
   background: #4cbe80;
   color: #fff;
@@ -2089,9 +2314,9 @@ hr.divider { border: none; border-top: 1px solid #606b85; margin: .9rem 0 }
   flex-shrink: 0;
   padding: 0 4px;
   opacity: 0;
-  transition: height .28s cubic-bezier(.22,.9,.36,1),
-              opacity .2s ease .2s,
-              padding .28s ease;
+  transition: height .12s cubic-bezier(.22,.9,.36,1),
+              opacity .09s ease .05s,
+              padding .12s ease;
   pointer-events: none;
 }
 .dice-panel.open .dp-formula-slot {
@@ -2112,29 +2337,30 @@ hr.divider { border: none; border-top: 1px solid #606b85; margin: .9rem 0 }
 
 /* Roll button */
 .dp-slot.dp-roll {
+  overflow: hidden;
   background: rgba(60,120,200,.15);
-  height: 0;           /* скрыта по умолчанию */
+  height: 0;
   min-height: 0;
   opacity: 0;
-  overflow: hidden;
   pointer-events: none;
   cursor: pointer;
   flex-shrink: 0;
-  border-radius: 0 0 8px 0;
-  transition: height .28s cubic-bezier(.22,.9,.36,1),
-              opacity .20s ease,
-              min-height .28s cubic-bezier(.22,.9,.36,1);
+  border-radius: 0 0 calc(var(--dp-w)/2) calc(var(--dp-w)/2);
+  transition: height .12s cubic-bezier(.22,.9,.36,1),
+              opacity .09s ease,
+              min-height .12s cubic-bezier(.22,.9,.36,1);
 }
 /* Когда панель открыта — показываем кнопку */
 .dice-panel.open .dp-slot.dp-roll {
-  height: 42px;
-  min-height: 42px;
+  height: 50px;
+  min-height: 50px;
   opacity: 1;
-  overflow: visible;
+  overflow: hidden;
   pointer-events: all;
-  transition-delay: .30s;
+  transition-delay: .07s;
+  padding-bottom: 0.6em;
 }
-.dp-slot.dp-roll:hover { background: rgba(80,150,240,.28) }
+.dp-slot.dp-roll:hover { background: rgba(80,150,240,.28); border-radius: 0 0 calc(var(--dp-w)/2) calc(var(--dp-w)/2); }
 .dp-roll-label {
   font-size: .78rem;
   font-weight: 800;
@@ -2321,8 +2547,8 @@ hr.divider { border: none; border-top: 1px solid #606b85; margin: .9rem 0 }
 }
 .crop-dialog h3 { margin: 0; font-size: var(--dlg-title-fs); font-weight: var(--dlg-title-fw); color: var(--text) }
 .crop-viewport {
-  position: relative; width: 100%; aspect-ratio: 1;
-  max-height: 60vh; overflow: hidden;
+  position: relative; width: 100%;
+  overflow: hidden;
   background: #111; border-radius: 6px; cursor: grab; touch-action: none;
   user-select: none;
 }
@@ -2369,7 +2595,7 @@ hr.divider { border: none; border-top: 1px solid #606b85; margin: .9rem 0 }
 .weapon-card {
   background: #1e253a; border: 1px solid #3d4a65; border-radius: 6px;
   padding: 0; display: flex; align-items: stretch; gap: 0;
-  transition: border-color .15s; min-height: 2.4rem;
+  transition: border-color .15s; min-height: 2.4rem; overflow: hidden; min-width: 0;
 }
 .weapon-card { cursor: pointer }
 .weapon-card:hover { border-color: #606b85 }
@@ -2389,7 +2615,7 @@ hr.divider { border: none; border-top: 1px solid #606b85; margin: .9rem 0 }
 .weapon-card-atk:hover { background: rgba(255,255,255,.1) }
 .weapon-card-dmg:hover { background: rgba(255,255,255,.1) }
 .weapon-card-del:hover { color: #e05; background: rgba(220,0,50,.1) }
-.weapon-card-note  { font-size: .68rem; color: var(--text3); padding: .05rem 0 0; font-style: italic; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+.weapon-card-note  { font-size: .68rem; color: var(--text3); padding: .05rem 0 0; font-style: italic; white-space: normal; overflow-wrap: break-word; word-break: break-word; min-width: 0 }
 
 /* ══ SPELL CARDS ══════════════════════════════════════════════════════ */
 /* Column widths — shared between group header and cards */
@@ -2665,10 +2891,10 @@ hr.divider { border: none; border-top: 1px solid #606b85; margin: .9rem 0 }
 .resource-card {
   background:#1e253a;border:1px solid #3d4a65;border-radius:6px;
   padding:.3rem 0 .3rem .55rem;display:flex;align-items:stretch;gap:0;min-height:2.2rem;
-  transition:border-color .15s;
+  transition:border-color .15s; overflow:hidden; min-width:0;
 }
 .resource-card:hover { border-color:#606b85 }
-.resource-card-name { font-size:.86rem;font-weight:600;color:var(--text);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:.4rem }
+.resource-card-name { font-size:.86rem;font-weight:600;color:var(--text);flex:1;min-width:0;white-space:normal;overflow-wrap:break-word;word-break:break-word;display:flex;align-items:center;gap:.4rem;flex-wrap:wrap }
 .resource-card-tags { display:flex;gap:.25rem;align-items:center }
 .resource-card-tag { font-size:.6rem;padding:.05rem .3rem;border-radius:8px;border:1px solid #3d4a65;color:var(--text3) }
 .resource-pips { display:flex;gap:.2rem;align-items:center;flex-wrap:wrap }
@@ -2680,6 +2906,7 @@ hr.divider { border: none; border-top: 1px solid #606b85; margin: .9rem 0 }
 .resource-pip:hover { opacity:.75 }
 .resource-card-count { font-size:.72rem;font-family:'PT Mono',monospace;color:var(--text3);min-width:2.2rem;text-align:center }
 .resource-card .weapon-card-del { margin-left: auto }
+.resource-card-note { font-size:.68rem;color:var(--text3);font-style:italic;white-space:normal;overflow-wrap:break-word;word-break:break-word;min-width:0;padding:.05rem 0 0 }
 /* resource dialog */
 .res-dialog-overlay { position:fixed;inset:0;background:var(--dlg-overlay);z-index:9500;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(2px) }
 .res-dialog-overlay.hidden { display:none }
@@ -3019,6 +3246,62 @@ hr.divider { border: none; border-top: 1px solid #606b85; margin: .9rem 0 }
 }
 .rte-link-popup input:focus { border-color: var(--accent2); }
 .rte-link-popup-row { display: flex; gap: .4rem; justify-content: flex-end; }
+
+/* ══ LOG PANEL ══════════════════════════════════════════════ */
+#char-log-panel {
+  position: fixed; bottom: 1.2rem; right: 1.2rem;
+  width: 320px; max-height: 420px;
+  background: #1a1e2e; border: 1px solid #4a5570;
+  border-radius: 8px; box-shadow: 0 6px 32px rgba(0,0,0,.7);
+  display: flex; flex-direction: column;
+  z-index: 110000; font-size: .78rem;
+  animation: dialogIn .18s ease;
+}
+#char-log-panel.hidden { display: none !important; }
+#char-log-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: .45rem .7rem; background: #272e43;
+  border-bottom: 1px solid #4a5570; border-radius: 8px 8px 0 0;
+  cursor: default; user-select: none;
+}
+#char-log-title { font-weight: 700; color: var(--text2); font-size: .8rem; }
+#char-log-btns { display: flex; gap: .3rem; }
+.log-hdr-btn {
+  background: none; border: none; cursor: pointer;
+  color: var(--text3); font-size: .9rem; padding: .1rem .25rem;
+  border-radius: 3px; line-height: 1; transition: color .15s;
+}
+.log-hdr-btn:hover { color: var(--text); }
+#char-log-body {
+  overflow-y: auto; flex: 1;
+  padding: .4rem .5rem;
+  display: flex; flex-direction: column; gap: .2rem;
+}
+#char-log-body::-webkit-scrollbar { width: 5px; }
+#char-log-body::-webkit-scrollbar-thumb { background: #4a5570; border-radius: 3px; }
+.log-entry {
+  display: grid; grid-template-columns: 1.4em 1fr auto;
+  gap: .25rem; align-items: baseline;
+  padding: .22rem .3rem; border-radius: 4px;
+  transition: background .12s; line-height: 1.4;
+}
+.log-entry:hover { background: rgba(255,255,255,.04); }
+.log-entry.log-new { background: rgba(71,118,230,.12); }
+.log-icon { font-size: .85em; text-align: center; }
+.log-meta { color: var(--text3); font-size: .7rem; white-space: nowrap; }
+.log-text { color: var(--text2); word-break: break-word; user-select: text; cursor: text; }
+.log-text b { color: var(--text); font-weight: 600; }
+.log-entry { user-select: text; cursor: text; }
+/* Контекстное меню лога */
+#log-ctx-menu { position:fixed; z-index:200000; background:var(--surface); border:1px solid var(--border2); border-radius:6px; padding:.3rem 0; box-shadow:0 4px 20px rgba(0,0,0,.6); min-width:160px; display:none; }
+#log-ctx-menu button { display:flex; align-items:center; gap:.5rem; width:100%; background:none; border:none; padding:.4rem .8rem; color:var(--text); font-size:.82rem; cursor:pointer; text-align:left; }
+#log-ctx-menu button:hover { background:var(--surface2); }
+.log-meta { color: var(--text3); font-size: .7rem; white-space: nowrap; }
+.log-date-sep {
+  text-align: center; color: var(--text3); font-size: .68rem;
+  padding: .15rem 0; border-top: 1px solid #2a3050; margin-top: .1rem;
+}
+.toast.log-suppress { display: none !important; }
 </style>
 </head>
 <body>
@@ -3029,8 +3312,9 @@ hr.divider { border: none; border-top: 1px solid #606b85; margin: .9rem 0 }
   <div class="site-logo"><img src="/static/img/icon.svg" alt="" style="width:28px;height:28px;vertical-align:middle;margin-right:.4rem;position:relative;top:-1px"> Izzy Wizzy</div>
   <div class="header-right" style="display:flex;align-items:center;gap:.6rem">
     <a href="https://boosty.to/izzywizzy" target="_blank" rel="noopener" class="boosty-btn">Поддержать проект</a>
-    <span id="header-user-email" style="display:none;font-size:.78rem;color:#8888aa;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
-    <button id="header-logout-btn" onclick="doLogout()" style="display:none;font-size:.75rem;font-weight:700;padding:.3rem .75rem;background:transparent;border:1px solid #606b85;color:#aaa;cursor:pointer;border-radius:4px;transition:all .15s" onmouseover="this.style.background='#283351';this.style.color='#ccc'" onmouseout="this.style.background='transparent';this.style.color='#aaa'">Выйти</button>
+    <span id="header-user-email" style="display:none;font-size:.78rem;color:var(--text3);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+    <button id="header-logout-btn" onclick="doLogout()" style="display:none" class="nav-btn settings">Выйти</button>
+    <button id="header-login-btn" onclick="openAuthDialog()" style="display:none" class="nav-btn import">Войти</button>
   </div>
 </header>
 
@@ -3041,10 +3325,11 @@ hr.divider { border: none; border-top: 1px solid #606b85; margin: .9rem 0 }
 
 <nav class="nav-bar">
   <button class="nav-btn active" id="nav-list"   onclick="showView('list')">📜 Персонажи</button>
-  <button class="nav-btn"        id="nav-create"  onclick="_guardedActionFromSheet(()=>showView('create'))">⚗️ Создать</button>
-  <button class="nav-btn"        id="nav-sheet"   onclick="showView('sheet')" style="display:none">📋 Лист</button>
-  <button class="nav-btn"                         onclick="importChar()">📥 Импорт</button>
+  <button class="nav-btn"        id="nav-sheet"  onclick="showView('sheet')" style="display:none">📋 Лист</button>
+  <button class="nav-btn"        id="nav-create" onclick="_guardedActionFromSheet(()=>showView('create'))">⚗️ Создать</button>
   <button class="nav-btn" id="nav-random" onclick="_guardedActionFromSheet(openRandDialog)" title="Сгенерировать случайного персонажа">🎲 Случайный</button>
+  <button class="nav-btn" id="nav-blank"  onclick="createBlankChar()" title="Создать пустой лист персонажа">📄 Пустой</button>
+  <button class="nav-btn"                 onclick="importChar()">📥 Импорт</button>
   <!-- Sheet actions — shown only when sheet is active -->
   <div class="nav-sheet-actions" id="nav-sheet-actions" style="display:none;margin-left:auto;display:none;gap:.3rem;align-items:center">
     <button class="nav-btn" onclick="exportSheet()">📤 LSS</button>
@@ -3080,41 +3365,9 @@ hr.divider { border: none; border-top: 1px solid #606b85; margin: .9rem 0 }
           <div class="form-row">
             <div class="form-group" style="flex:2"><label>Имя персонажа *</label><input type="text" id="w-name" placeholder="Имя героя" oninput="wiz.name=this.value;autoSave()"></div>
             <div class="form-group"><label>Уровень</label><input type="number" id="w-level" value="1" min="1" max="20" oninput="wiz.level=parseInt(this.value)||1;autoSave()"></div>
-            <div class="form-group"><label>XP</label><input type="number" id="w-xp" value="0" min="0" oninput="wiz.xp=parseInt(this.value)||0;autoSave()"></div>
-          </div>
-          <div class="form-row">
-            <div class="form-group"><label>Мировоззрение</label>
-              <select id="w-alignment" onchange="wiz.alignment=this.value;autoSave()">
-                <option value="">— выбрать —</option>
-                <option>Законный добрый</option><option>Нейтральный добрый</option><option>Хаотичный добрый</option>
-                <option>Законный нейтральный</option><option>Истинно нейтральный</option><option>Хаотичный нейтральный</option>
-                <option>Законный злой</option><option>Нейтральный злой</option><option>Хаотичный злой</option>
-              </select>
-            </div>
-            <div class="form-group"><label>Внешность</label><input type="text" id="w-appearance" placeholder="Общее впечатление..."></div>
           </div>
         </div>
       </div>
-      <hr class="divider">
-      <div class="section-title">Физические данные</div>
-      <div class="form-row">
-        <div class="form-group"><label>Возраст</label><input type="text" id="w-age" oninput="wiz.age=this.value;autoSave()"></div>
-        <div class="form-group"><label>Рост</label><input type="text" id="w-height" oninput="wiz.height=this.value;autoSave()"></div>
-        <div class="form-group"><label>Вес</label><input type="text" id="w-weight" oninput="wiz.weight=this.value;autoSave()"></div>
-        <div class="form-group"><label>Глаза</label><input type="text" id="w-eyes" oninput="wiz.eyes=this.value;autoSave()"></div>
-        <div class="form-group"><label>Кожа</label><input type="text" id="w-skin" oninput="wiz.skin=this.value;autoSave()"></div>
-        <div class="form-group"><label>Волосы</label><input type="text" id="w-hair" oninput="wiz.hair=this.value;autoSave()"></div>
-      </div>
-      <hr class="divider">
-      <div class="form-row">
-        <div class="form-group"><label>Черты характера</label><textarea id="w-traits" rows="2" oninput="wiz.traits=this.value;autoSave()"></textarea></div>
-        <div class="form-group"><label>Идеалы</label><textarea id="w-ideals" rows="2" oninput="wiz.ideals=this.value;autoSave()"></textarea></div>
-      </div>
-      <div class="form-row">
-        <div class="form-group"><label>Привязанности</label><textarea id="w-bonds" rows="2" oninput="wiz.bonds=this.value;autoSave()"></textarea></div>
-        <div class="form-group"><label>Слабости</label><textarea id="w-flaws" rows="2" oninput="wiz.flaws=this.value;autoSave()"></textarea></div>
-      </div>
-      <div class="form-group"><label>История персонажа</label><textarea id="w-backstory" rows="4" oninput="wiz.backstory=this.value;autoSave()" placeholder="Откуда пришёл, что привело к приключениям..."></textarea></div>
     </div>
 
     <!-- 1: Раса -->
@@ -3122,6 +3375,7 @@ hr.divider { border: none; border-top: 1px solid #606b85; margin: .9rem 0 }
       <div class="section-title lg">🌍 Раса</div>
       <div class="option-grid" id="race-grid"></div>
       <div id="subrace-container"></div>
+      <div id="race-traits-container"></div>
       <div class="form-row" style="margin-top:.8rem;max-width:220px">
         <div class="form-group"><label>Размер</label>
           <select id="w-size"><option>Средний</option><option>Маленький</option><option>Большой</option><option>Крошечный</option></select>
@@ -3178,6 +3432,43 @@ hr.divider { border: none; border-top: 1px solid #606b85; margin: .9rem 0 }
     <div class="wizard-page" id="wpage-7">
       <div class="section-title lg">🎒 Снаряжение</div>
       <div id="equipment-choices"></div>
+    </div>
+
+    <!-- 8: Личность -->
+    <div class="wizard-page" id="wpage-8">
+      <div class="section-title lg">🪶 Личность</div>
+      <p class="note-text" style="margin-bottom:1rem">Необязательный шаг — всё это можно заполнить позже на листе персонажа.</p>
+      <div class="form-row">
+        <div class="form-group"><label>Мировоззрение</label>
+          <select id="w-alignment" onchange="wiz.alignment=this.value;autoSave()">
+            <option value="">— выбрать —</option>
+            <option>Законный добрый</option><option>Нейтральный добрый</option><option>Хаотичный добрый</option>
+            <option>Законный нейтральный</option><option>Истинно нейтральный</option><option>Хаотичный нейтральный</option>
+            <option>Законный злой</option><option>Нейтральный злой</option><option>Хаотичный злой</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Внешность</label><input type="text" id="w-appearance" placeholder="Общее впечатление..."></div>
+      </div>
+      <hr class="divider">
+      <div class="section-title">Физические данные</div>
+      <div class="form-row">
+        <div class="form-group"><label>Возраст</label><input type="text" id="w-age" oninput="wiz.age=this.value;autoSave()"></div>
+        <div class="form-group"><label>Рост</label><input type="text" id="w-height" oninput="wiz.height=this.value;autoSave()"></div>
+        <div class="form-group"><label>Вес</label><input type="text" id="w-weight" oninput="wiz.weight=this.value;autoSave()"></div>
+        <div class="form-group"><label>Глаза</label><input type="text" id="w-eyes" oninput="wiz.eyes=this.value;autoSave()"></div>
+        <div class="form-group"><label>Кожа</label><input type="text" id="w-skin" oninput="wiz.skin=this.value;autoSave()"></div>
+        <div class="form-group"><label>Волосы</label><input type="text" id="w-hair" oninput="wiz.hair=this.value;autoSave()"></div>
+      </div>
+      <hr class="divider">
+      <div class="form-row">
+        <div class="form-group"><label>Черты характера</label><textarea id="w-traits" rows="2" oninput="wiz.traits=this.value;autoSave()"></textarea></div>
+        <div class="form-group"><label>Идеалы</label><textarea id="w-ideals" rows="2" oninput="wiz.ideals=this.value;autoSave()"></textarea></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Привязанности</label><textarea id="w-bonds" rows="2" oninput="wiz.bonds=this.value;autoSave()"></textarea></div>
+        <div class="form-group"><label>Слабости</label><textarea id="w-flaws" rows="2" oninput="wiz.flaws=this.value;autoSave()"></textarea></div>
+      </div>
+      <div class="form-group"><label>История персонажа</label><textarea id="w-backstory" rows="4" oninput="wiz.backstory=this.value;autoSave()" placeholder="Откуда пришёл, что привело к приключениям..."></textarea></div>
     </div>
 
     <div class="wizard-nav">
@@ -3316,7 +3607,7 @@ hr.divider { border: none; border-top: 1px solid #606b85; margin: .9rem 0 }
             <div class="ds2-pip fail2-pip" id="ds2-fail-1" onclick="toggleDS2('fail',1)" title="Провал"></div>
             <div class="ds2-pip fail2-pip" id="ds2-fail-2" onclick="toggleDS2('fail',2)" title="Провал"></div>
           </div>
-          <div id="ds2-die" onclick="rollDeathSave()" title="Бросить к20" style="width:52px;height:52px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1.6rem;user-select:none;transition:filter .3s,transform .2s;filter:drop-shadow(0 0 6px rgba(255,255,255,.25))">
+          <div id="ds2-die" onclick="rollDeathSave(event)" title="Бросить к20 (Shift=Преим., Alt=Помеха)" style="width:52px;height:52px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1.6rem;user-select:none;transition:filter .3s,transform .2s;filter:drop-shadow(0 0 6px rgba(255,255,255,.25))">
             <svg width="36" height="36" viewBox="0 0 33 33" fill="none" xmlns="http://www.w3.org/2000/svg" style="stroke:rgba(255,255,255,.85);stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round">
               <path d="M16.4997 1.99976L28.4997 9.95628M16.4997 1.99976L4.49969 9.95628M16.4997 1.99976V9.69541M28.4997 9.95628L16.4997 9.69541M28.4997 9.95628L23.9345 21.1737M28.4997 9.95628V22.3476M28.4997 22.3476L16.4997 30.4345M28.4997 22.3476L23.9345 21.1737M16.4997 30.4345L4.49969 22.3476M16.4997 30.4345L9.06491 21.1737M16.4997 30.4345L23.9345 21.1737M4.49969 22.3476V9.95628M4.49969 22.3476L9.06491 21.1737M4.49969 9.95628L16.4997 9.69541M4.49969 9.95628L9.06491 21.1737M16.4997 9.69541L9.06491 21.1737M16.4997 9.69541L23.9345 21.1737M9.06491 21.1737H23.9345" stroke="inherit"></path>
             </svg>
@@ -3431,11 +3722,11 @@ hr.divider { border: none; border-top: 1px solid #606b85; margin: .9rem 0 }
       <div class="form-group" style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem">
         <div>
           <label>Уровень</label>
-          <input type="number" id="ced-level" min="1" max="20" value="1" oninput="updateCedXpBar();autoSave()">
+          <input type="number" id="ced-level" min="1" max="20" value="1" oninput="cedOnLevelInput()">
         </div>
         <div>
           <label>Опыт (XP)</label>
-          <input type="number" id="ced-xp" min="0" value="0" oninput="updateCedXpBar();autoSave()">
+          <input type="number" id="ced-xp" min="0" value="0" oninput="cedOnXpInput()">
         </div>
       </div>
 
@@ -3503,7 +3794,7 @@ hr.divider { border: none; border-top: 1px solid #606b85; margin: .9rem 0 }
         <div class="quickstat-bar">
 
           <!-- Инициатива -->
-          <div class="qs-box" style="min-width:72px;cursor:pointer" onclick="rollInitiative()" oncontextmenu="openInitDialog(event)" title="Бросок инициативы (ПКМ — настройка)">
+          <div class="qs-box" style="min-width:72px;cursor:pointer" onclick="rollInitiative(event)" oncontextmenu="openInitDialog(event)" title="Бросок инициативы (Shift=Преим., Alt=Помеха, ПКМ — настройка)">
             <span class="qs-val" id="qs-init-val">—</span>
             <span class="qs-label">Инициатива</span>
           </div>
@@ -3636,7 +3927,7 @@ hr.divider { border: none; border-top: 1px solid #606b85; margin: .9rem 0 }
               <span class="pers-field-block-label">Внешность</span>
               <button class="pers-collapse-btn" onclick="this.closest('.pers-field-block').classList.toggle('collapsed')" title="Свернуть">∧</button>
             </div>
-            <textarea id="sp-appearance" class="pers-field-ta"
+            <textarea id="sp-appearance" class="pers-field-ta rte-source" data-rte-class="rte-pers"
               rows="3" placeholder="Внешнее описание персонажа..."
               oninput="if(currentChar){currentChar.appearance=this.value};autoSave()"></textarea>
           </div>
@@ -3680,7 +3971,7 @@ hr.divider { border: none; border-top: 1px solid #606b85; margin: .9rem 0 }
               <span class="pers-field-block-label">Предыстория персонажа</span>
               <button class="pers-collapse-btn" onclick="this.closest('.pers-field-block').classList.toggle('collapsed')" title="Свернуть">∧</button>
             </div>
-            <textarea id="sp-backstory" class="pers-field-ta"
+            <textarea id="sp-backstory" class="pers-field-ta rte-source" data-rte-class="rte-pers"
               rows="5" placeholder="Откуда пришёл, что привело к приключениям..."
               oninput="if(currentChar){currentChar.backstory=this.value};autoSave()"></textarea>
           </div>
@@ -3691,7 +3982,7 @@ hr.divider { border: none; border-top: 1px solid #606b85; margin: .9rem 0 }
               <span class="pers-field-block-label">Черты характера</span>
               <button class="pers-collapse-btn" onclick="this.closest('.pers-field-block').classList.toggle('collapsed')" title="Свернуть">∧</button>
             </div>
-            <textarea id="sp-traits" class="pers-field-ta"
+            <textarea id="sp-traits" class="pers-field-ta rte-source" data-rte-class="rte-pers"
               rows="3" placeholder="Как ведёт себя персонаж, его привычки и манеры..."
               oninput="if(currentChar){currentChar.traits=this.value};autoSave()"></textarea>
           </div>
@@ -3703,7 +3994,7 @@ hr.divider { border: none; border-top: 1px solid #606b85; margin: .9rem 0 }
                 <span class="pers-field-block-label">Идеалы</span>
                 <button class="pers-collapse-btn" onclick="this.closest('.pers-trait-cell').classList.toggle('collapsed')" title="Свернуть">∧</button>
               </div>
-              <textarea id="sp-ideals" class="pers-field-ta"
+              <textarea id="sp-ideals" class="pers-field-ta rte-source" data-rte-class="rte-pers"
                 rows="4" oninput="if(currentChar)currentChar.ideals=this.value;autoSave()"></textarea>
             </div>
             <div class="pers-trait-cell">
@@ -3711,7 +4002,7 @@ hr.divider { border: none; border-top: 1px solid #606b85; margin: .9rem 0 }
                 <span class="pers-field-block-label">Привязанности</span>
                 <button class="pers-collapse-btn" onclick="this.closest('.pers-trait-cell').classList.toggle('collapsed')" title="Свернуть">∧</button>
               </div>
-              <textarea id="sp-bonds" class="pers-field-ta"
+              <textarea id="sp-bonds" class="pers-field-ta rte-source" data-rte-class="rte-pers"
                 rows="4" oninput="if(currentChar)currentChar.bonds=this.value;autoSave()"></textarea>
             </div>
             <div class="pers-trait-cell">
@@ -3719,7 +4010,7 @@ hr.divider { border: none; border-top: 1px solid #606b85; margin: .9rem 0 }
                 <span class="pers-field-block-label">Слабости</span>
                 <button class="pers-collapse-btn" onclick="this.closest('.pers-trait-cell').classList.toggle('collapsed')" title="Свернуть">∧</button>
               </div>
-              <textarea id="sp-flaws" class="pers-field-ta"
+              <textarea id="sp-flaws" class="pers-field-ta rte-source" data-rte-class="rte-pers"
                 rows="4" oninput="if(currentChar)currentChar.flaws=this.value;autoSave()"></textarea>
             </div>
             <div class="pers-trait-cell">
@@ -3727,7 +4018,7 @@ hr.divider { border: none; border-top: 1px solid #606b85; margin: .9rem 0 }
                 <span class="pers-field-block-label">Союзники и организации</span>
                 <button class="pers-collapse-btn" onclick="this.closest('.pers-trait-cell').classList.toggle('collapsed')" title="Свернуть">∧</button>
               </div>
-              <textarea id="sp-allies" class="pers-field-ta"
+              <textarea id="sp-allies" class="pers-field-ta rte-source" data-rte-class="rte-pers"
                 rows="4" oninput="if(currentChar)currentChar.allies=this.value;autoSave()"></textarea>
             </div>
           </div>
@@ -3790,7 +4081,7 @@ hr.divider { border: none; border-top: 1px solid #606b85; margin: .9rem 0 }
         <img src="/static/img/icon.svg" alt="" class="about-icon">
         <div>
           <div class="about-appname">Izzy Wizzy</div>
-          <div class="about-version">версия 0.9B</div>
+          <div class="about-version">версия 0.9.02B</div>
         </div>
       </div>
       <div class="about-desc">Менеджер персонажей для D&amp;D 5e на русском языке.<br>Работает локально, не требует интернета.</div>
@@ -3808,11 +4099,26 @@ hr.divider { border: none; border-top: 1px solid #606b85; margin: .9rem 0 }
         <a href="https://boosty.to/izzywizzy" target="_blank" rel="noopener" class="about-boosty">boosty.to/izzywizzy</a>
       </div>
       <div class="about-legal">Dungeons &amp; Dragons и связанные материалы являются интеллектуальной собственностью Wizards of the Coast / Hasbro. Все права на контент принадлежат их соответствующим владельцам.</div>
+      <div class="about-divider"></div>
+      <div class="about-legal" style="text-align:center">Спасибо моему первому и пока единственному бустеру:<br><strong style="color:var(--accent)">Дима Зверев</strong></div>
     </div>
   </div>
 </div>
 
 <div class="toast" id="toast"></div>
+
+<!-- ══ LOG PANEL ══ -->
+<div id="char-log-panel" class="hidden">
+  <div id="char-log-header">
+    <span id="char-log-title">📋 История</span>
+    <div id="char-log-btns">
+      <button class="log-hdr-btn" onclick="charLogClear()" title="Очистить историю">🗑</button>
+      <button class="log-hdr-btn" onclick="charLogClose()" title="Закрыть">✕</button>
+    </div>
+  </div>
+  <div id="char-log-body"></div>
+</div>
+
 
 <!-- DATA -->
 <script src="/static/data/themes.js"></script>
@@ -3929,7 +4235,7 @@ document.getElementById('ability-pb-grid').innerHTML =
 <!-- ══ PORTRAIT CROP DIALOG ══ -->
 <div id="crop-overlay" class="crop-overlay hidden" data-dlg-close="closeCropDialog">
   <div class="crop-dialog">
-    <h3>✂️ Кадрировать портрет</h3>
+    <h3 id="crop-title">✂️ Кадрировать портрет</h3>
     <div class="crop-viewport" id="crop-viewport">
       <img id="crop-img" class="crop-img" src="" alt="">
       <div class="crop-frame"></div>
@@ -3939,7 +4245,7 @@ document.getElementById('ability-pb-grid').innerHTML =
       <input type="range" id="crop-zoom" min="1" max="5" step="0.01" value="1"
         oninput="cropZoomChange(this.value);autoSave()">
     </div>
-    <p class="crop-hint">Перетащите изображение для выбора нужного фрагмента. Результат — квадрат.</p>
+    <p class="crop-hint" id="crop-hint">Перетащите изображение для выбора нужного фрагмента.</p>
     <div class="crop-actions">
       <button class="btn btn-secondary" onclick="closeCropDialog()">Отмена</button>
       <button class="btn btn-secondary" onclick="applyCrop()">Применить</button>
@@ -4381,7 +4687,14 @@ document.getElementById('ability-pb-grid').innerHTML =
     <button class="gear-menu-btn" onclick="closeSheetSettings();openSpecialAbilitiesDialog()"><span>⚙</span><span>Особые настройки</span></button>
     <button class="gear-menu-btn" onclick="closeSheetSettings();openRollSettingsDialog()"><span>🎲</span><span>Настройки бросков</span></button>
   </div>
+  <button class="gear-menu-btn" onclick="closeSheetSettings();charLogToggle()"><span>📋</span><span>Показать историю</span></button>
   <button class="gear-menu-btn" onclick="closeSheetSettings();openAboutDialog()"><span>ℹ️</span><span>О приложении</span></button>
+</div>
+
+<!-- Контекстное меню лога -->
+<div id="log-ctx-menu">
+  <button onclick="logCtxCopyLine()">📋 Копировать строку</button>
+  <button onclick="logCtxCopyAll()">📄 Копировать всё</button>
 </div>
 
 <!-- ══ ДИАЛОГ О ПРИЛОЖЕНИИ ══ -->
@@ -4392,7 +4705,7 @@ document.getElementById('ability-pb-grid').innerHTML =
         <img src="/static/img/icon.svg" alt="" class="about-icon">
         <div>
           <div class="about-appname">Izzy Wizzy</div>
-          <div class="about-version">версия 0.9B</div>
+          <div class="about-version">версия 0.9.03B</div>
         </div>
       </div>
       <div class="about-desc">Менеджер персонажей для D&amp;D 5e на русском языке.<br>Работает локально, не требует интернета.</div>
@@ -4410,6 +4723,8 @@ document.getElementById('ability-pb-grid').innerHTML =
         <a href="https://boosty.to/izzywizzy" target="_blank" rel="noopener" class="about-boosty">boosty.to/izzywizzy</a>
       </div>
       <div class="about-legal">Dungeons &amp; Dragons и связанные материалы являются интеллектуальной собственностью Wizards of the Coast / Hasbro. Все права на контент принадлежат их соответствующим владельцам.</div>
+      <div class="about-divider"></div>
+      <div class="about-legal" style="text-align:center">Спасибо моей любимой семейке бустеров:<br><strong style="color:var(--accent)">Дима Зверев, Alena Zvereva</strong></div>
     </div>
     <div style="display:flex;justify-content:flex-end;margin-top:1rem">
       <button class="btn btn-secondary" onclick="closeAboutDialog()">Закрыть</button>
@@ -4567,6 +4882,8 @@ document.getElementById('ability-pb-grid').innerHTML =
         <option value="weapon">Оружие</option>
         <option value="armor">Доспех / Щит</option>
         <option value="tool">Инструмент</option>
+        <option value="potion">Зелье</option>
+        <option value="scroll">Свиток</option>
         <option value="kit">Набор</option>
       </select>
     </div>
@@ -4642,6 +4959,8 @@ document.getElementById('ability-pb-grid').innerHTML =
         <option value="firearm">Огнестрел</option>
         <option value="firearm_ammo">Огнестрельные боеприпасы</option>
         <option value="explosive">Взрывчатка</option>
+        <option value="potion">Зелья</option>
+        <option value="scroll">Свитки</option>
       </select>
       <select id="ib-sort" onchange="renderItemsBrowserList();autoSave()"
         style="background:var(--dlg-input-bg);border:1px solid var(--dlg-input-border);border-radius:var(--dlg-input-radius);color:var(--text);font-family:inherit;font-size:var(--dlg-input-fs);padding:var(--dlg-input-pad);width:100%;box-sizing:border-box;outline:none">
@@ -4970,6 +5289,20 @@ document.getElementById('ability-pb-grid').innerHTML =
       </div>
     </div>
 
+    <!-- Бонус щита -->
+    <div style="margin-bottom:.8rem">
+      <label class="dlg-label">Бонус щита</label>
+      <div style="display:flex;align-items:center;gap:.5rem">
+        <button class="btn btn-secondary" style="width:2rem;height:2rem;padding:0;font-size:1rem"
+          onclick="document.getElementById('acd-shield-bonus').value=Math.max(0,(parseInt(document.getElementById('acd-shield-bonus').value)||2)-1);updateAcDialogPreview()">−</button>
+        <input type="number" id="acd-shield-bonus" value="2" min="0" max="20" step="1"
+          style="background:var(--dlg-input-bg);border:1px solid var(--dlg-input-border);border-radius:var(--dlg-input-radius);color:var(--text);font-family:inherit;font-size:var(--dlg-input-fs);padding:var(--dlg-input-pad);width:100%;box-sizing:border-box;outline:none"
+          oninput="updateAcDialogPreview()">
+        <button class="btn btn-secondary" style="width:2rem;height:2rem;padding:0;font-size:1rem"
+          onclick="document.getElementById('acd-shield-bonus').value=Math.min(20,(parseInt(document.getElementById('acd-shield-bonus').value)||2)+1);updateAcDialogPreview()">+</button>
+      </div>
+    </div>
+
     <!-- Заменить значение -->
     <div style="margin-bottom:1rem">
       <label class="dlg-label">Заменить базовое КБ на (число или формула, напр. <code style="font-size:.7rem;color:#c8aa60">12+[ЛОВ]</code>)</label>
@@ -5122,32 +5455,255 @@ document.getElementById('ability-pb-grid').innerHTML =
     <button class="btn btn-primary btn-sm" onmousedown="event.preventDefault();rteLinkApply()">Вставить</button>
   </div>
 </div>
-</body>
+
+<!-- ══ AUTH DIALOG ══ -->
+<div class="hp-dialog-overlay hidden" id="auth-dialog-overlay" data-dlg-close="_closeAuthDialog" style="z-index:10030">
+  <div class="hp-dialog" style="max-width:400px;width:94%">
+    <h3 style="display:flex;align-items:center;gap:.55rem;margin-bottom:.2rem">
+      <img src="/static/img/icon.svg" alt="" style="width:22px;height:22px;flex-shrink:0">
+      <span id="auth-dialog-title">Вход в Izzy Wizzy</span>
+    </h3>
+    <div style="font-size:.78rem;color:var(--text3);margin-bottom:1rem" id="auth-dialog-subtitle">Войдите, чтобы ваши персонажи сохранялись в облаке</div>
+
+    <!-- Tabs -->
+    <div style="display:flex;border-bottom:1px solid var(--dlg-border);margin-bottom:1rem">
+      <button id="auth-tab-login" onclick="_authSwitchTab('login')" style="flex:1;padding:.45rem;background:none;border:none;border-bottom:2px solid var(--accent);color:var(--text);font-size:.82rem;font-weight:700;cursor:pointer;letter-spacing:.03em;text-transform:uppercase">Вход</button>
+      <button id="auth-tab-reg" onclick="_authSwitchTab('reg')" style="flex:1;padding:.45rem;background:none;border:none;border-bottom:2px solid transparent;color:var(--text3);font-size:.82rem;font-weight:700;cursor:pointer;letter-spacing:.03em;text-transform:uppercase">Регистрация</button>
+    </div>
+
+    <div id="auth-error" style="display:none;background:rgba(192,57,43,.15);border:1px solid rgba(192,57,43,.4);border-radius:6px;padding:.5rem .75rem;font-size:.82rem;color:#e88;margin-bottom:.75rem"></div>
+
+    <!-- Login form -->
+    <div id="auth-form-login">
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="auth-login-email" class="form-control" placeholder="your@email.com" autocomplete="email" onkeydown="if(event.key==='Enter')_authDoLogin()">
+      </div>
+      <div class="form-group">
+        <label>Пароль</label>
+        <input type="password" id="auth-login-pw" class="form-control" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')_authDoLogin()">
+      </div>
+      <div class="dialog-actions" style="margin-top:.9rem">
+        <button class="btn" onclick="_closeAuthDialog()">Отмена</button>
+        <button class="btn btn-primary" id="auth-login-submit" onclick="_authDoLogin()">Войти</button>
+      </div>
+    </div>
+
+    <!-- Register form -->
+    <div id="auth-form-reg" style="display:none">
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="auth-reg-email" class="form-control" placeholder="your@email.com" autocomplete="email" onkeydown="if(event.key==='Enter')_authDoRegister()">
+      </div>
+      <div class="form-group">
+        <label>Пароль <span style="color:var(--text3);font-weight:400">(мин. 6 символов)</span></label>
+        <input type="password" id="auth-reg-pw" class="form-control" placeholder="••••••••" autocomplete="new-password" onkeydown="if(event.key==='Enter')_authDoRegister()">
+      </div>
+      <div class="form-group">
+        <label>Повторите пароль</label>
+        <input type="password" id="auth-reg-pw2" class="form-control" placeholder="••••••••" autocomplete="new-password" onkeydown="if(event.key==='Enter')_authDoRegister()">
+      </div>
+      <div class="dialog-actions" style="margin-top:.9rem">
+        <button class="btn" onclick="_closeAuthDialog()">Отмена</button>
+        <button class="btn btn-primary" id="auth-reg-submit" onclick="_authDoRegister()">Создать аккаунт</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ NO-AUTH WARNING DIALOG ══ -->
+<div class="hp-dialog-overlay hidden" id="noauth-warn-overlay" data-dlg-close="_closeNoauthWarn" style="z-index:10031">
+  <div class="hp-dialog" style="max-width:380px;width:94%">
+    <h3 style="display:flex;align-items:center;gap:.55rem">
+      <img src="/static/img/icon.svg" alt="" style="width:22px;height:22px;flex-shrink:0">
+      Персонаж не сохранится
+    </h3>
+    <div style="font-size:.87rem;color:var(--text2);margin-bottom:1.1rem;line-height:1.5">
+      Без авторизации персонаж существует только в рамках текущей сессии и не будет сохранён в облаке.
+    </div>
+    <div class="dialog-actions">
+      <button class="btn" onclick="_noauthContinue()">Всё равно продолжить</button>
+      <button class="btn btn-primary" onclick="_noauthGoLogin()">Войти / Зарегистрироваться</button>
+    </div>
+  </div>
+</div>
+
 <script>
-// ── Auth UI ──────────────────────────────────────────────────────────────────
-async function initAuthUI() {
+// ── Auth state ────────────────────────────────────────────────────────────────
+var _IW_webMode = false;
+var _IW_loggedIn = false;
+var _IW_userEmail = null;
+var _IW_noauthCallback = null;  // pending action after dismiss
+
+async function _authInit() {
   try {
     const res = await fetch('/api/auth/me');
     if (!res.ok) return;
-    const data = await res.json();
-    if (data && data.email) {
-      const emailEl = document.getElementById('header-user-email');
-      const logoutEl = document.getElementById('header-logout-btn');
-      if (emailEl) { emailEl.textContent = data.email; emailEl.style.display = ''; }
-      if (logoutEl) { logoutEl.style.display = ''; }
-    }
-  } catch(e) { /* not in web mode or not logged in — that's fine */ }
-}
+    const d = await res.json();
+    _IW_webMode = d.webMode || false;
+    _IW_loggedIn = d.loggedIn || false;
+    _IW_userEmail = d.email || null;
+  } catch(e) { return; }
 
-async function doLogout() {
-  try {
-    await fetch('/api/auth/logout', { method: 'POST' });
-    window.location.href = '/login';
-  } catch(e) {
-    window.location.href = '/login';
+  if (!_IW_webMode) return;  // Десктоп — ничего не делаем
+
+  const loginBtn  = document.getElementById('header-login-btn');
+  const logoutBtn = document.getElementById('header-logout-btn');
+  const emailEl   = document.getElementById('header-user-email');
+
+  if (_IW_loggedIn) {
+    if (emailEl)   { emailEl.textContent = _IW_userEmail; emailEl.style.display = ''; }
+    if (logoutBtn) { logoutBtn.style.display = ''; }
+    if (loginBtn)  { loginBtn.style.display = 'none'; }
+  } else {
+    if (loginBtn)  { loginBtn.style.display = ''; }
+    if (logoutBtn) { logoutBtn.style.display = 'none'; }
+    if (emailEl)   { emailEl.style.display = 'none'; }
   }
 }
 
-initAuthUI();
+// ── Auth dialog ───────────────────────────────────────────────────────────────
+function openAuthDialog(tab) {
+  _authSwitchTab(tab || 'login');
+  _authClearError();
+  document.getElementById('auth-dialog-overlay').classList.remove('hidden');
+}
+function _closeAuthDialog() {
+  document.getElementById('auth-dialog-overlay').classList.add('hidden');
+  _authClearError();
+}
+function _authSwitchTab(tab) {
+  const isLogin = tab === 'login';
+  document.getElementById('auth-form-login').style.display = isLogin ? '' : 'none';
+  document.getElementById('auth-form-reg').style.display   = isLogin ? 'none' : '';
+  document.getElementById('auth-tab-login').style.borderBottomColor = isLogin ? 'var(--accent)' : 'transparent';
+  document.getElementById('auth-tab-login').style.color    = isLogin ? 'var(--text)' : 'var(--text3)';
+  document.getElementById('auth-tab-reg').style.borderBottomColor   = isLogin ? 'transparent' : 'var(--accent)';
+  document.getElementById('auth-tab-reg').style.color      = isLogin ? 'var(--text3)' : 'var(--text)';
+  document.getElementById('auth-dialog-title').textContent = isLogin ? 'Вход в Izzy Wizzy' : 'Регистрация';
+  _authClearError();
+}
+function _authShowError(msg) {
+  const el = document.getElementById('auth-error');
+  el.textContent = msg; el.style.display = '';
+}
+function _authClearError() {
+  document.getElementById('auth-error').style.display = 'none';
+}
+function _authSetLoading(btnId, loading, label) {
+  const btn = document.getElementById(btnId);
+  if (!btn) return;
+  btn.disabled = loading;
+  btn.textContent = loading ? 'Загрузка...' : label;
+}
+
+async function _authDoLogin() {
+  const email = (document.getElementById('auth-login-email').value || '').trim();
+  const pw    = document.getElementById('auth-login-pw').value || '';
+  if (!email || !pw) { _authShowError('Заполните все поля'); return; }
+  _authSetLoading('auth-login-submit', true, 'Войти');
+  try {
+    const res = await fetch('/api/auth/login', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({email, password: pw})
+    });
+    const data = await res.json();
+    if (res.ok) { _closeAuthDialog(); location.reload(); }
+    else { _authShowError(data.error || 'Ошибка входа'); _authSetLoading('auth-login-submit', false, 'Войти'); }
+  } catch(e) { _authShowError('Ошибка соединения'); _authSetLoading('auth-login-submit', false, 'Войти'); }
+}
+
+async function _authDoRegister() {
+  const email = (document.getElementById('auth-reg-email').value || '').trim();
+  const pw    = document.getElementById('auth-reg-pw').value || '';
+  const pw2   = document.getElementById('auth-reg-pw2').value || '';
+  if (!email || !pw) { _authShowError('Заполните все поля'); return; }
+  if (pw !== pw2)    { _authShowError('Пароли не совпадают'); return; }
+  if (pw.length < 6) { _authShowError('Пароль минимум 6 символов'); return; }
+  _authSetLoading('auth-reg-submit', true, 'Создать аккаунт');
+  try {
+    const res = await fetch('/api/auth/register', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({email, password: pw})
+    });
+    const data = await res.json();
+    if (res.ok) { _closeAuthDialog(); location.reload(); }
+    else { _authShowError(data.error || 'Ошибка регистрации'); _authSetLoading('auth-reg-submit', false, 'Создать аккаунт'); }
+  } catch(e) { _authShowError('Ошибка соединения'); _authSetLoading('auth-reg-submit', false, 'Создать аккаунт'); }
+}
+
+async function doLogout() {
+  try { await fetch('/api/auth/logout', {method:'POST'}); } catch(e) {}
+  location.reload();
+}
+
+// ── No-auth guard ─────────────────────────────────────────────────────────────
+// Обёртка для кнопок навбара: если в веб-режиме и не залогинен — показываем предупреждение
+function _authGuard(callback) {
+  if (!_IW_webMode || _IW_loggedIn) {
+    callback();
+    return;
+  }
+  _IW_noauthCallback = callback;
+  document.getElementById('noauth-warn-overlay').classList.remove('hidden');
+}
+function _closeNoauthWarn() {
+  document.getElementById('noauth-warn-overlay').classList.add('hidden');
+  _IW_noauthCallback = null;
+}
+function _noauthContinue() {
+  const cb = _IW_noauthCallback;
+  _closeNoauthWarn();
+  if (cb) cb();
+}
+function _noauthGoLogin() {
+  _closeNoauthWarn();
+  openAuthDialog('login');
+}
+
+// ── Patch nav buttons ─────────────────────────────────────────────────────────
+// Перехватываем кнопки после загрузки DOM
+document.addEventListener('DOMContentLoaded', function() {
+  _authInit();
+
+  // Патчим кнопки навбара — оборачиваем в _authGuard
+  const navCreate = document.getElementById('nav-create');
+  const navRandom = document.getElementById('nav-random');
+  const navBlank  = document.getElementById('nav-blank');
+
+  if (navCreate) {
+    const origCreate = navCreate.getAttribute('onclick');
+    navCreate.removeAttribute('onclick');
+    navCreate.addEventListener('click', function() {
+      _authGuard(function() { eval(origCreate); });
+    });
+  }
+  if (navRandom) {
+    const origRandom = navRandom.getAttribute('onclick');
+    navRandom.removeAttribute('onclick');
+    navRandom.addEventListener('click', function() {
+      _authGuard(function() { eval(origRandom); });
+    });
+  }
+  if (navBlank) {
+    const origBlank = navBlank.getAttribute('onclick');
+    navBlank.removeAttribute('onclick');
+    navBlank.addEventListener('click', function() {
+      _authGuard(function() { eval(origBlank); });
+    });
+  }
+
+  // Импорт — ищем кнопку по тексту
+  document.querySelectorAll('.nav-btn').forEach(function(btn) {
+    if (btn.textContent.includes('Импорт') && !btn.id) {
+      const origImport = btn.getAttribute('onclick');
+      btn.removeAttribute('onclick');
+      btn.addEventListener('click', function() {
+        _authGuard(function() { eval(origImport); });
+      });
+    }
+  });
+});
 </script>
+</body>
 </html>

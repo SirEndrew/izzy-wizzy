@@ -16,6 +16,24 @@ if str(_APP_DIR) not in sys.path:
 
 from fill_pdf import fill_character_sheet
 
+import re as _re
+
+def _strip_html(text):
+    """Убирает HTML-теги и декодирует базовые HTML-сущности."""
+    if not text or not isinstance(text, str):
+        return text or ''
+    # Заменяем <br>, <p>, </p>, <div>, </div> на перенос строки
+    t = _re.sub(r'<br\s*/?>', '\n', text, flags=_re.IGNORECASE)
+    t = _re.sub(r'</?(p|div|li)[^>]*>', '\n', t, flags=_re.IGNORECASE)
+    # Убираем остальные теги
+    t = _re.sub(r'<[^>]+>', '', t)
+    # Декодируем HTML-сущности
+    t = t.replace('&amp;', '&').replace('&lt;', '<').replace('&gt;', '>') \
+         .replace('&nbsp;', ' ').replace('&quot;', '"').replace('&#39;', "'")
+    # Убираем лишние пустые строки
+    t = _re.sub(r'\n{3,}', '\n\n', t)
+    return t.strip()
+
 # Flask: point templates and static to bundle paths
 app = Flask(
     __name__,
@@ -30,13 +48,18 @@ if getattr(sys, "frozen", False):
 else:
     _DATA_DIR = Path(__file__).parent
 
-SAVE_DIR = _DATA_DIR / "characters"
-SAVE_DIR.mkdir(exist_ok=True)
+# В веб-режиме (Amvera) используем persistent volume /data
+# В десктопном режиме — локальная папка рядом с приложением
+if os.environ.get("WEB_MODE", "").lower() in ("1", "true", "yes"):
+    SAVE_DIR = Path("/data/characters")
+else:
+    SAVE_DIR = _DATA_DIR / "characters"
+SAVE_DIR.mkdir(parents=True, exist_ok=True)
 BASE_DIR = _resource_path("")
 
 app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-change-me-in-production")
 
-# Web mode: persistent data on /data volume (Amvera)
+# Web mode: per-user dirs under /data/characters/{user_id}/
 if WEB_MODE:
     _WEB_DATA = Path("/data")
     _WEB_DATA.mkdir(exist_ok=True)
@@ -69,7 +92,7 @@ def _check_password(password: str, stored_hash: str, salt: str) -> bool:
     return h == stored_hash
 
 def _get_save_dir() -> Path:
-    """Return per-user save directory in WEB_MODE, else the global SAVE_DIR."""
+    """Return per-user save dir in WEB_MODE, else global SAVE_DIR."""
     if WEB_MODE:
         uid = session.get("user_id")
         if uid:
@@ -81,15 +104,9 @@ def _get_save_dir() -> Path:
 def _sd() -> Path:
     return _get_save_dir()
 
-def _require_auth():
-    """In WEB_MODE redirect to /login if not logged in. Returns response or None."""
-    if WEB_MODE and not session.get("user_id"):
-        return redirect(url_for("login_page"))
-    return None
-
 # ── Version & update check ────────────────────────────────────────────────────
-APP_VERSION = "0.9B"
-GITHUB_REPO = "SirEndrew/izzy-wizzy"  # TODO: replace with real repo
+APP_VERSION = "0.10B"
+GITHUB_REPO = "your-username/izzy-wizzy"  # TODO: replace with real repo
 
 @app.route("/api/version")
 def get_version():
@@ -97,6 +114,9 @@ def get_version():
 
 @app.route("/api/check-update")
 def check_update():
+    # В веб-режиме не показываем оповещение об обновлениях
+    if WEB_MODE:
+        return jsonify({"current": APP_VERSION, "latest": None, "has_update": False})
     import urllib.request, json as _json
     try:
         url = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
@@ -166,13 +186,32 @@ SLOT_TABLE = {
 
 # LSS ability placeholder translation [DEX] -> [ЛОВ] etc.
 import re as _re
-_LSS_AB_RU = {"STR":"СИЛ","DEX":"ЛОВ","CON":"ТЕЛ","INT":"ИНТ","WIS":"МДР","CHA":"ХАР",
-               "PROF":"МАЕТ","LVL":"УР"}
+# Наши переменные {СИЛ} → LSS формат [STR]
+_RU_TO_LSS = {
+    "СИЛ": "STR", "ЛОВ": "DEX", "ТЕЛ": "CON",
+    "ИНТ": "INT", "МДР": "WIS", "ХАР": "CHA",
+    "МАЕТ": "PROF", "ПРОФ": "PROF", "УР": "LVL",
+}
 def _lss_dmg(s):
+    """Конвертирует {СИЛ}, {ЛОВ} и т.д. → [STR], [DEX] для LSS."""
     def _sub(m):
         key = m.group(1).upper()
-        return f"[{_LSS_AB_RU.get(key, key)}]"
-    return _re.sub(r'\[(\w+)\]', _sub, str(s or ""))
+        return f"[{_RU_TO_LSS.get(key, key)}]"
+    return _re.sub(r'\{(\w+)\}', _sub, str(s or ""))
+
+def _attacks_prosemirror(resources_lss: dict) -> dict:
+    """Строит ProseMirror doc для вкладки attacks со ссылками на ресурсы."""
+    content = []
+    for rid, res in resources_lss.items():
+        if res.get("location") == "attacks":
+            content.append({
+                "type": "resource",
+                "attrs": {"id": rid, "textName": "attacks"}
+            })
+    if not content:
+        content = [{"type": "paragraph"}]
+    return {"data": {"type": "doc", "content": content}}
+
 
 def char_to_lss(char: dict) -> dict:
     abilities = char.get("abilities", {})
@@ -219,7 +258,7 @@ def char_to_lss(char: dict) -> dict:
         mod_val = f"+{atk}" if atk >= 0 else str(atk)
         dmg_raw = w.get("damage", "")
         dmg_type = w.get("damageType", "")
-        dmg_str = f"{dmg_raw} / {dmg_type}".strip(" /") if dmg_type else dmg_raw
+        dmg_str = f"{_lss_dmg(dmg_raw)} / {dmg_type}".strip(" /") if dmg_type else _lss_dmg(dmg_raw)
         entry = {
             "id": f"weapon-{ts}",
             "name": {"value": w.get("name", "")},
@@ -227,7 +266,7 @@ def char_to_lss(char: dict) -> dict:
             "dmg": {"value": dmg_str},
             "ability": ABILITY_MAP.get(w.get("ability", ""), w.get("ability", "str")),
             "isProf": w.get("isProf", True),
-            "modBonus": {"value": 0},
+            "modBonus": {"value": atk},
         }
         notes_parts = []
         if w.get("range"):
@@ -255,19 +294,25 @@ def char_to_lss(char: dict) -> dict:
     spell_ability_en = ABILITY_MAP.get(char.get("spellAbility", ""), "wis")
 
     # Resources → LSS resources dict
+    # Наши поля: cur, max, type, restShort, restLong, note
+    # LSS поля:  current, resolvedMax, maxExpr, location, isShortRest, isLongRest
     resources_lss = {}
-    for res in char.get("resources", []):
-        rid = res.get("id") or f"resource-{int(time.time()*1000)}"
+    for i, res in enumerate(char.get("resources", []) or []):
+        rid = res.get("id") or f"resource-{int(time.time()*1000) + i}"
+        res_max = res.get("max", res.get("maximum", 1)) or 1
+        is_short = res.get("restShort", res.get("isShortRest", False))
+        is_long  = res.get("restLong",  res.get("isLongRest",  False))
         resources_lss[rid] = {
             "id": rid,
             "name": res.get("name", ""),
-            "current": res.get("current", 0),
-            "max": res.get("max", 0),
-            "location": "traits",
-            "isShortRest": res.get("isShortRest", False),
-            "isLongRest": res.get("isLongRest", False),
-            "icon": "long-rest" if res.get("isLongRest") else ("short-rest" if res.get("isShortRest") else ""),
-            **({"notes": res["notes"]} if res.get("notes") else {}),
+            "current": res.get("cur", res.get("current", 0)),
+            "resolvedMax": res_max,
+            "maxExpr": str(res_max),
+            "location": "attacks",
+            "isShortRest": is_short,
+            "isLongRest":  is_long,
+            "icon": "long-rest" if is_long else ("short-rest" if is_short else ""),
+            **({"notes": res["note"]} if res.get("note") else {}),
         }
 
     # Inventory → equipment text
@@ -361,7 +406,7 @@ def char_to_lss(char: dict) -> dict:
                 char.get("racialTraits", ""), char.get("classFeatures", "")])))},
             "equipment":   {"value": to_prosemirror(inv_text)},
             "prof":        {"value": to_prosemirror(prof_text)},
-            "attacks":     {"value": to_prosemirror("")},
+            "attacks":     {"value": _attacks_prosemirror(resources_lss)},
             "feats":       {"value": to_prosemirror("")},
             "quests":      {"value": to_prosemirror("")},
             **notes_dict,
@@ -620,7 +665,7 @@ def lss_to_char(lss: dict) -> dict:
         return v.get("value", default) if isinstance(v, dict) else (v if v is not None else default)
 
     weapons = [{"name":w.get("name",{}).get("value",""), "attackBonus":0,
-                "damage":w.get("dmg",{}).get("value",""), "damageType":"",
+                "damage":_lss_dmg(w.get("dmg",{}).get("value","")), "damageType":"",
                 "isProf":w.get("isProf",True), "ability":w.get("ability","str")}
                for w in inner.get("weaponsList",[])]
 
@@ -658,12 +703,6 @@ def lss_to_char(lss: dict) -> dict:
         "deathSaves":{"successes":[False,False,False],"failures":[False,False,False]},
         "notes":from_prosemirror(text.get("notes-1",{}).get("value",{})),"resources":[],
     }
-
-@app.route("/login")
-def login_page():
-    if WEB_MODE and session.get("user_id"):
-        return redirect(url_for("index"))
-    return render_template("login.html")
 
 @app.route("/api/auth/register", methods=["POST"])
 def auth_register():
@@ -710,8 +749,8 @@ def auth_logout():
 @app.route("/api/auth/me")
 def auth_me():
     if WEB_MODE and session.get("user_id"):
-        return jsonify({"email": session.get("user_email"), "id": session.get("user_id")})
-    return jsonify({"email": None, "id": None})
+        return jsonify({"loggedIn": True, "email": session.get("user_email"), "id": session.get("user_id")})
+    return jsonify({"loggedIn": False, "email": None, "id": None, "webMode": WEB_MODE})
 
 @app.route("/favicon.ico")
 def favicon():
@@ -720,14 +759,11 @@ def favicon():
 
 @app.route("/")
 def index():
-    redir = _require_auth()
-    if redir: return redir
-    return render_template("index.html")
+    use_webview = app.config.get("USE_WEBVIEW", False)
+    return render_template("index.html", pywebview=use_webview)
 
 @app.route("/api/characters", methods=["GET"])
 def list_characters():
-    redir = _require_auth()
-    if redir: return redir
     chars = []
     save_dir = _sd()
     for f in sorted(save_dir.glob("*.json"), key=lambda x: x.stat().st_mtime, reverse=True):
@@ -745,14 +781,13 @@ def list_characters():
             chars.append({"filename": f.name, "name": d.get("name","?"),
                 "race": d.get("raceName", d.get("race","")), "subrace": d.get("subraceName",""),
                 "class": d.get("className", d.get("class","")), "background": d.get("backgroundName",""),
-                "level": d.get("level",1), "portrait": portrait})
+                "level": d.get("level",1), "portrait": portrait,
+                "portraitCrop": d.get("portraitCrop", None)})
         except: pass
     return jsonify(chars)
 
 @app.route("/api/characters/<filename>", methods=["GET"])
 def get_character(filename):
-    redir = _require_auth()
-    if redir: return redir
     import base64 as _b64
     save_dir = _sd()
     path = save_dir / filename
@@ -777,8 +812,6 @@ def get_character(filename):
 
 @app.route("/api/portrait/<path:filename>")
 def get_portrait(filename):
-    redir = _require_auth()
-    if redir: return redir
     path = _sd() / filename
     if not path.exists(): return jsonify({"error":"Not found"}), 404
     return send_file(path, mimetype="image/jpeg")
@@ -786,8 +819,6 @@ def get_portrait(filename):
 @app.route("/api/portrait/<path:stem>", methods=["POST"])
 def save_portrait(stem):
     """Accept base64 JPEG, save as characters/<stem>.jpg, return URL."""
-    redir = _require_auth()
-    if redir: return redir
     import base64 as _b64
     data = request.json
     b64 = data.get("data","")
@@ -803,18 +834,58 @@ def save_portrait(stem):
 
 @app.route("/api/debug")
 def debug_info():
+    sd = _sd()
     return jsonify({
-        "save_dir": str(SAVE_DIR),
-        "save_dir_exists": SAVE_DIR.exists(),
-        "save_dir_abs": str(SAVE_DIR.resolve()),
+        "save_dir": str(sd),
+        "save_dir_exists": sd.exists(),
+        "save_dir_abs": str(sd.resolve()),
         "cwd": str(Path.cwd()),
-        "files": [f.name for f in SAVE_DIR.glob("*.json")] if SAVE_DIR.exists() else [],
+        "web_mode": WEB_MODE,
+        "logged_in": bool(session.get("user_id")),
+        "files": [f.name for f in sd.glob("*.json")] if sd.exists() else [],
     })
+
+@app.route("/api/log/<stem>", methods=["GET"])
+def get_log(stem):
+    safe = stem.replace("/","_").replace("\\","_")[:80]
+    path = _sd() / f"{safe}.log.json"
+    if not path.exists():
+        return jsonify([])
+    with open(path, encoding="utf-8") as f:
+        return jsonify(json.load(f))
+
+@app.route("/api/log/<stem>", methods=["POST"])
+def append_log(stem):
+    safe = stem.replace("/","_").replace("\\","_")[:80]
+    path = _sd() / f"{safe}.log.json"
+    entry = request.json
+    if not entry:
+        return jsonify({"status":"error"}), 400
+    entries = []
+    if path.exists():
+        try:
+            with open(path, encoding="utf-8") as f:
+                entries = json.load(f)
+        except Exception:
+            entries = []
+    entries.append(entry)
+    if len(entries) > 500:
+        entries = entries[-500:]
+    _sd().mkdir(exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(entries, f, ensure_ascii=False, indent=2)
+    return jsonify({"status":"ok"})
+
+@app.route("/api/log/<stem>", methods=["DELETE"])
+def clear_log(stem):
+    safe = stem.replace("/","_").replace("\\","_")[:80]
+    path = _sd() / f"{safe}.log.json"
+    if path.exists():
+        path.unlink()
+    return jsonify({"status":"cleared"})
 
 @app.route("/api/characters", methods=["POST"])
 def save_character():
-    redir = _require_auth()
-    if redir: return redir
     try:
         data = request.json
         if data is None:
@@ -837,8 +908,6 @@ def save_character():
 
 @app.route("/api/characters/<filename>", methods=["DELETE"])
 def delete_character(filename):
-    redir = _require_auth()
-    if redir: return redir
     save_dir = _sd()
     path = save_dir/filename
     if path.exists(): path.unlink()
@@ -848,36 +917,41 @@ def delete_character(filename):
 
 @app.route("/api/export/lss/<filename>")
 def export_lss(filename):
-    redir = _require_auth()
-    if redir: return redir
-    path = _sd()/filename
+    save_dir = _sd()
+    path = save_dir/filename
     if not path.exists(): return jsonify({"error":"Not found"}), 404
     with open(path,encoding='utf-8') as f:
         char = json.load(f)
     lss = char_to_lss(char)
     name = char.get("name","Character").replace(" ","_")
-    buf = io.BytesIO(json.dumps(lss,ensure_ascii=False,indent=2).encode('utf-8'))
+    out_name = f"{name}___Long_Story_Short.json"
+    lss_bytes = json.dumps(lss,ensure_ascii=False,indent=2).encode('utf-8')
+    if app.config.get("USE_WEBVIEW", False):
+        out_path = save_dir / out_name
+        out_path.write_bytes(lss_bytes)
+        return jsonify({"saved": True, "path": str(out_path), "name": out_name})
+    buf = io.BytesIO(lss_bytes)
     buf.seek(0)
-    return send_file(buf,as_attachment=True,download_name=f"{name}___Long_Story_Short.json",mimetype='application/json')
+    return send_file(buf,as_attachment=True,download_name=out_name,mimetype='application/json')
 
 @app.route("/api/export/raw/<filename>")
 def export_raw(filename):
-    redir = _require_auth()
-    if redir: return redir
     path = _sd()/filename
     if not path.exists(): return jsonify({"error":"Not found"}), 404
+    if app.config.get("USE_WEBVIEW", False):
+        return jsonify({"saved": True, "path": str(path), "name": path.name})
     return send_file(path,as_attachment=True)
 
 @app.route("/api/import", methods=["POST"])
 def import_character():
-    redir = _require_auth()
-    if redir: return redir
     try:
         payload = request.json
         data = payload.get("data",{})
+        # LSS format: jsonType=="character" + nested data string
         if "jsonType" in data and data.get("jsonType") == "character" and "data" in data:
             char = lss_to_char(data)
             if not char: return jsonify({"error": "Не удалось прочитать LongStoryShort"}), 400
+        # Our native format: has name + any structural marker
         elif "name" in data and ("_system" in data or "abilities" in data
                                    or "weapons" in data or "className" in data
                                    or "raceName" in data or "_imported_from" in data):
@@ -888,8 +962,7 @@ def import_character():
             return jsonify({"error": "Неизвестный формат. Ожидается наш JSON или LongStoryShort JSON."}), 400
         name = char.get("name","import").replace(" ","_").replace("/","_")[:60]
         filename = f"{name}.json"
-        save_dir = _sd()
-        with open(save_dir/filename,"w",encoding='utf-8') as f:
+        with open(_sd()/filename,"w",encoding='utf-8') as f:
             json.dump(char,f,ensure_ascii=False,indent=2)
         return jsonify({"status":"imported","filename":filename,"name":char.get("name","")})
     except Exception as e:
@@ -898,8 +971,6 @@ def import_character():
 @app.route("/api/export/pdf", methods=["POST"])
 def export_pdf_direct():
     """Accept character JSON in body, return filled PDF."""
-    redir = _require_auth()
-    if redir: return redir
     try:
         char = request.json
         if not char:
@@ -919,10 +990,53 @@ def export_pdf_direct():
                     break
         char["_spellLevels"] = spell_levels
 
-        template_path = str(_resource_path("static/sheet_template.pdf"))
-        pdf_bytes = fill_character_sheet(char, template_path)
+        # Очищаем HTML-форматирование из текстовых полей
+        _html_text_fields = [
+            'savedFeatText', 'abilitiesText', 'abilities_text', '_profText',
+            'attacksNotes', 'attackNotes', 'inventoryNotes', 'spellsNotes',
+            'appearance', 'backstory', 'traits', 'ideals', 'bonds', 'flaws',
+            'allies', 'racialTraits', 'subraceTraits', 'classFeatures',
+            'armorProf', 'weaponProf', 'toolProf', 'otherProf', 'languages',
+            'note', 'spellsNotes', 'spellNotes',
+        ]
+        for _f in _html_text_fields:
+            if _f in char and isinstance(char[_f], str):
+                char[_f] = _strip_html(char[_f])
+        # Заметки в оружии и инвентаре
+        for _w in char.get('weapons', []) or []:
+            if isinstance(_w, dict) and _w.get('note'):
+                _w['note'] = _strip_html(_w['note'])
+        for _i in char.get('inventory', []) or []:
+            if isinstance(_i, dict):
+                if _i.get('note'):        _i['note']        = _strip_html(_i['note'])
+                if _i.get('description'): _i['description'] = _strip_html(_i['description'])
 
+        template_path = str(_resource_path("static/sheet_template.pdf"))
         name = (char.get("name") or "Character").replace(" ", "_")
+
+        pdf_portrait = char.pop("_pdfPortrait", None)
+        if pdf_portrait:
+            char_for_pdf = {**char, "portrait": pdf_portrait}
+            pdf_bytes = fill_character_sheet(char_for_pdf, template_path, portrait_path=None)
+        else:
+            portrait_file = _sd() / f"{name}.jpg"
+            pdf_bytes = fill_character_sheet(
+                char, template_path,
+                portrait_path=portrait_file if portrait_file.exists() else None
+            )
+
+        if app.config.get("USE_WEBVIEW", False):
+            sd = _sd()
+            sd.mkdir(parents=True, exist_ok=True)
+            base_name = f"{name}_DnD5e"
+            pdf_path = sd / f"{base_name}.pdf"
+            counter = 1
+            while pdf_path.exists():
+                pdf_path = sd / f"{base_name}({counter}).pdf"
+                counter += 1
+            pdf_path.write_bytes(pdf_bytes)
+            return jsonify({"saved": True, "path": str(pdf_path), "name": pdf_path.name})
+
         buf = io.BytesIO(pdf_bytes)
         buf.seek(0)
         return send_file(
@@ -939,8 +1053,6 @@ def export_pdf_direct():
 
 @app.route("/api/export/pdf/<filename>")
 def export_pdf(filename):
-    redir = _require_auth()
-    if redir: return redir
     path = _sd() / filename
     if not path.exists():
         return jsonify({"error": "Not found"}), 404
@@ -981,7 +1093,8 @@ if __name__ == "__main__":
     import threading
     import argparse
 
-    PORT = 5000
+    PORT = int(os.environ.get("PORT", 8080))
+    WEB_MODE = os.environ.get("WEB_MODE", "").lower() in ("1", "true", "yes")
     is_frozen = getattr(sys, "frozen", False)
 
     parser = argparse.ArgumentParser(add_help=False)
@@ -990,18 +1103,22 @@ if __name__ == "__main__":
     use_browser = args.browser
 
     def _start_flask():
-        app.run(host="127.0.0.1", port=PORT, debug=False, use_reloader=False, threaded=True)
+        app.run(host="0.0.0.0", port=PORT, debug=False, use_reloader=False, threaded=True)
 
     def _open_browser():
         import time as _t; _t.sleep(1.2)
         import webbrowser
         webbrowser.open(f"http://localhost:{PORT}")
 
-    if use_browser:
+    if WEB_MODE:
+        # Облачный режим — просто запускаем Flask на 0.0.0.0
+        print(f"Izzy Wizzy web mode: http://0.0.0.0:{PORT}")
+        app.run(host="0.0.0.0", port=PORT, debug=False, use_reloader=False, threaded=True)
+    elif use_browser:
         # Явно запрошен браузер
         threading.Thread(target=_open_browser, daemon=True).start()
         print(f"Izzy Wizzy: http://localhost:{PORT}")
-        app.run(host="127.0.0.1", port=PORT,
+        app.run(host="0.0.0.0", port=PORT,
                 debug=not is_frozen, use_reloader=not is_frozen)
     else:
         # Пробуем открыть в своём окне через pywebview
@@ -1011,6 +1128,9 @@ if __name__ == "__main__":
             flask_thread = threading.Thread(target=_start_flask, daemon=True)
             flask_thread.start()
             import time as _t; _t.sleep(0.8)
+
+            # Флаг: зум-скрипт нужен в окне pywebview
+            app.config["USE_WEBVIEW"] = True
 
             webview.create_window(
                 "Izzy Wizzy",
