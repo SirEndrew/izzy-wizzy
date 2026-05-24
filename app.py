@@ -1072,7 +1072,7 @@ def export_lss(filename):
             return jsonify({"saved": True, "path": str(out_path), "name": out_name})
         buf = io.BytesIO(lss_bytes)
         buf.seek(0)
-        return send_file(buf, as_attachment=True, download_name=out_name, mimetype='application/json')
+        return send_file(buf, as_attachment=True, download_name=out_name, mimetype='application/octet-stream')
     except Exception as e:
         import traceback; traceback.print_exc()
         return jsonify({"error": str(e)}), 500
@@ -1087,7 +1087,7 @@ def export_raw(filename):
             raw_bytes = json.dumps(char, ensure_ascii=False, indent=2).encode('utf-8')
             buf = io.BytesIO(raw_bytes)
             buf.seek(0)
-            return send_file(buf, as_attachment=True, download_name=out_name, mimetype='application/json')
+            return send_file(buf, as_attachment=True, download_name=out_name, mimetype='application/octet-stream')
         auth_err = _require_auth()
         if auth_err: return auth_err
         path = _sd() / filename
