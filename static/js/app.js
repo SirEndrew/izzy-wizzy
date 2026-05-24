@@ -5974,86 +5974,38 @@ async function loadChar(filename) {
   showView('sheet');
 }
 
-async function _getCharData(filename) {
-  // Если открытый персонаж совпадает — берём из памяти
-  if (currentChar) {
-    if (!currentFilename || currentFilename === filename) return currentChar;
-    const generatedName = (currentChar.name || 'character').replace(/ /g,'_') + '.json';
-    if (generatedName === filename) return currentChar;
-  }
-  // Иначе подгружаем с сервера (может вернуть 401 для анонима — тогда null)
-  try {
-    const res = await fetch('/api/characters/' + filename);
-    if (!res.ok) return null;
-    return await res.json();
-  } catch(e) { return null; }
-}
-
 async function exportCharLSS(filename) {
   try {
-    const char = await _getCharData(filename);
-    if (!char) { toast('❌ Не удалось получить данные персонажа', 'error'); return; }
-    const response = await fetch('/api/export/lss/' + filename, {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({char})
-    });
-    if (!response.ok) {
-      let msg = `HTTP ${response.status}`;
-      try { const e = await response.json(); msg = e.error || msg; } catch(_){}
-      throw new Error(msg);
+    const response = await fetch('/api/export/lss/' + filename);
+    if (!response.ok) throw new Error('HTTP ' + response.status);
+    const ct = response.headers.get('content-type') || '';
+    if (ct.includes('application/json')) {
+      const data = await response.json();
+      if (data.saved) {
+        toast('📋 LSS сохранён: ' + data.name, 'success');
+      } else {
+        throw new Error(data.error || 'Ошибка');
+      }
+    } else {
+      // Браузерный режим — скачиваем blob
+      const blob = await response.blob();
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href     = url;
+      a.download = filename.replace('.json', '') + '___Long_Story_Short.json';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+      toast('📋 LSS скачан!', 'success');
     }
-    const blob = await response.blob();
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement('a');
-    a.href = url;
-    a.download = filename.replace(/\.json$/i, '') + '___Long_Story_Short.json';
-    document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(url), 5000);
-    toast('📋 LSS скачан!', 'success');
   } catch(e) {
     toast('❌ Ошибка LSS: ' + e.message, 'error');
-    console.error('exportCharLSS:', e);
   }
 }
-async function exportCharRaw(filename) {
-  try {
-    const char = await _getCharData(filename);
-    if (!char) { toast('❌ Не удалось получить данные персонажа', 'error'); return; }
-    const response = await fetch('/api/export/raw/' + filename, {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({char})
-    });
-    if (!response.ok) {
-      let msg = `HTTP ${response.status}`;
-      try { const e = await response.json(); msg = e.error || msg; } catch(_){}
-      throw new Error(msg);
-    }
-    const blob = await response.blob();
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(url), 5000);
-    toast('💾 JSON скачан!', 'success');
-  } catch(e) {
-    toast('❌ Ошибка JSON: ' + e.message, 'error');
-    console.error('exportCharRaw:', e);
-  }
-}
-function exportSheet() {
-  if (!currentChar) { toast('❌ Нет открытого персонажа', 'error'); return; }
-  // Если есть filename — используем его, иначе генерируем из имени персонажа
-  const filename = currentFilename || ((currentChar.name || 'character').replace(/ /g,'_') + '.json');
-  exportCharLSS(filename);
-}
-function exportRaw() {
-  if (!currentChar) { toast('❌ Нет открытого персонажа', 'error'); return; }
-  const filename = currentFilename || ((currentChar.name || 'character').replace(/ /g,'_') + '.json');
-  exportCharRaw(filename);
-}
+async function exportCharRaw(filename) { window.open('/api/export/raw/'+filename,'_blank'); }
+function exportSheet() { if(currentFilename) exportCharLSS(currentFilename); }
+function exportRaw()   { if(currentFilename) exportCharRaw(currentFilename); }
 
 async function exportPdf() {
   if (!currentChar) return;
@@ -6065,8 +6017,8 @@ async function exportPdf() {
         resolve(currentChar.portrait);
       } else {
         fetch(currentChar.portrait.split('?')[0])
-          .then(r => { if (!r.ok) return resolve(null); return r.blob(); })
-          .then(b => { if (!b) return; const fr = new FileReader(); fr.onload = e => resolve(e.target.result); fr.readAsDataURL(b); })
+          .then(r => r.blob())
+          .then(b => { const fr = new FileReader(); fr.onload = e => resolve(e.target.result); fr.readAsDataURL(b); })
           .catch(() => resolve(null));
       }
     });
@@ -12123,7 +12075,9 @@ function _openDicePanel() {
 
   const die    = _dpDie();
   const H      = _dpViewH();
-  // Якорь может быть в bottom-режиме — вычисляем top из bottom
+  const navH   = _dpNavBottom();
+
+  // Вычисляем текущий top якоря
   let curTop;
   if (anchor.style.bottom && anchor.style.bottom !== 'auto' && anchor.style.bottom !== '') {
     curTop = H - (parseFloat(anchor.style.bottom) || 0) - die;
@@ -12132,49 +12086,46 @@ function _openDicePanel() {
   }
   _dpPreOpenTop = curTop;
 
-  // Определяем направление по положению d20 (= top якоря в свёрнутом виде)
-  const d20center = curTop + die / 2;
-  const isLower   = d20center > H / 2;
-  anchor.classList.toggle('dp-lower', isLower);
-
-  if (isLower) {
-    // Отменяем незавершённый таймер предыдущего закрытия
-    if (_dpLowerTimer) { clearTimeout(_dpLowerTimer); _dpLowerTimer = null; }
-    // Нижняя половина: якорь фиксируем через bottom, панель растёт вверх
-    const ph     = _dpOpenPanelHeight();
-    const navH   = _dpNavBottom();
-    // Если раскрытая панель уйдёт выше навбара — поднимаем bottomVal
-    // Верх панели = H - bottomVal - ph, должен быть >= navH
-    // bottomVal <= H - navH - ph
-    let bottomVal = H - curTop - die;
-    const maxBottom = H - navH - ph;
-    if (bottomVal > maxBottom) bottomVal = maxBottom;
-
-    const side = _dpSnap === 'left' ? 'left:0;right:auto' : _dpSnap === 'right' ? 'right:0;left:auto' : `left:${anchor.style.left || 'auto'};right:auto`;
-    const w = 'var(--dp-w)';  // всегда полная ширина при открытии
-    anchor.style.cssText = `position:fixed;${side};bottom:${bottomVal}px;top:auto;transform:none;width:${w};height:auto;touch-action:none;user-select:none;z-index:900`;
-    _dpSavedBottom = bottomVal;  // запоминаем для восстановления
-    // Панель позиционируется абсолютно снизу якоря — элементы в обычном порядке
-    panel.style.position = 'absolute';
-    panel.style.bottom   = '0';
-    panel.style.top      = 'auto';
-    panel.style.flexDirection = '';
-  } else {
-    // Верхняя половина: панель растёт вниз как обычно
-    panel.style.position = '';
-    panel.style.bottom   = '';
-    panel.style.top      = '';
-    panel.style.flexDirection = '';
-    const ph   = _dpOpenPanelHeight();
-    const navH = _dpNavBottom();
-    const newTop = Math.max(navH, Math.min(H - ph, curTop));
-    if (newTop !== curTop) anchor.style.top = newTop + 'px';
-  }
-
+  // Открываем панель чтобы браузер отрисовал её
   if (_dpSnap === 'free') anchor.classList.add('dp-open');
   panel.classList.add('open');
   _resetDiceAutoClose();
   setTimeout(() => document.addEventListener('click', _diceOutsideClick), 10);
+
+  // После рендера замеряем реальную высоту и корректируем позицию
+  requestAnimationFrame(() => {
+    const realH = panel.getBoundingClientRect().height || _dpOpenPanelHeight();
+    const d20center = curTop + die / 2;
+    const isLower   = d20center > H / 2;
+    anchor.classList.toggle('dp-lower', isLower);
+
+    if (isLower) {
+      if (_dpLowerTimer) { clearTimeout(_dpLowerTimer); _dpLowerTimer = null; }
+      // Нижняя половина: якорь через bottom, панель растёт вверх
+      let bottomVal = H - curTop - die;
+      const maxBottom = H - navH - realH;
+      if (bottomVal > maxBottom) bottomVal = Math.max(0, maxBottom);
+      // Не даём панели уйти ниже экрана
+      if (bottomVal < 0) bottomVal = 0;
+
+      const side = _dpSnap === 'left' ? 'left:0;right:auto' : _dpSnap === 'right' ? 'right:0;left:auto' : `left:${anchor.style.left || 'auto'};right:auto`;
+      anchor.style.cssText = `position:fixed;${side};bottom:${bottomVal}px;top:auto;transform:none;width:var(--dp-w);height:auto;touch-action:none;user-select:none;z-index:900`;
+      _dpSavedBottom = bottomVal;
+      panel.style.position = 'absolute';
+      panel.style.bottom   = '0';
+      panel.style.top      = 'auto';
+      panel.style.flexDirection = '';
+    } else {
+      // Верхняя половина: панель растёт вниз
+      panel.style.position = '';
+      panel.style.bottom   = '';
+      panel.style.top      = '';
+      panel.style.flexDirection = '';
+      const newTop = Math.max(navH, Math.min(H - realH, curTop));
+      anchor.style.top = newTop + 'px';
+      anchor.style.bottom = 'auto';
+    }
+  });
 }
 
 function _closeDicePanel() {
