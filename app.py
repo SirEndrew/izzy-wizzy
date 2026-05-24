@@ -759,6 +759,104 @@ def auth_me():
         return jsonify({"loggedIn": True, "email": session.get("user_email"), "id": session.get("user_id")})
     return jsonify({"loggedIn": False, "email": None, "id": None, "webMode": WEB_MODE})
 
+@app.route("/api/auth/reset-request", methods=["POST"])
+def auth_reset_request():
+    """Генерирует токен сброса и отправляет письмо."""
+    if not WEB_MODE:
+        return jsonify({"error": "Not in web mode"}), 400
+    data = request.json or {}
+    email = (data.get("email") or "").strip().lower()
+    if not email:
+        return jsonify({"error": "Укажите email"}), 400
+
+    users = _load_users()
+    # Всегда отвечаем одинаково — не раскрываем существование аккаунта
+    if email not in users:
+        return jsonify({"status": "ok"})
+
+    token = secrets.token_urlsafe(32)
+    expires = int(time.time()) + 3600  # 1 час
+    users[email]["reset_token"] = token
+    users[email]["reset_expires"] = expires
+    _save_users(users)
+
+    # Отправка письма
+    smtp_host = os.environ.get("SMTP_HOST", "")
+    smtp_port = int(os.environ.get("SMTP_PORT", "587"))
+    smtp_user = os.environ.get("SMTP_USER", "")
+    smtp_pass = os.environ.get("SMTP_PASS", "")
+    from_addr = os.environ.get("SMTP_FROM", smtp_user)
+    app_url   = os.environ.get("APP_URL", "https://izzy-wizzy-sirendrew.amvera.io")
+
+    reset_url = f"{app_url}/?reset_token={token}&reset_email={email}"
+
+    if not smtp_host or not smtp_user:
+        # SMTP не настроен — возвращаем токен в ответе (только для дебага/дев)
+        return jsonify({"status": "ok", "_debug_url": reset_url})
+
+    try:
+        import smtplib
+        from email.mime.text import MIMEText
+        body = f"""Здравствуйте!
+
+Вы запросили сброс пароля для аккаунта Izzy Wizzy ({email}).
+
+Перейдите по ссылке для создания нового пароля (действительна 1 час):
+{reset_url}
+
+Если вы не запрашивали сброс — просто проигнорируйте это письмо.
+
+— Izzy Wizzy"""
+        msg = MIMEText(body, "plain", "utf-8")
+        msg["Subject"] = "Сброс пароля — Izzy Wizzy"
+        msg["From"]    = from_addr
+        msg["To"]      = email
+        with smtplib.SMTP(smtp_host, smtp_port) as s:
+            s.ehlo()
+            s.starttls()
+            s.login(smtp_user, smtp_pass)
+            s.sendmail(from_addr, [email], msg.as_bytes())
+    except Exception as ex:
+        return jsonify({"error": f"Не удалось отправить письмо: {ex}"}), 500
+
+    return jsonify({"status": "ok"})
+
+@app.route("/api/auth/reset-confirm", methods=["POST"])
+def auth_reset_confirm():
+    """Проверяет токен и устанавливает новый пароль."""
+    if not WEB_MODE:
+        return jsonify({"error": "Not in web mode"}), 400
+    data = request.json or {}
+    email    = (data.get("email") or "").strip().lower()
+    token    = data.get("token", "")
+    password = data.get("password", "")
+
+    if not email or not token or not password:
+        return jsonify({"error": "Неверный запрос"}), 400
+    if len(password) < 6:
+        return jsonify({"error": "Пароль минимум 6 символов"}), 400
+
+    users = _load_users()
+    user  = users.get(email)
+    if not user:
+        return jsonify({"error": "Пользователь не найден"}), 404
+    if user.get("reset_token") != token:
+        return jsonify({"error": "Неверная или устаревшая ссылка"}), 400
+    if int(time.time()) > user.get("reset_expires", 0):
+        return jsonify({"error": "Ссылка истекла, запросите новую"}), 400
+
+    h, salt = _hash_password(password)
+    user["hash"] = h
+    user["salt"] = salt
+    user.pop("reset_token", None)
+    user.pop("reset_expires", None)
+    _save_users(users)
+
+    # Автоматически логиним
+    session["user_id"]    = user["id"]
+    session["user_email"] = email
+    return jsonify({"status": "ok", "email": email})
+
 @app.route("/favicon.ico")
 def favicon():
     from flask import redirect
