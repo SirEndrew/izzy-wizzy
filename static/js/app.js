@@ -5976,7 +5976,12 @@ async function loadChar(filename) {
 
 async function exportCharLSS(filename) {
   try {
-    const response = await fetch('/api/export/lss/' + filename);
+    const char = currentChar || {};
+    const response = await fetch('/api/export/lss/' + filename, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({char})
+    });
     if (!response.ok) throw new Error('HTTP ' + response.status);
     const ct = response.headers.get('content-type') || '';
     if (ct.includes('application/json')) {
@@ -5987,7 +5992,6 @@ async function exportCharLSS(filename) {
         throw new Error(data.error || 'Ошибка');
       }
     } else {
-      // Браузерный режим — скачиваем blob
       const blob = await response.blob();
       const url  = URL.createObjectURL(blob);
       const a    = document.createElement('a');
@@ -6003,7 +6007,36 @@ async function exportCharLSS(filename) {
     toast('❌ Ошибка LSS: ' + e.message, 'error');
   }
 }
-async function exportCharRaw(filename) { window.open('/api/export/raw/'+filename,'_blank'); }
+async function exportCharRaw(filename) {
+  try {
+    const char = currentChar || {};
+    const response = await fetch('/api/export/raw/' + filename, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({char})
+    });
+    if (!response.ok) throw new Error('HTTP ' + response.status);
+    const ct = response.headers.get('content-type') || '';
+    if (ct.includes('application/json')) {
+      const data = await response.json();
+      if (data.saved) toast('💾 JSON сохранён: ' + data.name, 'success');
+      else throw new Error(data.error || 'Ошибка');
+    } else {
+      const blob = await response.blob();
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href     = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+      toast('💾 JSON скачан!', 'success');
+    }
+  } catch(e) {
+    toast('❌ Ошибка экспорта: ' + e.message, 'error');
+  }
+}
 function exportSheet() { if(currentFilename) exportCharLSS(currentFilename); }
 function exportRaw()   { if(currentFilename) exportCharRaw(currentFilename); }
 

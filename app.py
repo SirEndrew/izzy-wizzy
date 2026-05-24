@@ -786,7 +786,9 @@ def auth_reset_request():
     smtp_user = os.environ.get("SMTP_USER", "")
     smtp_pass = os.environ.get("SMTP_PASS", "")
     from_addr = os.environ.get("SMTP_FROM", smtp_user)
-    app_url   = os.environ.get("APP_URL", "https://izzy-wizzy-sirendrew.amvera.io")
+    app_url = os.environ.get("APP_URL", "").rstrip("/")
+    if not app_url:
+        app_url = request.host_url.rstrip("/")
 
     reset_url = f"{app_url}/?reset_token={token}&reset_email={email}"
 
@@ -1032,29 +1034,40 @@ def delete_character(filename):
     if portrait.exists(): portrait.unlink()
     return jsonify({"status":"deleted"})
 
-@app.route("/api/export/lss/<filename>")
+@app.route("/api/export/lss/<filename>", methods=["GET","POST"])
 def export_lss(filename):
-    auth_err = _require_auth()
-    if auth_err: return auth_err
-    save_dir = _sd()
-    path = save_dir/filename
-    if not path.exists(): return jsonify({"error":"Not found"}), 404
-    with open(path,encoding='utf-8') as f:
-        char = json.load(f)
+    if request.method == "POST" and request.json:
+        char = request.json.get("char", {})
+    else:
+        auth_err = _require_auth()
+        if auth_err: return auth_err
+        save_dir = _sd()
+        path = save_dir/filename
+        if not path.exists(): return jsonify({"error":"Not found"}), 404
+        with open(path,encoding='utf-8') as f:
+            char = json.load(f)
     lss = char_to_lss(char)
     name = char.get("name","Character").replace(" ","_")
     out_name = f"{name}___Long_Story_Short.json"
     lss_bytes = json.dumps(lss,ensure_ascii=False,indent=2).encode('utf-8')
-    if app.config.get("USE_WEBVIEW", False):
-        out_path = save_dir / out_name
+    if app.config.get("USE_WEBVIEW", False) and _sd():
+        out_path = _sd() / out_name
         out_path.write_bytes(lss_bytes)
         return jsonify({"saved": True, "path": str(out_path), "name": out_name})
     buf = io.BytesIO(lss_bytes)
     buf.seek(0)
     return send_file(buf,as_attachment=True,download_name=out_name,mimetype='application/json')
 
-@app.route("/api/export/raw/<filename>")
+@app.route("/api/export/raw/<filename>", methods=["GET","POST"])
 def export_raw(filename):
+    if request.method == "POST" and request.json:
+        char = request.json.get("char", {})
+        name = char.get("name","character").replace(" ","_").replace("/","_")[:60]
+        out_name = f"{name}.json"
+        raw_bytes = json.dumps(char,ensure_ascii=False,indent=2).encode('utf-8')
+        buf = io.BytesIO(raw_bytes)
+        buf.seek(0)
+        return send_file(buf,as_attachment=True,download_name=out_name,mimetype='application/json')
     auth_err = _require_auth()
     if auth_err: return auth_err
     path = _sd()/filename
@@ -1094,8 +1107,6 @@ def import_character():
 @app.route("/api/export/pdf", methods=["POST"])
 def export_pdf_direct():
     """Accept character JSON in body, return filled PDF."""
-    auth_err = _require_auth()
-    if auth_err: return auth_err
     try:
         char = request.json
         if not char:
