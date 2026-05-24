@@ -5581,6 +5581,29 @@ var _IW_resetToken = null;   // токен из URL
 var _IW_resetEmail = null;   // email из URL
 
 async function _authInit() {
+  // Сначала проверяем токен сброса в URL — он приоритетнее всего
+  const params = new URLSearchParams(window.location.search);
+  const urlResetToken = params.get('reset_token');
+  const urlResetEmail = params.get('reset_email');
+  if (urlResetToken && urlResetEmail) {
+    _IW_resetToken = urlResetToken;
+    _IW_resetEmail = urlResetEmail;
+    history.replaceState({}, '', window.location.pathname);
+    // Если есть сессия — разлогиниваем, токен сброса важнее
+    try { await fetch('/api/auth/logout', {method:'POST'}); } catch(e) {}
+    // Ждём инициализации webMode
+    try {
+      const res = await fetch('/api/auth/me');
+      const d = await res.json();
+      _IW_webMode = d.webMode || false;
+    } catch(e) {}
+    if (_IW_webMode) {
+      openAuthDialog('reset');
+      _authShowResetStep2(_IW_resetEmail);
+    }
+    return;
+  }
+
   try {
     const res = await fetch('/api/auth/me');
     if (!res.ok) return;
@@ -5601,16 +5624,6 @@ async function _authInit() {
   } else {
     if (loginBtn) { loginBtn.style.display = ''; }
     if (emailEl)  { emailEl.style.display = 'none'; }
-    // Проверяем токен сброса в URL
-    const params = new URLSearchParams(window.location.search);
-    _IW_resetToken = params.get('reset_token');
-    _IW_resetEmail = params.get('reset_email');
-    if (_IW_resetToken && _IW_resetEmail) {
-      // Убираем параметры из адресной строки
-      history.replaceState({}, '', window.location.pathname);
-      openAuthDialog('reset');
-      _authShowResetStep2(_IW_resetEmail);
-    }
   }
 }
 
