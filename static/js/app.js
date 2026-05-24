@@ -5975,9 +5975,13 @@ async function loadChar(filename) {
 }
 
 async function _getCharData(filename) {
-  // Если это текущий открытый персонаж — берём из памяти
-  if (currentChar && currentFilename === filename) return currentChar;
-  // Иначе подгружаем с сервера (может вернуть 401 — тогда null)
+  // Если открытый персонаж совпадает — берём из памяти
+  if (currentChar) {
+    if (!currentFilename || currentFilename === filename) return currentChar;
+    const generatedName = (currentChar.name || 'character').replace(/ /g,'_') + '.json';
+    if (generatedName === filename) return currentChar;
+  }
+  // Иначе подгружаем с сервера (может вернуть 401 для анонима — тогда null)
   try {
     const res = await fetch('/api/characters/' + filename);
     if (!res.ok) return null;
@@ -6039,8 +6043,17 @@ async function exportCharRaw(filename) {
     console.error('exportCharRaw:', e);
   }
 }
-function exportSheet() { if(currentFilename) exportCharLSS(currentFilename); }
-function exportRaw()   { if(currentFilename) exportCharRaw(currentFilename); }
+function exportSheet() {
+  if (!currentChar) { toast('❌ Нет открытого персонажа', 'error'); return; }
+  // Если есть filename — используем его, иначе генерируем из имени персонажа
+  const filename = currentFilename || ((currentChar.name || 'character').replace(/ /g,'_') + '.json');
+  exportCharLSS(filename);
+}
+function exportRaw() {
+  if (!currentChar) { toast('❌ Нет открытого персонажа', 'error'); return; }
+  const filename = currentFilename || ((currentChar.name || 'character').replace(/ /g,'_') + '.json');
+  exportCharRaw(filename);
+}
 
 async function exportPdf() {
   if (!currentChar) return;
