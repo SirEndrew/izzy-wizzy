@@ -923,10 +923,24 @@ def get_character(filename):
 
 @app.route("/api/portrait/<path:filename>")
 def get_portrait(filename):
-    auth_err = _require_auth()
-    if auth_err: return auth_err
-    path = _sd() / filename
-    if not path.exists(): return jsonify({"error":"Not found"}), 404
+    # Портрет нужен для экспорта PDF — доступен без авторизации
+    # Но отдаём только из папки текущего пользователя (или общей в десктопе)
+    if WEB_MODE and session.get("user_id"):
+        path = _sd() / filename
+    elif WEB_MODE:
+        # Анонимный запрос — ищем во всех папках пользователей (для PDF-экспорта)
+        base = Path("/data/characters")
+        found = None
+        if base.exists():
+            for user_dir in base.iterdir():
+                candidate = user_dir / filename
+                if candidate.exists():
+                    found = candidate
+                    break
+        path = found
+    else:
+        path = SAVE_DIR / filename
+    if not path or not path.exists(): return jsonify({"error":"Not found"}), 404
     return send_file(path, mimetype="image/jpeg")
 
 @app.route("/api/portrait/<path:stem>", methods=["POST"])

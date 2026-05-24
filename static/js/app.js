@@ -5974,9 +5974,24 @@ async function loadChar(filename) {
   showView('sheet');
 }
 
+async function _getCharData(filename) {
+  // Если это текущий открытый персонаж — берём из памяти
+  if (currentChar && currentFilename === filename) return currentChar;
+  // Иначе подгружаем с сервера (может вернуть 401 — тогда null)
+  try {
+    const res = await fetch('/api/characters/' + filename);
+    if (!res.ok) return null;
+    return await res.json();
+  } catch(e) { return null; }
+}
+
 async function exportCharLSS(filename) {
   try {
-    const char = currentChar || {};
+    let char = await _getCharData(filename);
+    if (!char) {
+      toast('❌ Не удалось получить данные персонажа', 'error');
+      return;
+    }
     const response = await fetch('/api/export/lss/' + filename, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
@@ -6009,7 +6024,11 @@ async function exportCharLSS(filename) {
 }
 async function exportCharRaw(filename) {
   try {
-    const char = currentChar || {};
+    let char = await _getCharData(filename);
+    if (!char) {
+      toast('❌ Не удалось получить данные персонажа', 'error');
+      return;
+    }
     const response = await fetch('/api/export/raw/' + filename, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
@@ -6050,8 +6069,8 @@ async function exportPdf() {
         resolve(currentChar.portrait);
       } else {
         fetch(currentChar.portrait.split('?')[0])
-          .then(r => r.blob())
-          .then(b => { const fr = new FileReader(); fr.onload = e => resolve(e.target.result); fr.readAsDataURL(b); })
+          .then(r => { if (!r.ok) return resolve(null); return r.blob(); })
+          .then(b => { if (!b) return; const fr = new FileReader(); fr.onload = e => resolve(e.target.result); fr.readAsDataURL(b); })
           .catch(() => resolve(null));
       }
     });
