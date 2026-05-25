@@ -12242,8 +12242,15 @@ function _closeDicePanel() {
       if (_dpSnap === 'right' || _dpSnap === 'left' || _dpSnap === 'free') {
         const die    = _dpDie();
         const curTop = parseFloat(anchor.style.top) || 0;
-        anchor.style.top = _dpClampTop(curTop, die) + 'px';
-        anchor.style.removeProperty('height');  // снимаем !important height
+        const clampedTop = _dpClampTop(curTop, die);
+        if (_dpSnap === 'right') {
+          anchor.style.cssText = `position:fixed;right:0;left:auto;top:${clampedTop}px;bottom:auto;transform:none;width:var(--dp-w);height:auto;touch-action:none;user-select:none;z-index:900`;
+        } else if (_dpSnap === 'left') {
+          anchor.style.cssText = `position:fixed;left:0;right:auto;top:${clampedTop}px;bottom:auto;transform:none;width:var(--dp-w);height:auto;touch-action:none;user-select:none;z-index:900`;
+        } else {
+          anchor.style.top = clampedTop + 'px';
+        }
+        anchor.style.removeProperty('height');
       }
     }
   }
