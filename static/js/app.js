@@ -12103,7 +12103,13 @@ function _openDicePanel() {
   anchor.classList.toggle('dp-lower', isLower);
 
   const MARGIN_TOP = 8;
-  const MARGIN_BOT = 56;  // запас для панели задач ОС с авто-скрытием
+  // Измеряем реально доступную высоту через зонд position:fixed;bottom:0
+  const _probe = document.createElement('div');
+  _probe.style.cssText = 'position:fixed;bottom:0;left:-9999px;width:1px;height:1px;pointer-events:none';
+  document.body.appendChild(_probe);
+  const _realBottom = _probe.getBoundingClientRect().bottom;
+  document.body.removeChild(_probe);
+  const MARGIN_BOT = Math.max(8, window.innerHeight - _realBottom + 8);
 
   if (isLower) {
     if (_dpLowerTimer) { clearTimeout(_dpLowerTimer); _dpLowerTimer = null; }
