@@ -12098,33 +12098,20 @@ function _openDicePanel() {
   if (isLower) {
     if (_dpLowerTimer) { clearTimeout(_dpLowerTimer); _dpLowerTimer = null; }
 
-    if (_dpSnap === 'free') {
-      // Free режим: якорь через top, панель растёт вверх через flex-direction
-      // d20 должен остаться на месте — якорь top = curTop, высота = ph
-      // Но панель должна расти вверх: используем flex-direction:column-reverse
-      // и позиционируем якорь так чтобы его низ = curTop + die
-      const anchorTop = Math.max(navH, Math.min(H - ph, curTop + die - ph));
-      const left = anchor.style.left || '0px';
-      anchor.style.cssText = `position:fixed;left:${left};right:auto;top:${anchorTop}px;bottom:auto;transform:none;width:var(--dp-w);height:auto;touch-action:none;user-select:none;z-index:900`;
-      _dpSavedBottom = null;
-      panel.style.position    = '';
-      panel.style.bottom      = '';
-      panel.style.top         = '';
-      panel.style.flexDirection = 'column-reverse';
-    } else {
-      // Snapped режим: якорь через bottom, панель absolute bottom:0 растёт вверх
-      let bottomVal = H - curTop - die;
-      const maxBottom = H - navH - ph;
-      if (bottomVal > maxBottom) bottomVal = Math.max(0, maxBottom);
-
-      const side = _dpSnap === 'left' ? 'left:0;right:auto' : 'right:0;left:auto';
-      anchor.style.cssText = `position:fixed;${side};bottom:${bottomVal}px;top:auto;transform:none;width:var(--dp-w);height:auto;touch-action:none;user-select:none;z-index:900`;
-      _dpSavedBottom = bottomVal;
-      panel.style.position    = 'absolute';
-      panel.style.bottom      = '0';
-      panel.style.top         = 'auto';
-      panel.style.flexDirection = '';
-    }
+    // Панель растёт вниз от якоря (position:static).
+    // Чтобы d20 оказался внизу панели — позиционируем верх якоря так:
+    // anchorTop = curTop - (ph - die)
+    // т.е. панель начинается выше d20 на (ph - die) пикселей
+    const anchorTop = Math.max(navH, Math.min(H - ph, curTop - (ph - die)));
+    const side = _dpSnap === 'left'  ? 'left:0;right:auto'
+               : _dpSnap === 'right' ? 'right:0;left:auto'
+               : `left:${anchor.style.left || 'auto'};right:auto`;
+    anchor.style.cssText = `position:fixed;${side};top:${anchorTop}px;bottom:auto;transform:none;width:var(--dp-w);height:auto;touch-action:none;user-select:none;z-index:900`;
+    _dpSavedBottom = H - anchorTop - die;  // сохраняем для восстановления
+    panel.style.position      = '';
+    panel.style.bottom        = '';
+    panel.style.top           = '';
+    panel.style.flexDirection = '';
   } else {
     // Верхняя половина: панель растёт вниз
     panel.style.position    = '';
@@ -12203,10 +12190,14 @@ function _closeDicePanel() {
       panel.style.bottom   = '';
       panel.style.top      = '';
       if (_dpSnap === 'free') {
-        // Free+lower: восстанавливаем d20 позицию через top
-        const die        = _dpDie();
-        const curRectTop = anchor.getBoundingClientRect().top / _dpZ();
-        const restoredTop = _dpClampTop(curRectTop, die);
+        const die = _dpDie();
+        const H   = _dpViewH();
+        // _dpSavedBottom = H - anchorTop - die → anchorTop = H - _dpSavedBottom - die
+        // Оригинальный top d20 = anchorTop + (ph - die), где ph нам не нужен —
+        // просто берём anchorTop + смещение d20 внутри панели
+        // Проще: восстанавливаем top якоря = curTop (до открытия)
+        const origTop = _dpPreOpenTop !== null ? _dpPreOpenTop : (_dpSavedBottom !== null ? H - _dpSavedBottom - die : 0);
+        const restoredTop = _dpClampTop(origTop, die);
         const left = anchor.style.left || '0px';
         anchor.style.cssText = `position:fixed;left:${left};right:auto;top:${restoredTop}px;bottom:auto;transform:none;width:${die}px;height:${die}px;touch-action:none;user-select:none;z-index:900`;
         _dpSavedBottom = null;
