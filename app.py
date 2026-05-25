@@ -786,9 +786,7 @@ def auth_reset_request():
     smtp_user = os.environ.get("SMTP_USER", "")
     smtp_pass = os.environ.get("SMTP_PASS", "")
     from_addr = os.environ.get("SMTP_FROM", smtp_user)
-    app_url = os.environ.get("APP_URL", "").rstrip("/")
-    if not app_url:
-        app_url = request.host_url.rstrip("/")
+    app_url   = os.environ.get("APP_URL", "https://izzy-wizzy-sirendrew.amvera.io")
 
     reset_url = f"{app_url}/?reset_token={token}&reset_email={email}"
 
@@ -859,7 +857,101 @@ def auth_reset_confirm():
     session["user_email"] = email
     return jsonify({"status": "ok", "email": email})
 
-@app.route("/favicon.ico")
+@app.route("/api/auth/oauth/google")
+def oauth_google_start():
+    """Редиректим на Google для авторизации."""
+    import urllib.parse
+    client_id = os.environ.get("GOOGLE_CLIENT_ID", "")
+    if not client_id:
+        return jsonify({"error": "Google OAuth не настроен"}), 500
+    app_url = os.environ.get("APP_URL", "").rstrip("/") or request.host_url.rstrip("/")
+    redirect_uri = f"{app_url}/api/auth/oauth/callback/google"
+    state = secrets.token_urlsafe(16)
+    session["oauth_state"] = state
+    params = urllib.parse.urlencode({
+        "client_id":     client_id,
+        "redirect_uri":  redirect_uri,
+        "response_type": "code",
+        "scope":         "openid email profile",
+        "state":         state,
+        "access_type":   "online",
+    })
+    return redirect(f"https://accounts.google.com/o/oauth2/v2/auth?{params}")
+
+@app.route("/api/auth/oauth/callback/google")
+def oauth_google_callback():
+    """Google возвращает code — обмениваем на токен и логиним пользователя."""
+    import urllib.request, urllib.parse, json as _json
+    error = request.args.get("error")
+    if error:
+        return redirect("/?oauth_error=" + urllib.parse.quote(error))
+
+    code  = request.args.get("code", "")
+    state = request.args.get("state", "")
+    if state != session.pop("oauth_state", None):
+        return redirect("/?oauth_error=invalid_state")
+
+    client_id     = os.environ.get("GOOGLE_CLIENT_ID", "")
+    client_secret = os.environ.get("GOOGLE_CLIENT_SECRET", "")
+    app_url = os.environ.get("APP_URL", "").rstrip("/") or request.host_url.rstrip("/")
+    redirect_uri  = f"{app_url}/api/auth/oauth/callback/google"
+
+    # Обмениваем code на access_token
+    try:
+        token_data = urllib.parse.urlencode({
+            "code":          code,
+            "client_id":     client_id,
+            "client_secret": client_secret,
+            "redirect_uri":  redirect_uri,
+            "grant_type":    "authorization_code",
+        }).encode()
+        req = urllib.request.Request(
+            "https://oauth2.googleapis.com/token",
+            data=token_data,
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+        )
+        with urllib.request.urlopen(req, timeout=10) as r:
+            token_resp = _json.loads(r.read())
+    except Exception as e:
+        return redirect(f"/?oauth_error={urllib.parse.quote(str(e))}")
+
+    access_token = token_resp.get("access_token", "")
+    if not access_token:
+        return redirect("/?oauth_error=no_token")
+
+    # Получаем профиль пользователя
+    try:
+        req2 = urllib.request.Request(
+            "https://www.googleapis.com/oauth2/v2/userinfo",
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+        with urllib.request.urlopen(req2, timeout=10) as r:
+            profile = _json.loads(r.read())
+    except Exception as e:
+        return redirect(f"/?oauth_error={urllib.parse.quote(str(e))}")
+
+    email = profile.get("email", "").lower()
+    if not email:
+        return redirect("/?oauth_error=no_email")
+
+    # Находим или создаём пользователя
+    users = _load_users()
+    if email not in users:
+        uid = secrets.token_hex(8)
+        users[email] = {"id": uid, "email": email, "hash": "", "salt": "", "oauth": ["google"]}
+        _save_users(users)
+    else:
+        # Помечаем что использует Google
+        if "oauth" not in users[email]:
+            users[email]["oauth"] = ["google"]
+        elif "google" not in users[email]["oauth"]:
+            users[email]["oauth"].append("google")
+        _save_users(users)
+
+    session["user_id"]    = users[email]["id"]
+    session["user_email"] = email
+    return redirect("/")
+
 def favicon():
     from flask import redirect
     return redirect("/static/img/icon.svg", code=301)
@@ -923,24 +1015,10 @@ def get_character(filename):
 
 @app.route("/api/portrait/<path:filename>")
 def get_portrait(filename):
-    # Портрет нужен для экспорта PDF — доступен без авторизации
-    # Но отдаём только из папки текущего пользователя (или общей в десктопе)
-    if WEB_MODE and session.get("user_id"):
-        path = _sd() / filename
-    elif WEB_MODE:
-        # Анонимный запрос — ищем во всех папках пользователей (для PDF-экспорта)
-        base = Path("/data/characters")
-        found = None
-        if base.exists():
-            for user_dir in base.iterdir():
-                candidate = user_dir / filename
-                if candidate.exists():
-                    found = candidate
-                    break
-        path = found
-    else:
-        path = SAVE_DIR / filename
-    if not path or not path.exists(): return jsonify({"error":"Not found"}), 404
+    auth_err = _require_auth()
+    if auth_err: return auth_err
+    path = _sd() / filename
+    if not path.exists(): return jsonify({"error":"Not found"}), 404
     return send_file(path, mimetype="image/jpeg")
 
 @app.route("/api/portrait/<path:stem>", methods=["POST"])
@@ -1048,56 +1126,36 @@ def delete_character(filename):
     if portrait.exists(): portrait.unlink()
     return jsonify({"status":"deleted"})
 
-@app.route("/api/export/lss/<filename>", methods=["GET","POST"])
+@app.route("/api/export/lss/<filename>")
 def export_lss(filename):
-    try:
-        if request.method == "POST" and request.json:
-            char = request.json.get("char", {})
-        else:
-            auth_err = _require_auth()
-            if auth_err: return auth_err
-            save_dir = _sd()
-            path = save_dir / filename
-            if not path.exists(): return jsonify({"error": "Not found"}), 404
-            with open(path, encoding='utf-8') as f:
-                char = json.load(f)
-        lss = char_to_lss(char)
-        name = char.get("name", "Character").replace(" ", "_")
-        out_name = f"{name}___Long_Story_Short.json"
-        lss_bytes = json.dumps(lss, ensure_ascii=False, indent=2).encode('utf-8')
-        sd = _sd()
-        if app.config.get("USE_WEBVIEW", False) and sd:
-            out_path = sd / out_name
-            out_path.write_bytes(lss_bytes)
-            return jsonify({"saved": True, "path": str(out_path), "name": out_name})
-        buf = io.BytesIO(lss_bytes)
-        buf.seek(0)
-        return send_file(buf, as_attachment=True, download_name=out_name, mimetype='application/octet-stream')
-    except Exception as e:
-        import traceback; traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+    auth_err = _require_auth()
+    if auth_err: return auth_err
+    save_dir = _sd()
+    path = save_dir/filename
+    if not path.exists(): return jsonify({"error":"Not found"}), 404
+    with open(path,encoding='utf-8') as f:
+        char = json.load(f)
+    lss = char_to_lss(char)
+    name = char.get("name","Character").replace(" ","_")
+    out_name = f"{name}___Long_Story_Short.json"
+    lss_bytes = json.dumps(lss,ensure_ascii=False,indent=2).encode('utf-8')
+    if app.config.get("USE_WEBVIEW", False):
+        out_path = save_dir / out_name
+        out_path.write_bytes(lss_bytes)
+        return jsonify({"saved": True, "path": str(out_path), "name": out_name})
+    buf = io.BytesIO(lss_bytes)
+    buf.seek(0)
+    return send_file(buf,as_attachment=True,download_name=out_name,mimetype='application/json')
 
-@app.route("/api/export/raw/<filename>", methods=["GET","POST"])
+@app.route("/api/export/raw/<filename>")
 def export_raw(filename):
-    try:
-        if request.method == "POST" and request.json:
-            char = request.json.get("char", {})
-            name = char.get("name", "character").replace(" ", "_").replace("/", "_")[:60]
-            out_name = f"{name}.json"
-            raw_bytes = json.dumps(char, ensure_ascii=False, indent=2).encode('utf-8')
-            buf = io.BytesIO(raw_bytes)
-            buf.seek(0)
-            return send_file(buf, as_attachment=True, download_name=out_name, mimetype='application/octet-stream')
-        auth_err = _require_auth()
-        if auth_err: return auth_err
-        path = _sd() / filename
-        if not path.exists(): return jsonify({"error": "Not found"}), 404
-        if app.config.get("USE_WEBVIEW", False):
-            return jsonify({"saved": True, "path": str(path), "name": path.name})
-        return send_file(path, as_attachment=True)
-    except Exception as e:
-        import traceback; traceback.print_exc()
-        return jsonify({"error": str(e)}), 500
+    auth_err = _require_auth()
+    if auth_err: return auth_err
+    path = _sd()/filename
+    if not path.exists(): return jsonify({"error":"Not found"}), 404
+    if app.config.get("USE_WEBVIEW", False):
+        return jsonify({"saved": True, "path": str(path), "name": path.name})
+    return send_file(path,as_attachment=True)
 
 @app.route("/api/import", methods=["POST"])
 def import_character():
@@ -1130,6 +1188,8 @@ def import_character():
 @app.route("/api/export/pdf", methods=["POST"])
 def export_pdf_direct():
     """Accept character JSON in body, return filled PDF."""
+    auth_err = _require_auth()
+    if auth_err: return auth_err
     try:
         char = request.json
         if not char:
@@ -1178,25 +1238,23 @@ def export_pdf_direct():
             char_for_pdf = {**char, "portrait": pdf_portrait}
             pdf_bytes = fill_character_sheet(char_for_pdf, template_path, portrait_path=None)
         else:
-            sd = _sd()
-            portrait_file = (sd / f"{name}.jpg") if sd else None
+            portrait_file = _sd() / f"{name}.jpg"
             pdf_bytes = fill_character_sheet(
                 char, template_path,
-                portrait_path=portrait_file if portrait_file and portrait_file.exists() else None
+                portrait_path=portrait_file if portrait_file.exists() else None
             )
 
         if app.config.get("USE_WEBVIEW", False):
             sd = _sd()
-            if sd:
-                sd.mkdir(parents=True, exist_ok=True)
-                base_name = f"{name}_DnD5e"
-                pdf_path = sd / f"{base_name}.pdf"
-                counter = 1
-                while pdf_path.exists():
-                    pdf_path = sd / f"{base_name}({counter}).pdf"
-                    counter += 1
-                pdf_path.write_bytes(pdf_bytes)
-                return jsonify({"saved": True, "path": str(pdf_path), "name": pdf_path.name})
+            sd.mkdir(parents=True, exist_ok=True)
+            base_name = f"{name}_DnD5e"
+            pdf_path = sd / f"{base_name}.pdf"
+            counter = 1
+            while pdf_path.exists():
+                pdf_path = sd / f"{base_name}({counter}).pdf"
+                counter += 1
+            pdf_path.write_bytes(pdf_bytes)
+            return jsonify({"saved": True, "path": str(pdf_path), "name": pdf_path.name})
 
         buf = io.BytesIO(pdf_bytes)
         buf.seek(0)
