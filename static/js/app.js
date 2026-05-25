@@ -12045,8 +12045,15 @@ function _dpInitDrag() {
 
 
 function _dpOpenPanelHeight() {
+  // Пробуем получить реальную высоту из DOM
+  const panel = document.getElementById('dice-panel');
+  if (panel && panel.classList.contains('open')) {
+    const h = panel.getBoundingClientRect().height / _dpZ();
+    if (h > 100) return h;
+  }
+  // Fallback формула: dp-top + d20 + 5 слотов + dp-roll + запас
   const die = _dpDie();
-  return (die + 8) + die + die * 5 + 50 + 28;
+  return (die + 8) + die + die * 5 + 50 + 32;
 }
 
 function _openDicePanel() {
@@ -12129,18 +12136,26 @@ function _openDicePanel() {
   _resetDiceAutoClose();
   setTimeout(() => document.addEventListener('click', _diceOutsideClick), 10);
 
-  // После анимации корректируем по реальной высоте панели
+  // После анимации берём реальную высоту и финально корректируем позицию
   setTimeout(() => {
     if (!_dicePanelOpen) return;
-    const realBottom = panel.getBoundingClientRect().bottom;
-    const realTop    = panel.getBoundingClientRect().top;
-    if (realBottom > window.innerHeight - MARGIN_BOT) {
-      const overflow = realBottom - (window.innerHeight - MARGIN_BOT);
-      anchor.style.top = (parseFloat(anchor.style.top) - overflow) + 'px';
-    } else if (realTop < _dpNavBottom() * _dpZ() + MARGIN_TOP) {
-      const overflow = _dpNavBottom() * _dpZ() + MARGIN_TOP - realTop;
-      anchor.style.top = (parseFloat(anchor.style.top) + overflow) + 'px';
+    const realH   = panel.getBoundingClientRect().height;
+    const realTop = panel.getBoundingClientRect().top;
+    const realBot = panel.getBoundingClientRect().bottom;
+    const navPx   = _dpNavBottom() * _dpZ();
+
+    if (realBot > window.innerHeight - MARGIN_BOT) {
+      const diff = realBot - (window.innerHeight - MARGIN_BOT);
+      const curT = parseFloat(anchor.style.top) || 0;
+      anchor.style.top = (curT - diff) + 'px';
+      anchor.style.setProperty('height', (parseFloat(anchor.style.height || ph) + diff) + 'px', 'important');
+    } else if (realTop < navPx + MARGIN_TOP) {
+      const diff = navPx + MARGIN_TOP - realTop;
+      const curT = parseFloat(anchor.style.top) || 0;
+      anchor.style.top = (curT + diff) + 'px';
     }
+    // Финально выставляем высоту якоря = реальной высоте панели
+    anchor.style.setProperty('height', realH + 'px', 'important');
   }, 280);
 }
 
