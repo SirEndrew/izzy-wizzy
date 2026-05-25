@@ -964,6 +964,10 @@ def favicon():
     from flask import redirect
     return redirect("/static/img/icon.svg", code=301)
 
+@app.route("/privacy")
+def privacy_page():
+    return render_template("privacy.html")
+
 @app.route("/")
 def index():
     use_webview = app.config.get("USE_WEBVIEW", False)
