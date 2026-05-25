@@ -864,7 +864,9 @@ def oauth_google_start():
     client_id = os.environ.get("GOOGLE_CLIENT_ID", "")
     if not client_id:
         return jsonify({"error": "Google OAuth не настроен"}), 500
-    app_url = os.environ.get("APP_URL", "").rstrip("/") or request.host_url.rstrip("/")
+    app_url = os.environ.get("APP_URL", "").rstrip("/")
+    if not app_url:
+        app_url = request.host_url.rstrip("/").replace("http://", "https://")
     redirect_uri = f"{app_url}/api/auth/oauth/callback/google"
     state = secrets.token_urlsafe(16)
     session["oauth_state"] = state
@@ -893,7 +895,9 @@ def oauth_google_callback():
 
     client_id     = os.environ.get("GOOGLE_CLIENT_ID", "")
     client_secret = os.environ.get("GOOGLE_CLIENT_SECRET", "")
-    app_url = os.environ.get("APP_URL", "").rstrip("/") or request.host_url.rstrip("/")
+    app_url = os.environ.get("APP_URL", "").rstrip("/")
+    if not app_url:
+        app_url = request.host_url.rstrip("/").replace("http://", "https://")
     redirect_uri  = f"{app_url}/api/auth/oauth/callback/google"
 
     # Обмениваем code на access_token
