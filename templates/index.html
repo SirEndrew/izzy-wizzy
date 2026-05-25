@@ -3312,7 +3312,10 @@ hr.divider { border: none; border-top: 1px solid #606b85; margin: .9rem 0 }
   <div class="site-logo"><img src="/static/img/icon.svg" alt="" style="width:28px;height:28px;vertical-align:middle;margin-right:.4rem;position:relative;top:-1px"> Izzy Wizzy</div>
   <div class="header-right" style="display:flex;align-items:center;gap:.6rem;position:relative">
     <a href="https://boosty.to/izzywizzy" target="_blank" rel="noopener" class="boosty-btn">Поддержать проект</a>
-    <span id="header-user-email" style="display:none;font-size:.78rem;color:var(--text2);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;padding:.25rem .5rem;border-radius:4px;border:1px solid transparent;transition:all .15s;font-weight:600" onclick="_toggleUserMenu()" title="Аккаунт"></span>
+    <span id="header-user-email" style="display:none;font-size:.78rem;color:var(--text2);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;padding:.25rem .5rem;border-radius:4px;border:1px solid transparent;transition:all .15s;font-weight:600;display:none;align-items:center;gap:.4rem" onclick="_toggleUserMenu()" title="Аккаунт">
+      <img id="header-user-avatar" src="" alt="" style="display:none;width:22px;height:22px;border-radius:50%;object-fit:cover;flex-shrink:0">
+      <span id="header-user-email-text"></span>
+    </span>
     <!-- Дропдаун под email -->
     <div id="header-user-menu" style="display:none;position:absolute;top:2.6rem;right:0;background:var(--dlg-bg);border:1px solid var(--dlg-border);border-radius:8px;box-shadow:var(--dlg-shadow);min-width:150px;z-index:20000;overflow:hidden">
       <button onclick="doLogout()" style="width:100%;padding:.6rem 1rem;background:none;border:none;color:var(--text);font-size:.85rem;text-align:left;cursor:pointer;display:flex;align-items:center;gap:.5rem" onmouseover="this.style.background='var(--hover)'" onmouseout="this.style.background='none'">🚪 Выйти</button>
@@ -5594,6 +5597,7 @@ document.getElementById('ability-pb-grid').innerHTML =
 var _IW_webMode = false;
 var _IW_loggedIn = false;
 var _IW_userEmail = null;
+var _IW_userAvatar = null;
 var _IW_noauthCallback = null;
 var _IW_resetToken = null;   // токен из URL
 var _IW_resetEmail = null;   // email из URL
@@ -5629,6 +5633,7 @@ async function _authInit() {
     _IW_webMode  = d.webMode  || false;
     _IW_loggedIn = d.loggedIn || false;
     _IW_userEmail = d.email   || null;
+    _IW_userAvatar = d.avatar || null;
   } catch(e) { return; }
 
   if (!_IW_webMode) return;
@@ -5641,11 +5646,18 @@ async function _authInit() {
     _authShowError('Ошибка входа через Google: ' + decodeURIComponent(oauthError));
   }
 
-  const loginBtn = document.getElementById('header-login-btn');
-  const emailEl  = document.getElementById('header-user-email');
+  const loginBtn  = document.getElementById('header-login-btn');
+  const emailEl   = document.getElementById('header-user-email');
+  const emailText = document.getElementById('header-user-email-text');
+  const avatarEl  = document.getElementById('header-user-avatar');
 
   if (_IW_loggedIn) {
-    if (emailEl)  { emailEl.textContent = _IW_userEmail; emailEl.style.display = ''; }
+    if (emailText) emailText.textContent = _IW_userEmail;
+    if (avatarEl && _IW_userAvatar) {
+      avatarEl.src = _IW_userAvatar;
+      avatarEl.style.display = 'inline-block';
+    }
+    if (emailEl)  { emailEl.style.display = 'flex'; }
     if (loginBtn) { loginBtn.style.display = 'none'; }
   } else {
     if (loginBtn) { loginBtn.style.display = ''; }

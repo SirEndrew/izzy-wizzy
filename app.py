@@ -756,8 +756,8 @@ def auth_logout():
 @app.route("/api/auth/me")
 def auth_me():
     if WEB_MODE and session.get("user_id"):
-        return jsonify({"loggedIn": True, "email": session.get("user_email"), "id": session.get("user_id"), "webMode": True})
-    return jsonify({"loggedIn": False, "email": None, "id": None, "webMode": WEB_MODE})
+        return jsonify({"loggedIn": True, "email": session.get("user_email"), "id": session.get("user_id"), "webMode": True, "avatar": session.get("user_avatar", "")})
+    return jsonify({"loggedIn": False, "email": None, "id": None, "webMode": WEB_MODE, "avatar": ""})
 
 @app.route("/api/auth/reset-request", methods=["POST"])
 def auth_reset_request():
@@ -938,22 +938,26 @@ def oauth_google_callback():
     if not email:
         return redirect("/?oauth_error=no_email")
 
+    avatar = profile.get("picture", "")
+
     # Находим или создаём пользователя
     users = _load_users()
     if email not in users:
         uid = secrets.token_hex(8)
-        users[email] = {"id": uid, "email": email, "hash": "", "salt": "", "oauth": ["google"]}
+        users[email] = {"id": uid, "email": email, "hash": "", "salt": "", "oauth": ["google"], "avatar": avatar}
         _save_users(users)
     else:
-        # Помечаем что использует Google
         if "oauth" not in users[email]:
             users[email]["oauth"] = ["google"]
         elif "google" not in users[email]["oauth"]:
             users[email]["oauth"].append("google")
+        if avatar:
+            users[email]["avatar"] = avatar
         _save_users(users)
 
-    session["user_id"]    = users[email]["id"]
-    session["user_email"] = email
+    session["user_id"]     = users[email]["id"]
+    session["user_email"]  = email
+    session["user_avatar"] = avatar
     return redirect("/")
 
 def favicon():
