@@ -12095,20 +12095,17 @@ function _openDicePanel() {
 
   anchor.classList.toggle('dp-lower', isLower);
 
+  const MARGIN = 8;  // отступ от краёв экрана
+
   if (isLower) {
     if (_dpLowerTimer) { clearTimeout(_dpLowerTimer); _dpLowerTimer = null; }
-
-    // Хотим чтобы низ панели совпадал с низом d20 (curTop + die)
-    // Панель растёт вниз от верха якоря → anchorTop = (curTop + die) - ph
-    // Но clamping: не выше navH, не ниже H-ph
     const wantedTop = curTop + die - ph;
-    const anchorTop = Math.max(navH, Math.min(H - ph, wantedTop));
+    const anchorTop = Math.max(navH + MARGIN, Math.min(H - ph - MARGIN, wantedTop));
     const side = _dpSnap === 'left'  ? 'left:0;right:auto'
                : _dpSnap === 'right' ? 'right:0;left:auto'
                : `left:${anchor.style.left || 'auto'};right:auto`;
-    // Устанавливаем высоту якоря явно = ph чтобы он растянулся и панель не вылезала
     anchor.style.cssText = `position:fixed;${side};top:${anchorTop}px;bottom:auto;transform:none;width:var(--dp-w);height:${ph}px;touch-action:none;user-select:none;z-index:900`;
-    _dpSavedBottom = H - anchorTop - ph;  // bottom якоря от низа экрана
+    _dpSavedBottom = H - anchorTop - ph;
     panel.style.position      = '';
     panel.style.bottom        = '';
     panel.style.top           = '';
@@ -12119,7 +12116,7 @@ function _openDicePanel() {
     panel.style.bottom      = '';
     panel.style.top         = '';
     panel.style.flexDirection = '';
-    const newTop = Math.max(navH, Math.min(H - ph, curTop));
+    const newTop = Math.max(navH + MARGIN, Math.min(H - ph - MARGIN, curTop));
     anchor.style.top    = newTop + 'px';
     anchor.style.bottom = 'auto';
   }
@@ -12129,22 +12126,17 @@ function _openDicePanel() {
   _resetDiceAutoClose();
   setTimeout(() => document.addEventListener('click', _diceOutsideClick), 10);
 
-  // После анимации — финальная корректировка по реальной высоте
+  // После анимации корректируем по реальной высоте панели
   setTimeout(() => {
     if (!_dicePanelOpen) return;
-    const realH = panel.getBoundingClientRect().height / _dpZ();
-    if (!realH) return;
-    if (isLower) {
-      const bottomVal = parseFloat(anchor.style.bottom) || 0;
-      const panelTop  = H - bottomVal - realH;
-      if (panelTop < navH) {
-        anchor.style.bottom = Math.max(0, H - navH - realH) + 'px';
-        _dpSavedBottom = parseFloat(anchor.style.bottom);
-      }
-    } else {
-      const curT   = parseFloat(anchor.style.top) || 0;
-      const newTop = Math.max(navH, Math.min(H - realH, curT));
-      if (Math.abs(newTop - curT) > 1) anchor.style.top = newTop + 'px';
+    const realBottom = panel.getBoundingClientRect().bottom;
+    const realTop    = panel.getBoundingClientRect().top;
+    if (realBottom > window.innerHeight - MARGIN) {
+      const overflow = realBottom - (window.innerHeight - MARGIN);
+      anchor.style.top = (parseFloat(anchor.style.top) - overflow) + 'px';
+    } else if (realTop < _dpNavBottom() * _dpZ() + MARGIN) {
+      const overflow = _dpNavBottom() * _dpZ() + MARGIN - realTop;
+      anchor.style.top = (parseFloat(anchor.style.top) + overflow) + 'px';
     }
   }, 280);
 }
