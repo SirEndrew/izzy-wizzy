@@ -12098,16 +12098,17 @@ function _openDicePanel() {
   if (isLower) {
     if (_dpLowerTimer) { clearTimeout(_dpLowerTimer); _dpLowerTimer = null; }
 
-    // Панель растёт вниз от якоря (position:static).
-    // Чтобы d20 оказался внизу панели — позиционируем верх якоря так:
-    // anchorTop = curTop - (ph - die)
-    // т.е. панель начинается выше d20 на (ph - die) пикселей
-    const anchorTop = Math.max(navH, Math.min(H - ph, curTop - (ph - die)));
+    // Хотим чтобы низ панели совпадал с низом d20 (curTop + die)
+    // Панель растёт вниз от верха якоря → anchorTop = (curTop + die) - ph
+    // Но clamping: не выше navH, не ниже H-ph
+    const wantedTop = curTop + die - ph;
+    const anchorTop = Math.max(navH, Math.min(H - ph, wantedTop));
     const side = _dpSnap === 'left'  ? 'left:0;right:auto'
                : _dpSnap === 'right' ? 'right:0;left:auto'
                : `left:${anchor.style.left || 'auto'};right:auto`;
-    anchor.style.cssText = `position:fixed;${side};top:${anchorTop}px;bottom:auto;transform:none;width:var(--dp-w);height:auto;touch-action:none;user-select:none;z-index:900`;
-    _dpSavedBottom = H - anchorTop - die;  // сохраняем для восстановления
+    // Устанавливаем высоту якоря явно = ph чтобы он растянулся и панель не вылезала
+    anchor.style.cssText = `position:fixed;${side};top:${anchorTop}px;bottom:auto;transform:none;width:var(--dp-w);height:${ph}px;touch-action:none;user-select:none;z-index:900`;
+    _dpSavedBottom = H - anchorTop - ph;  // bottom якоря от низа экрана
     panel.style.position      = '';
     panel.style.bottom        = '';
     panel.style.top           = '';
@@ -12191,13 +12192,11 @@ function _closeDicePanel() {
       panel.style.top      = '';
       if (_dpSnap === 'free') {
         const die = _dpDie();
-        const H   = _dpViewH();
-        // _dpSavedBottom = H - anchorTop - die → anchorTop = H - _dpSavedBottom - die
-        // Оригинальный top d20 = anchorTop + (ph - die), где ph нам не нужен —
-        // просто берём anchorTop + смещение d20 внутри панели
-        // Проще: восстанавливаем top якоря = curTop (до открытия)
-        const origTop = _dpPreOpenTop !== null ? _dpPreOpenTop : (_dpSavedBottom !== null ? H - _dpSavedBottom - die : 0);
-        const restoredTop = _dpClampTop(origTop, die);
+        // При открытии anchorTop = curTop + die - ph → curTop = anchorTop + ph - die
+        // _dpPreOpenTop хранит оригинальный curTop
+        const restoredTop = _dpPreOpenTop !== null
+          ? _dpClampTop(_dpPreOpenTop, die)
+          : _dpClampTop(parseFloat(anchor.style.top) || 0, die);
         const left = anchor.style.left || '0px';
         anchor.style.cssText = `position:fixed;left:${left};right:auto;top:${restoredTop}px;bottom:auto;transform:none;width:${die}px;height:${die}px;touch-action:none;user-select:none;z-index:900`;
         _dpSavedBottom = null;
