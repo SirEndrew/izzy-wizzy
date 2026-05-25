@@ -12095,16 +12095,18 @@ function _openDicePanel() {
 
   anchor.classList.toggle('dp-lower', isLower);
 
-  const MARGIN = 8;  // отступ от краёв экрана
+  const MARGIN_TOP = 8;
+  const MARGIN_BOT = 56;  // запас для панели задач ОС с авто-скрытием
 
   if (isLower) {
     if (_dpLowerTimer) { clearTimeout(_dpLowerTimer); _dpLowerTimer = null; }
     const wantedTop = curTop + die - ph;
-    const anchorTop = Math.max(navH + MARGIN, Math.min(H - ph - MARGIN, wantedTop));
+    const anchorTop = Math.max(navH + MARGIN_TOP, Math.min(H - ph - MARGIN_BOT, wantedTop));
     const side = _dpSnap === 'left'  ? 'left:0;right:auto'
                : _dpSnap === 'right' ? 'right:0;left:auto'
                : `left:${anchor.style.left || 'auto'};right:auto`;
-    anchor.style.cssText = `position:fixed;${side};top:${anchorTop}px;bottom:auto;transform:none;width:var(--dp-w);height:${ph}px;touch-action:none;user-select:none;z-index:900`;
+    anchor.style.cssText = `position:fixed;${side};top:${anchorTop}px;bottom:auto;transform:none;width:var(--dp-w);touch-action:none;user-select:none;z-index:900`;
+    anchor.style.setProperty('height', ph + 'px', 'important');
     _dpSavedBottom = H - anchorTop - ph;
     panel.style.position      = '';
     panel.style.bottom        = '';
@@ -12116,9 +12118,10 @@ function _openDicePanel() {
     panel.style.bottom      = '';
     panel.style.top         = '';
     panel.style.flexDirection = '';
-    const newTop = Math.max(navH + MARGIN, Math.min(H - ph - MARGIN, curTop));
+    const newTop = Math.max(navH + MARGIN_TOP, Math.min(H - ph - MARGIN_BOT, curTop));
     anchor.style.top    = newTop + 'px';
     anchor.style.bottom = 'auto';
+    anchor.style.setProperty('height', ph + 'px', 'important');
   }
 
   if (_dpSnap === 'free') anchor.classList.add('dp-open');
@@ -12131,11 +12134,11 @@ function _openDicePanel() {
     if (!_dicePanelOpen) return;
     const realBottom = panel.getBoundingClientRect().bottom;
     const realTop    = panel.getBoundingClientRect().top;
-    if (realBottom > window.innerHeight - MARGIN) {
-      const overflow = realBottom - (window.innerHeight - MARGIN);
+    if (realBottom > window.innerHeight - MARGIN_BOT) {
+      const overflow = realBottom - (window.innerHeight - MARGIN_BOT);
       anchor.style.top = (parseFloat(anchor.style.top) - overflow) + 'px';
-    } else if (realTop < _dpNavBottom() * _dpZ() + MARGIN) {
-      const overflow = _dpNavBottom() * _dpZ() + MARGIN - realTop;
+    } else if (realTop < _dpNavBottom() * _dpZ() + MARGIN_TOP) {
+      const overflow = _dpNavBottom() * _dpZ() + MARGIN_TOP - realTop;
       anchor.style.top = (parseFloat(anchor.style.top) + overflow) + 'px';
     }
   }, 280);
@@ -12191,6 +12194,7 @@ function _closeDicePanel() {
           : _dpClampTop(parseFloat(anchor.style.top) || 0, die);
         const left = anchor.style.left || '0px';
         anchor.style.cssText = `position:fixed;left:${left};right:auto;top:${restoredTop}px;bottom:auto;transform:none;width:${die}px;height:${die}px;touch-action:none;user-select:none;z-index:900`;
+        anchor.style.removeProperty('height');  // снимаем !important height
         _dpSavedBottom = null;
         anchor.classList.remove('dp-lower');
         return;
@@ -12218,6 +12222,7 @@ function _closeDicePanel() {
         const die    = _dpDie();
         const curTop = parseFloat(anchor.style.top) || 0;
         anchor.style.top = _dpClampTop(curTop, die) + 'px';
+        anchor.style.removeProperty('height');  // снимаем !important height
       }
     }
   }
