@@ -5265,6 +5265,10 @@ function createCharacter() {
 async function saveCharacter(char) {
   const res  = await fetch('/api/characters',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(char)});
   const data = await res.json();
+  if (!res.ok || data.status === 'error') {
+    toast('❌ ' + (data.message || data.error || 'Ошибка сохранения'), 'error');
+    return;
+  }
   currentFilename = data.filename;
   currentChar = char;
 
@@ -5855,7 +5859,11 @@ async function saveSheet() {
   currentChar._webhookCritsOnly = _rs.critsOnly   || false;
   _reapplyAcFormula();
   charLogOnSave(currentChar);
-  await fetch('/api/characters',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(currentChar)});
+  const _sr = await fetch('/api/characters',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(currentChar)});
+  if (_sr.status === 403) {
+    const _sd = await _sr.json().catch(()=>({}));
+    toast('❌ ' + (_sd.message || 'Достигнут лимит персонажей'), 'error');
+  }
   // Silent save — no toast, no re-render (caller handles UI)
 }
 /** Re-evaluates currentChar.acFormula and updates acBase/ac if formula is set */
@@ -6168,7 +6176,7 @@ async function createBlankChar() {
       toast('📄 Создан пустой лист: ' + name, 'success');
       await loadChar(result.filename);
     } else {
-      toast('❌ Не удалось создать лист', 'error');
+      toast('❌ ' + (result.message || 'Не удалось создать лист'), 'error');
     }
   } catch(e) {
     toast('❌ Ошибка: ' + e.message, 'error');

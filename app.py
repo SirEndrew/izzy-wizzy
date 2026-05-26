@@ -756,8 +756,8 @@ def auth_logout():
 @app.route("/api/auth/me")
 def auth_me():
     if WEB_MODE and session.get("user_id"):
-        return jsonify({"loggedIn": True, "email": session.get("user_email"), "id": session.get("user_id"), "webMode": True, "avatar": session.get("user_avatar", "")})
-    return jsonify({"loggedIn": False, "email": None, "id": None, "webMode": WEB_MODE, "avatar": ""})
+        return jsonify({"loggedIn": True, "email": session.get("user_email"), "id": session.get("user_id"), "webMode": True})
+    return jsonify({"loggedIn": False, "email": None, "id": None, "webMode": WEB_MODE})
 
 @app.route("/api/auth/reset-request", methods=["POST"])
 def auth_reset_request():
@@ -857,116 +857,10 @@ def auth_reset_confirm():
     session["user_email"] = email
     return jsonify({"status": "ok", "email": email})
 
-@app.route("/api/auth/oauth/google")
-def oauth_google_start():
-    """Редиректим на Google для авторизации."""
-    import urllib.parse
-    client_id = os.environ.get("GOOGLE_CLIENT_ID", "")
-    if not client_id:
-        return jsonify({"error": "Google OAuth не настроен"}), 500
-    app_url = os.environ.get("APP_URL", "").rstrip("/")
-    if not app_url:
-        app_url = request.host_url.rstrip("/").replace("http://", "https://")
-    redirect_uri = f"{app_url}/api/auth/oauth/callback/google"
-    state = secrets.token_urlsafe(16)
-    session["oauth_state"] = state
-    params = urllib.parse.urlencode({
-        "client_id":     client_id,
-        "redirect_uri":  redirect_uri,
-        "response_type": "code",
-        "scope":         "openid email profile",
-        "state":         state,
-        "access_type":   "online",
-    })
-    return redirect(f"https://accounts.google.com/o/oauth2/v2/auth?{params}")
-
-@app.route("/api/auth/oauth/callback/google")
-def oauth_google_callback():
-    """Google возвращает code — обмениваем на токен и логиним пользователя."""
-    import urllib.request, urllib.parse, json as _json
-    error = request.args.get("error")
-    if error:
-        return redirect("/?oauth_error=" + urllib.parse.quote(error))
-
-    code  = request.args.get("code", "")
-    state = request.args.get("state", "")
-    if state != session.pop("oauth_state", None):
-        return redirect("/?oauth_error=invalid_state")
-
-    client_id     = os.environ.get("GOOGLE_CLIENT_ID", "")
-    client_secret = os.environ.get("GOOGLE_CLIENT_SECRET", "")
-    app_url = os.environ.get("APP_URL", "").rstrip("/")
-    if not app_url:
-        app_url = request.host_url.rstrip("/").replace("http://", "https://")
-    redirect_uri  = f"{app_url}/api/auth/oauth/callback/google"
-
-    # Обмениваем code на access_token
-    try:
-        token_data = urllib.parse.urlencode({
-            "code":          code,
-            "client_id":     client_id,
-            "client_secret": client_secret,
-            "redirect_uri":  redirect_uri,
-            "grant_type":    "authorization_code",
-        }).encode()
-        req = urllib.request.Request(
-            "https://oauth2.googleapis.com/token",
-            data=token_data,
-            headers={"Content-Type": "application/x-www-form-urlencoded"},
-        )
-        with urllib.request.urlopen(req, timeout=10) as r:
-            token_resp = _json.loads(r.read())
-    except Exception as e:
-        return redirect(f"/?oauth_error={urllib.parse.quote(str(e))}")
-
-    access_token = token_resp.get("access_token", "")
-    if not access_token:
-        return redirect("/?oauth_error=no_token")
-
-    # Получаем профиль пользователя
-    try:
-        req2 = urllib.request.Request(
-            "https://www.googleapis.com/oauth2/v2/userinfo",
-            headers={"Authorization": f"Bearer {access_token}"},
-        )
-        with urllib.request.urlopen(req2, timeout=10) as r:
-            profile = _json.loads(r.read())
-    except Exception as e:
-        return redirect(f"/?oauth_error={urllib.parse.quote(str(e))}")
-
-    email = profile.get("email", "").lower()
-    if not email:
-        return redirect("/?oauth_error=no_email")
-
-    avatar = profile.get("picture", "")
-
-    # Находим или создаём пользователя
-    users = _load_users()
-    if email not in users:
-        uid = secrets.token_hex(8)
-        users[email] = {"id": uid, "email": email, "hash": "", "salt": "", "oauth": ["google"], "avatar": avatar}
-        _save_users(users)
-    else:
-        if "oauth" not in users[email]:
-            users[email]["oauth"] = ["google"]
-        elif "google" not in users[email]["oauth"]:
-            users[email]["oauth"].append("google")
-        if avatar:
-            users[email]["avatar"] = avatar
-        _save_users(users)
-
-    session["user_id"]     = users[email]["id"]
-    session["user_email"]  = email
-    session["user_avatar"] = avatar
-    return redirect("/")
-
+@app.route("/favicon.ico")
 def favicon():
     from flask import redirect
     return redirect("/static/img/icon.svg", code=301)
-
-@app.route("/privacy")
-def privacy_page():
-    return render_template("privacy.html")
 
 @app.route("/")
 def index():
@@ -1103,6 +997,16 @@ def clear_log(stem):
         path.unlink()
     return jsonify({"status":"cleared"})
 
+def _unique_filename(save_dir: Path, base_name: str) -> str:
+    """Возвращает уникальное имя файла — добавляет (2), (3)... если уже существует."""
+    filename = f"{base_name}.json"
+    if not (save_dir / filename).exists():
+        return filename
+    counter = 2
+    while (save_dir / f"{base_name}({counter}).json").exists():
+        counter += 1
+    return f"{base_name}({counter}).json"
+
 @app.route("/api/characters", methods=["POST"])
 def save_character():
     auth_err = _require_auth()
@@ -1115,10 +1019,18 @@ def save_character():
             data["_system"] = "DnD5e"
         if (data.get("portrait") or "").startswith("data:image"):
             data.pop("portrait", None)
-        name = data.get("name","character").replace(" ","_").replace("/","_")[:60]
-        filename = f"{name}.json"
+        base_name = data.get("name","character").replace(" ","_").replace("/","_")[:60]
         save_dir = _sd()
         save_dir.mkdir(exist_ok=True)
+        # Лимит 30 персонажей — только в веб-режиме
+        if WEB_MODE:
+            existing = list(save_dir.glob("*.json"))
+            if len(existing) >= 30:
+                # Разрешаем только если это перезапись существующего
+                base_file = save_dir / f"{base_name}.json"
+                if not base_file.exists():
+                    return jsonify({"status": "error", "message": "Достигнут лимит в 30 персонажей. Удалите старых персонажей чтобы создать нового."}), 403
+        filename = _unique_filename(save_dir, base_name)
         with open(save_dir/filename,"w",encoding="utf-8") as f:
             json.dump(data,f,ensure_ascii=False,indent=2)
         return jsonify({"status":"saved","filename":filename})
@@ -1190,8 +1102,16 @@ def import_character():
         else:
             return jsonify({"error": "Неизвестный формат. Ожидается наш JSON или LongStoryShort JSON."}), 400
         name = char.get("name","import").replace(" ","_").replace("/","_")[:60]
-        filename = f"{name}.json"
-        with open(_sd()/filename,"w",encoding='utf-8') as f:
+        save_dir = _sd()
+        # Лимит 30 персонажей — только в веб-режиме
+        if WEB_MODE:
+            existing = list(save_dir.glob("*.json"))
+            if len(existing) >= 30:
+                base_file = save_dir / f"{name}.json"
+                if not base_file.exists():
+                    return jsonify({"error": "Достигнут лимит в 30 персонажей. Удалите старых персонажей чтобы импортировать нового."}), 403
+        filename = _unique_filename(save_dir, name)
+        with open(save_dir/filename,"w",encoding='utf-8') as f:
             json.dump(char,f,ensure_ascii=False,indent=2)
         return jsonify({"status":"imported","filename":filename,"name":char.get("name","")})
     except Exception as e:
