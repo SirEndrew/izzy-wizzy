@@ -1103,6 +1103,16 @@ def clear_log(stem):
         path.unlink()
     return jsonify({"status":"cleared"})
 
+def _unique_filename(save_dir: Path, base_name: str) -> str:
+    """Возвращает уникальное имя файла — добавляет (2), (3)... если уже существует."""
+    filename = f"{base_name}.json"
+    if not (save_dir / filename).exists():
+        return filename
+    counter = 2
+    while (save_dir / f"{base_name}({counter}).json").exists():
+        counter += 1
+    return f"{base_name}({counter}).json"
+
 @app.route("/api/characters", methods=["POST"])
 def save_character():
     auth_err = _require_auth()
@@ -1115,10 +1125,15 @@ def save_character():
             data["_system"] = "DnD5e"
         if (data.get("portrait") or "").startswith("data:image"):
             data.pop("portrait", None)
-        name = data.get("name","character").replace(" ","_").replace("/","_")[:60]
-        filename = f"{name}.json"
+        base_name = data.get("name","character").replace(" ","_").replace("/","_")[:60]
         save_dir = _sd()
         save_dir.mkdir(exist_ok=True)
+        # Лимит 30 персонажей — только в веб-режиме
+        if WEB_MODE:
+            existing = list(save_dir.glob("*.json"))
+            if len(existing) >= 30 and not (save_dir / f"{base_name}.json").exists():
+                return jsonify({"status": "error", "message": "Достигнут лимит в 30 персонажей. Удалите старых персонажей чтобы создать нового."}), 403
+        filename = _unique_filename(save_dir, base_name)
         with open(save_dir/filename,"w",encoding="utf-8") as f:
             json.dump(data,f,ensure_ascii=False,indent=2)
         return jsonify({"status":"saved","filename":filename})
@@ -1190,8 +1205,13 @@ def import_character():
         else:
             return jsonify({"error": "Неизвестный формат. Ожидается наш JSON или LongStoryShort JSON."}), 400
         name = char.get("name","import").replace(" ","_").replace("/","_")[:60]
-        filename = f"{name}.json"
-        with open(_sd()/filename,"w",encoding='utf-8') as f:
+        save_dir = _sd()
+        if WEB_MODE:
+            existing = list(save_dir.glob("*.json"))
+            if len(existing) >= 30 and not (save_dir / f"{name}.json").exists():
+                return jsonify({"error": "Достигнут лимит в 30 персонажей. Удалите старых персонажей чтобы импортировать нового."}), 403
+        filename = _unique_filename(save_dir, name)
+        with open(save_dir/filename,"w",encoding='utf-8') as f:
             json.dump(char,f,ensure_ascii=False,indent=2)
         return jsonify({"status":"imported","filename":filename,"name":char.get("name","")})
     except Exception as e:
