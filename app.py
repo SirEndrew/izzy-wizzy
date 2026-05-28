@@ -1125,15 +1125,21 @@ def save_character():
             data["_system"] = "DnD5e"
         if (data.get("portrait") or "").startswith("data:image"):
             data.pop("portrait", None)
+        # Если JS передал имя существующего файла — перезаписываем его
+        existing_filename = data.pop("_filename", None)
         base_name = data.get("name","character").replace(" ","_").replace("/","_")[:60]
         save_dir = _sd()
         save_dir.mkdir(exist_ok=True)
-        # Лимит 30 персонажей — только в веб-режиме
-        if WEB_MODE:
-            existing = list(save_dir.glob("*.json"))
-            if len(existing) >= 30 and not (save_dir / f"{base_name}.json").exists():
-                return jsonify({"status": "error", "message": "Достигнут лимит в 30 персонажей. Удалите старых персонажей чтобы создать нового."}), 403
-        filename = _unique_filename(save_dir, base_name)
+        if existing_filename:
+            # Перезапись существующего персонажа
+            filename = existing_filename
+        else:
+            # Новый персонаж — лимит только в веб-режиме
+            if WEB_MODE:
+                existing = list(save_dir.glob("*.json"))
+                if len(existing) >= 30:
+                    return jsonify({"status": "error", "message": "Достигнут лимит в 30 персонажей. Удалите старых персонажей чтобы создать нового."}), 403
+            filename = _unique_filename(save_dir, base_name)
         with open(save_dir/filename,"w",encoding="utf-8") as f:
             json.dump(data,f,ensure_ascii=False,indent=2)
         return jsonify({"status":"saved","filename":filename})

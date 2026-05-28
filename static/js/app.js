@@ -5263,7 +5263,9 @@ function createCharacter() {
 // API
 // ══════════════════════════════════════════════════════════
 async function saveCharacter(char) {
-  const res  = await fetch('/api/characters',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(char)});
+  // Передаём текущее имя файла чтобы сервер перезаписал его, а не создал копию
+  const payload = currentFilename ? {...char, _filename: currentFilename} : char;
+  const res  = await fetch('/api/characters',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
   const data = await res.json();
   if (!res.ok || data.status === 'error') {
     toast('❌ ' + (data.message || data.error || 'Ошибка сохранения'), 'error');
@@ -5859,7 +5861,8 @@ async function saveSheet() {
   currentChar._webhookCritsOnly = _rs.critsOnly   || false;
   _reapplyAcFormula();
   charLogOnSave(currentChar);
-  const _sr = await fetch('/api/characters',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(currentChar)});
+  const _payload = currentFilename ? {...currentChar, _filename: currentFilename} : currentChar;
+  const _sr = await fetch('/api/characters',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(_payload)});
   if (_sr.status === 403) {
     const _sd = await _sr.json().catch(()=>({}));
     toast('❌ ' + (_sd.message || 'Достигнут лимит персонажей'), 'error');
@@ -6176,7 +6179,7 @@ async function createBlankChar() {
       toast('📄 Создан пустой лист: ' + name, 'success');
       await loadChar(result.filename);
     } else {
-      toast('❌ ' + (result.message || 'Не удалось создать лист'), 'error');
+      toast('❌ Не удалось создать лист', 'error');
     }
   } catch(e) {
     toast('❌ Ошибка: ' + e.message, 'error');
@@ -12053,124 +12056,8 @@ function _dpInitDrag() {
 
 
 function _dpOpenPanelHeight() {
-  // Пробуем получить реальную высоту из DOM
-  const panel = document.getElementById('dice-panel');
-  if (panel && panel.classList.contains('open')) {
-    const h = panel.getBoundingClientRect().height / _dpZ();
-    if (h > 100) return h;
-  }
-  // Fallback формула: dp-top + d20 + 5 слотов + dp-roll + запас
-  const die = _dpDie();
-  return (die + 8) + die + die * 5 + 50 + 32;
-}
-
-function _openDicePanel() {
-  _dicePanelOpen = true;
-  const panel = document.getElementById('dice-panel');
-  if (!panel) return;
-  const anchor = document.querySelector('.dice-panel-anchor');
-  if (anchor) anchor.classList.remove('dp-open-horiz', 'dp-reversed');
-
-  if (!anchor) { panel.classList.add('open'); return; }
-
-  const die  = _dpDie();
-  const H    = _dpViewH();
-  const navH = _dpNavBottom();
-  const ph   = _dpOpenPanelHeight();
-
-  // Вычисляем текущий top якоря
-  let curTop;
-  if (_dpSnap === 'free') {
-    // В free режиме всегда берём из getBoundingClientRect — стиль может быть устаревшим
-    curTop = anchor.getBoundingClientRect().top / _dpZ();
-  } else if (anchor.style.bottom && anchor.style.bottom !== 'auto' && anchor.style.bottom !== '') {
-    curTop = H - (parseFloat(anchor.style.bottom) || 0) - die;
-  } else {
-    curTop = parseFloat(anchor.style.top) || 0;
-  }
-  _dpPreOpenTop = curTop;
-
-  const d20center  = curTop + die / 2;
-  const spaceAbove = d20center - navH;   // место выше центра d20
-  const spaceBelow = H - d20center;      // место ниже центра d20
-
-  // Открываем в ту сторону где больше места,
-  // но только если там реально влезает панель
-  const fitsAbove = spaceAbove >= ph;
-  const fitsBelow = spaceBelow >= ph;
-
-  let isLower;
-  if (fitsBelow && !fitsAbove) {
-    isLower = false;  // только вниз влезает
-  } else if (fitsAbove && !fitsBelow) {
-    isLower = true;   // только вверх влезает
-  } else {
-    isLower = spaceAbove >= spaceBelow;  // оба влезают — выбираем где больше места
-  }
-
-  anchor.classList.toggle('dp-lower', isLower);
-
-  const MARGIN_TOP = 8;
-  // Измеряем реально доступную высоту через зонд position:fixed;bottom:0
-  const _probe = document.createElement('div');
-  _probe.style.cssText = 'position:fixed;bottom:0;left:-9999px;width:1px;height:1px;pointer-events:none';
-  document.body.appendChild(_probe);
-  const _realBottom = _probe.getBoundingClientRect().bottom;
-  document.body.removeChild(_probe);
-  const MARGIN_BOT = Math.max(8, window.innerHeight - _realBottom + 8);
-
-  if (isLower) {
-    if (_dpLowerTimer) { clearTimeout(_dpLowerTimer); _dpLowerTimer = null; }
-    const wantedTop = curTop + die - ph;
-    const anchorTop = Math.max(navH + MARGIN_TOP, Math.min(H - ph - MARGIN_BOT, wantedTop));
-    const side = _dpSnap === 'left'  ? 'left:0;right:auto'
-               : _dpSnap === 'right' ? 'right:0;left:auto'
-               : `left:${anchor.style.left || 'auto'};right:auto`;
-    anchor.style.cssText = `position:fixed;${side};top:${anchorTop}px;bottom:auto;transform:none;width:var(--dp-w);touch-action:none;user-select:none;z-index:900`;
-    anchor.style.setProperty('height', ph + 'px', 'important');
-    _dpSavedBottom = H - anchorTop - ph;
-    panel.style.position      = '';
-    panel.style.bottom        = '';
-    panel.style.top           = '';
-    panel.style.flexDirection = '';
-  } else {
-    // Верхняя половина: панель растёт вниз
-    panel.style.position    = '';
-    panel.style.bottom      = '';
-    panel.style.top         = '';
-    panel.style.flexDirection = '';
-    const newTop = Math.max(navH + MARGIN_TOP, Math.min(H - ph - MARGIN_BOT, curTop));
-    anchor.style.top    = newTop + 'px';
-    anchor.style.bottom = 'auto';
-    anchor.style.setProperty('height', ph + 'px', 'important');
-  }
-
-  if (_dpSnap === 'free') anchor.classList.add('dp-open');
-  panel.classList.add('open');
-  _resetDiceAutoClose();
-  setTimeout(() => document.addEventListener('click', _diceOutsideClick), 10);
-
-  // После анимации берём реальную высоту и финально корректируем позицию
-  setTimeout(() => {
-    if (!_dicePanelOpen) return;
-    const realH   = panel.getBoundingClientRect().height;
-    const realTop = panel.getBoundingClientRect().top;
-    const realBot = panel.getBoundingClientRect().bottom;
-    const navPx   = _dpNavBottom() * _dpZ();
-
-    if (realBot > window.innerHeight - MARGIN_BOT) {
-      const diff = realBot - (window.innerHeight - MARGIN_BOT);
-      const curT = parseFloat(anchor.style.top) || 0;
-      anchor.style.top = (curT - diff) + 'px';
-      anchor.style.setProperty('height', (parseFloat(anchor.style.height || ph) + diff) + 'px', 'important');
-    } else if (realTop < navPx + MARGIN_TOP) {
-      const diff = navPx + MARGIN_TOP - realTop;
-      const curT = parseFloat(anchor.style.top) || 0;
-      anchor.style.top = (curT + diff) + 'px';
-    }
-    // Финально выставляем высоту якоря = реальной высоте панели
-    anchor.style.setProperty('height', realH + 'px', 'important');
-  }, 280);
+  // dp-top: die+8, d20+5 обычных: die×6, формула: 28px, dp-roll: 50px
+  return (_dpDie() + 8) + _dpDie() * 6 + 28 + 50;
 }
 
 function _dpShiftAnchor() {
@@ -12188,6 +12075,70 @@ let _dpPreOpenTop  = null;  // top якоря перед открытием
 let _dpLowerTimer  = null;  // таймер снятия dp-lower
 let _dpSavedBottom = null;  // сохранённый bottom при открытии нижней панели
 
+function _openDicePanel() {
+  _dicePanelOpen = true;
+  const panel = document.getElementById('dice-panel');
+  if (!panel) return;
+  const anchor = document.querySelector('.dice-panel-anchor');
+  if (anchor) anchor.classList.remove('dp-open-horiz', 'dp-reversed');
+
+  if (!anchor) { panel.classList.add('open'); return; }
+
+  const die    = _dpDie();
+  const H      = _dpViewH();
+  // Якорь может быть в bottom-режиме — вычисляем top из bottom
+  let curTop;
+  if (anchor.style.bottom && anchor.style.bottom !== 'auto' && anchor.style.bottom !== '') {
+    curTop = H - (parseFloat(anchor.style.bottom) || 0) - die;
+  } else {
+    curTop = parseFloat(anchor.style.top) || 0;
+  }
+  _dpPreOpenTop = curTop;
+
+  // Определяем направление по положению d20 (= top якоря в свёрнутом виде)
+  const d20center = curTop + die / 2;
+  const isLower   = d20center > H / 2;
+  anchor.classList.toggle('dp-lower', isLower);
+
+  if (isLower) {
+    // Отменяем незавершённый таймер предыдущего закрытия
+    if (_dpLowerTimer) { clearTimeout(_dpLowerTimer); _dpLowerTimer = null; }
+    // Нижняя половина: якорь фиксируем через bottom, панель растёт вверх
+    const ph     = _dpOpenPanelHeight();
+    const navH   = _dpNavBottom();
+    // Если раскрытая панель уйдёт выше навбара — поднимаем bottomVal
+    // Верх панели = H - bottomVal - ph, должен быть >= navH
+    // bottomVal <= H - navH - ph
+    let bottomVal = H - curTop - die;
+    const maxBottom = H - navH - ph;
+    if (bottomVal > maxBottom) bottomVal = maxBottom;
+
+    const side = _dpSnap === 'left' ? 'left:0;right:auto' : _dpSnap === 'right' ? 'right:0;left:auto' : `left:${anchor.style.left || 'auto'};right:auto`;
+    const w = 'var(--dp-w)';  // всегда полная ширина при открытии
+    anchor.style.cssText = `position:fixed;${side};bottom:${bottomVal}px;top:auto;transform:none;width:${w};height:auto;touch-action:none;user-select:none;z-index:900`;
+    _dpSavedBottom = bottomVal;  // запоминаем для восстановления
+    // Панель позиционируется абсолютно снизу якоря — элементы в обычном порядке
+    panel.style.position = 'absolute';
+    panel.style.bottom   = '0';
+    panel.style.top      = 'auto';
+    panel.style.flexDirection = '';
+  } else {
+    // Верхняя половина: панель растёт вниз как обычно
+    panel.style.position = '';
+    panel.style.bottom   = '';
+    panel.style.top      = '';
+    panel.style.flexDirection = '';
+    const ph   = _dpOpenPanelHeight();
+    const navH = _dpNavBottom();
+    const newTop = Math.max(navH, Math.min(H - ph, curTop));
+    if (newTop !== curTop) anchor.style.top = newTop + 'px';
+  }
+
+  if (_dpSnap === 'free') anchor.classList.add('dp-open');
+  panel.classList.add('open');
+  _resetDiceAutoClose();
+  setTimeout(() => document.addEventListener('click', _diceOutsideClick), 10);
+}
 
 function _closeDicePanel() {
   _dicePanelOpen = false;
@@ -12211,27 +12162,18 @@ function _closeDicePanel() {
     }
     panel.style.flexDirection = '';
     if (wasLower) {
+      // Убираем position:absolute сразу, якорь остаётся в bottom-режиме
       panel.style.position = '';
       panel.style.bottom   = '';
       panel.style.top      = '';
-      if (_dpSnap === 'free') {
-        const die = _dpDie();
-        // При открытии anchorTop = curTop + die - ph → curTop = anchorTop + ph - die
-        // _dpPreOpenTop хранит оригинальный curTop
-        const restoredTop = _dpPreOpenTop !== null
-          ? _dpClampTop(_dpPreOpenTop, die)
-          : _dpClampTop(parseFloat(anchor.style.top) || 0, die);
-        const left = anchor.style.left || '0px';
-        anchor.style.cssText = `position:fixed;left:${left};right:auto;top:${restoredTop}px;bottom:auto;transform:none;width:${die}px;height:${die}px;touch-action:none;user-select:none;z-index:900`;
-        anchor.style.removeProperty('height');  // снимаем !important height
-        _dpSavedBottom = null;
-        anchor.classList.remove('dp-lower');
-        return;
-      }
-      // Snapped+lower: восстанавливаем bottom
+      // Восстанавливаем bottom якоря из сохранённого значения (не из style который мог быть сброшен)
       if (_dpSavedBottom !== null) {
-        const side = _dpSnap === 'left' ? 'left:0;right:auto' : 'right:0;left:auto';
-        anchor.style.cssText = `position:fixed;${side};bottom:${_dpSavedBottom}px;top:auto;transform:none;width:var(--dp-w);height:auto;touch-action:none;user-select:none;z-index:900`;
+        let side;
+        if (_dpSnap === 'left')       side = 'left:0;right:auto';
+        else if (_dpSnap === 'right') side = 'right:0;left:auto';
+        else                          side = `left:${anchor.style.left || '0px'};right:auto`;
+        const w = (_dpSnap === 'free') ? `${_dpDie()}px` : 'var(--dp-w)';
+        anchor.style.cssText = `position:fixed;${side};bottom:${_dpSavedBottom}px;top:auto;transform:none;width:${w};height:auto;touch-action:none;user-select:none;z-index:900`;
       }
       const _snap = _dpSnap;
       _dpLowerTimer = setTimeout(() => {
@@ -12250,15 +12192,7 @@ function _closeDicePanel() {
       if (_dpSnap === 'right' || _dpSnap === 'left' || _dpSnap === 'free') {
         const die    = _dpDie();
         const curTop = parseFloat(anchor.style.top) || 0;
-        const clampedTop = _dpClampTop(curTop, die);
-        if (_dpSnap === 'right') {
-          anchor.style.cssText = `position:fixed;right:0;left:auto;top:${clampedTop}px;bottom:auto;transform:none;width:var(--dp-w);height:auto;touch-action:none;user-select:none;z-index:900`;
-        } else if (_dpSnap === 'left') {
-          anchor.style.cssText = `position:fixed;left:0;right:auto;top:${clampedTop}px;bottom:auto;transform:none;width:var(--dp-w);height:auto;touch-action:none;user-select:none;z-index:900`;
-        } else {
-          anchor.style.top = clampedTop + 'px';
-        }
-        anchor.style.removeProperty('height');
+        anchor.style.top = _dpClampTop(curTop, die) + 'px';
       }
     }
   }
