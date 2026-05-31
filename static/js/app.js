@@ -68,6 +68,7 @@ const STEP_NAMES   = ['Информация','Раса','Класс','Преды
 let wiz            = makeEmptyWiz();
 let currentChar    = null;
 let currentFilename= null;
+let currentCharId  = null;  // уникальный ID персонажа в БД (веб-режим)
 let sheetSkillExp  = {}; // {skillName: 0|1|2} (0=нет,1=владение,2=компетентность)
 let sheetUsedSlots = {};
 
@@ -5263,22 +5264,24 @@ function createCharacter() {
 // API
 // ══════════════════════════════════════════════════════════
 async function saveCharacter(char) {
-  // Передаём текущее имя файла чтобы сервер перезаписал его, а не создал копию
-  const payload = currentFilename ? {...char, _filename: currentFilename} : char;
+  const payload = {...char};
+  if (currentCharId)       payload._id = currentCharId;
+  else if (currentFilename) payload._filename = currentFilename;
   const res  = await fetch('/api/characters',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
   const data = await res.json();
   if (!res.ok || data.status === 'error') {
     toast('❌ ' + (data.message || data.error || 'Ошибка сохранения'), 'error');
     return;
   }
-  currentFilename = data.filename;
+  currentFilename = data.filename || currentFilename;
+  if (data.id) currentCharId = data.id;
   currentChar = char;
 
-  // Upload wizard portrait now that we have a filename
+  // Upload wizard portrait now that we have a filename/id
   if (wiz.portrait && wiz.portrait.startsWith('data:image')) {
-    const stem = data.filename.replace(/\.json$/i, '');
+    const portraitKey = currentCharId || (data.filename||'').replace(/\.json$/i,'');
     try {
-      const pr = await fetch(`/api/portrait/${stem}`, {
+      const pr = await fetch(`/api/portrait/${encodeURIComponent(portraitKey)}`, {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({data: wiz.portrait})
@@ -5861,11 +5864,13 @@ async function saveSheet() {
   currentChar._webhookCritsOnly = _rs.critsOnly   || false;
   _reapplyAcFormula();
   charLogOnSave(currentChar);
-  const _payload = currentFilename ? {...currentChar, _filename: currentFilename} : currentChar;
-  const _sr = await fetch('/api/characters',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(_payload)});
+  const _ap = {...currentChar};
+  if (currentCharId)        _ap._id = currentCharId;
+  else if (currentFilename) _ap._filename = currentFilename;
+  const _sr = await fetch('/api/characters',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(_ap)});
   if (_sr.status === 403) {
-    const _sd = await _sr.json().catch(()=>({}));
-    toast('❌ ' + (_sd.message || 'Достигнут лимит персонажей'), 'error');
+    const _sd2 = await _sr.json().catch(()=>({}));
+    toast('❌ ' + (_sd2.message || 'Достигнут лимит персонажей'), 'error');
   }
   // Silent save — no toast, no re-render (caller handles UI)
 }
@@ -5935,7 +5940,8 @@ async function loadCharList() {
       }
       const raceClass = [ch.race, ch.subrace, ch.class].filter(Boolean).join(' · ');
       const bgLine    = ch.background || '';
-      return `<div class="char-list-item" onclick="loadChar('${ch.filename}')">
+      const key = ch.id || ch.filename;  // используем id если есть
+      return `<div class="char-list-item" onclick="loadChar('${key}')">
         <div class="cli-portrait">${portraitInner}</div>
         <div class="cli-divider"></div>
         <div class="cli-body">
@@ -5944,11 +5950,11 @@ async function loadCharList() {
           ${bgLine    ? `<div class="cli-meta">${bgLine}</div>` : ''}
         </div>
         <div class="cli-right" onclick="event.stopPropagation()">
-          <div class="cli-level" onclick="loadChar('${ch.filename}')">Ур. ${ch.level}</div>
+          <div class="cli-level" onclick="loadChar('${key}')">Ур. ${ch.level}</div>
           <div class="cli-actions">
-            <button class="dice-btn" onclick="exportCharLSS('${ch.filename}')" title="LSS">📤</button>
-            <button class="dice-btn" onclick="exportCharRaw('${ch.filename}')" title="JSON">📋</button>
-            <button class="dice-btn" style="color:var(--red2)" onclick="deleteChar('${ch.filename}')">🗑️</button>
+            <button class="dice-btn" onclick="exportCharLSS('${key}')" title="LSS">📤</button>
+            <button class="dice-btn" onclick="exportCharRaw('${key}')" title="JSON">📋</button>
+            <button class="dice-btn" style="color:var(--red2)" onclick="deleteChar('${ch.filename}','${ch.id||''}')">🗑️</button>
           </div>
         </div>
       </div>`;
@@ -5975,49 +5981,95 @@ async function loadCharList() {
 
 async function loadChar(filename) {
   _logTextFlush();
-  const res=await fetch('/api/characters/'+filename);
+  // Поддерживаем загрузку и по id и по filename
+  const res=await fetch('/api/characters/'+encodeURIComponent(filename));
   const char=await res.json();
   _normalizeXpLevel(char);
-  currentChar=char; currentFilename=filename;
+  currentChar=char;
+  currentFilename=filename;
+  currentCharId=char._id || null;  // id из БД если есть
+  delete currentChar._id;          // убираем из данных персонажа
   document.getElementById('nav-sheet').style.display='inline-block';
   renderSheet(char);
   charLogInit(char);
   showView('sheet');
 }
 
-async function exportCharLSS(filename) {
+async function exportCharLSS(key) {
   try {
-    const response = await fetch('/api/export/lss/' + filename);
-    if (!response.ok) throw new Error('HTTP ' + response.status);
-    const ct = response.headers.get('content-type') || '';
-    if (ct.includes('application/json')) {
-      const data = await response.json();
-      if (data.saved) {
-        toast('📋 LSS сохранён: ' + data.name, 'success');
-      } else {
-        throw new Error(data.error || 'Ошибка');
-      }
-    } else {
-      // Браузерный режим — скачиваем blob
-      const blob = await response.blob();
-      const url  = URL.createObjectURL(blob);
-      const a    = document.createElement('a');
-      a.href     = url;
-      a.download = filename.replace('.json', '') + '___Long_Story_Short.json';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(url), 5000);
-      toast('📋 LSS скачан!', 'success');
+    // Берём данные из памяти или загружаем по key
+    let char = (currentCharId === key || currentFilename === key) ? currentChar : null;
+    if (!char) {
+      const res = await fetch('/api/characters/' + encodeURIComponent(key));
+      if (!res.ok) { toast('❌ Не удалось получить данные персонажа', 'error'); return; }
+      char = await res.json(); delete char._id;
     }
+    if (!char) { toast('❌ Не удалось получить данные персонажа', 'error'); return; }
+    const response = await fetch('/api/export/lss/' + encodeURIComponent(key), {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({char})
+    });
+    if (!response.ok) {
+      let msg = `HTTP ${response.status}`;
+      try { const e = await response.json(); msg = e.error || msg; } catch(_){}
+      throw new Error(msg);
+    }
+    const blob = await response.blob();
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url;
+    a.download = (char.name||'character').replace(/ /g,'_') + '___Long_Story_Short.json';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+    toast('📋 LSS скачан!', 'success');
   } catch(e) {
     toast('❌ Ошибка LSS: ' + e.message, 'error');
   }
 }
-async function exportCharRaw(filename) { window.open('/api/export/raw/'+filename,'_blank'); }
-function exportSheet() { if(currentFilename) exportCharLSS(currentFilename); }
-function exportRaw()   { if(currentFilename) exportCharRaw(currentFilename); }
 
+async function exportCharRaw(key) {
+  try {
+    let char = (currentCharId === key || currentFilename === key) ? currentChar : null;
+    if (!char) {
+      const res = await fetch('/api/characters/' + encodeURIComponent(key));
+      if (!res.ok) { toast('❌ Не удалось получить данные персонажа', 'error'); return; }
+      char = await res.json(); delete char._id;
+    }
+    if (!char) { toast('❌ Не удалось получить данные персонажа', 'error'); return; }
+    const response = await fetch('/api/export/raw/' + encodeURIComponent(key), {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({char})
+    });
+    if (!response.ok) {
+      let msg = `HTTP ${response.status}`;
+      try { const e = await response.json(); msg = e.error || msg; } catch(_){}
+      throw new Error(msg);
+    }
+    const blob = await response.blob();
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url;
+    a.download = (char.name||'character').replace(/ /g,'_') + '.json';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+    toast('💾 JSON скачан!', 'success');
+  } catch(e) {
+    toast('❌ Ошибка JSON: ' + e.message, 'error');
+  }
+}
+
+function exportSheet() {
+  if (!currentChar) { toast('❌ Нет открытого персонажа', 'error'); return; }
+  const key = currentCharId || currentFilename || ((currentChar.name||'character').replace(/ /g,'_')+'.json');
+  exportCharLSS(key);
+}
+function exportRaw() {
+  if (!currentChar) { toast('❌ Нет открытого персонажа', 'error'); return; }
+  const key = currentCharId || currentFilename || ((currentChar.name||'character').replace(/ /g,'_')+'.json');
+  exportCharRaw(key);
+}
 async function exportPdf() {
   if (!currentChar) return;
 
@@ -6101,11 +6153,12 @@ async function exportPdf() {
   }
 }
 
-async function deleteChar(filename) {
+async function deleteChar(filename, charId) {
   if (!confirm('Удалить персонажа?')) return;
-  await fetch('/api/characters/'+filename,{method:'DELETE'});
-  if (currentFilename===filename) {
-    currentChar=null; currentFilename=null;
+  const key = charId || filename;
+  await fetch('/api/characters/'+encodeURIComponent(key),{method:'DELETE'});
+  if (currentFilename===filename || currentCharId===charId) {
+    currentChar=null; currentFilename=null; currentCharId=null;
     document.getElementById('nav-sheet').style.display='none';
   }
   loadCharList();

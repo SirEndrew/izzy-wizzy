@@ -1029,7 +1029,7 @@ def oauth_google_callback():
             conn.execute("UPDATE users SET oauth=?, avatar=? WHERE email=?",
                          (json.dumps(oauth_list), avatar or row["avatar"], email))
 
-    session["user_id"]     = uid
+    session["user_id"]     = users[email]["id"]
     session["user_email"]  = email
     session["user_avatar"] = avatar
     return redirect("/")
@@ -1063,8 +1063,8 @@ def list_characters():
                 d = json.loads(row["data_json"])
                 with _db() as conn:
                     has_p = conn.execute("SELECT 1 FROM portraits WHERE character_id=?", (row["id"],)).fetchone()
-                portrait = f"/api/portrait/{Path(row['filename']).stem}.jpg" if has_p else ""
-                chars.append({"filename": row["filename"], "name": d.get("name","?"),
+                portrait = f"/api/portrait/{row['id']}" if has_p else ""
+                chars.append({"filename": row["filename"], "id": row["id"], "name": d.get("name","?"),
                     "race": d.get("raceName", d.get("race","")), "subrace": d.get("subraceName",""),
                     "class": d.get("className", d.get("class","")), "background": d.get("backgroundName",""),
                     "level": d.get("level",1), "portrait": portrait,
@@ -1096,14 +1096,17 @@ def get_character(filename):
     if WEB_MODE:
         uid = _uid()
         with _db() as conn:
-            row = conn.execute("SELECT id, data_json FROM characters WHERE user_id=? AND filename=?",
-                (uid, filename)).fetchone()
+            # Поддерживаем и по id и по filename для совместимости
+            row = conn.execute(
+                "SELECT id, data_json FROM characters WHERE user_id=? AND (id=? OR filename=?)",
+                (uid, filename, filename)).fetchone()
         if not row: return jsonify({"error":"Not found"}), 404
         d = json.loads(row["data_json"])
         with _db() as conn:
             has_p = conn.execute("SELECT 1 FROM portraits WHERE character_id=?", (row["id"],)).fetchone()
         if has_p:
-            d["portrait"] = f"/api/portrait/{Path(filename).stem}.jpg"
+            d["portrait"] = f"/api/portrait/{row['id']}"
+        d["_id"] = row["id"]
         return jsonify(d)
     else:
         import base64 as _b64
@@ -1129,18 +1132,22 @@ def get_character(filename):
 
 @app.route("/api/portrait/<path:stem>")
 def get_portrait(stem):
+    # stem может быть char_id (новый способ) или name.jpg (старый/десктоп)
     clean = stem[:-4] if stem.lower().endswith(".jpg") else stem
     if WEB_MODE:
         uid = session.get("user_id")
         with _db() as conn:
             if uid:
+                # Сначала ищем по id, потом по filename для совместимости
                 row = conn.execute(
                     "SELECT p.data FROM portraits p JOIN characters c ON p.character_id=c.id "
-                    "WHERE c.user_id=? AND c.filename=?", (uid, f"{clean}.json")).fetchone()
+                    "WHERE c.user_id=? AND (c.id=? OR c.filename=?)",
+                    (uid, clean, f"{clean}.json")).fetchone()
             else:
                 row = conn.execute(
                     "SELECT p.data FROM portraits p JOIN characters c ON p.character_id=c.id "
-                    "WHERE c.filename=?", (f"{clean}.json",)).fetchone()
+                    "WHERE c.id=? OR c.filename=?",
+                    (clean, f"{clean}.json")).fetchone()
         if not row: return jsonify({"error":"Not found"}), 404
         return send_file(io.BytesIO(row["data"]), mimetype="image/jpeg")
     else:
@@ -1165,8 +1172,9 @@ def save_portrait(stem):
     if WEB_MODE:
         uid = _uid()
         with _db() as conn:
-            row = conn.execute("SELECT id FROM characters WHERE user_id=? AND filename=?",
-                (uid, f"{clean}.json")).fetchone()
+            row = conn.execute(
+                "SELECT id FROM characters WHERE user_id=? AND (id=? OR filename=?)",
+                (uid, clean, f"{clean}.json")).fetchone()
         if not row: return jsonify({"error":"Character not found"}), 404
         with _db() as conn:
             conn.execute("""INSERT INTO portraits (character_id, user_id, data, updated_at)
@@ -1194,9 +1202,11 @@ def get_log(stem):
     safe = stem.replace("/","_").replace("\\","_")[:80]
     if WEB_MODE:
         uid = _uid()
+        # stem может быть char_id или filename без .json
         with _db() as conn:
-            row = conn.execute("SELECT data_json FROM characters WHERE user_id=? AND filename=?",
-                (uid, f"{safe}.log.json")).fetchone()
+            row = conn.execute(
+                "SELECT data_json FROM characters WHERE user_id=? AND (id=? OR filename=?)",
+                (uid, f"{safe}.log.json", f"{safe}.log.json")).fetchone()
         return jsonify(json.loads(row["data_json"]) if row else [])
     else:
         path = _sd() / f"{safe}.log.json"
@@ -1214,8 +1224,9 @@ def append_log(stem):
         if not uid: return jsonify({"status":"ok"})
         log_fn = f"{safe}.log.json"
         with _db() as conn:
-            row = conn.execute("SELECT id, data_json FROM characters WHERE user_id=? AND filename=?",
-                (uid, log_fn)).fetchone()
+            row = conn.execute(
+                "SELECT id, data_json FROM characters WHERE user_id=? AND (id=? OR filename=?)",
+                (uid, log_fn, log_fn)).fetchone()
         entries = json.loads(row["data_json"]) if row else []
         entries.append(entry)
         if len(entries) > 500: entries = entries[-500:]
@@ -1277,50 +1288,68 @@ def save_character():
         if (data.get("portrait") or "").startswith("data:image"):
             data.pop("portrait", None)
         existing_filename = data.pop("_filename", None)
+        existing_id       = data.pop("_id", None)
         base_name = data.get("name","character").replace(" ","_").replace("/","_")[:60]
         char_name = data.get("name","character")
         data_str = json.dumps(data, ensure_ascii=False)
         if WEB_MODE:
             uid = _uid()
-            if existing_filename:
+            if existing_id or existing_filename:
+                # Обновление по id (приоритет) или filename
                 with _db() as conn:
-                    conn.execute("UPDATE characters SET name=?, data_json=?, updated_at=datetime('now') WHERE user_id=? AND filename=?",
-                        (char_name, data_str, uid, existing_filename))
-                filename = existing_filename
+                    if existing_id:
+                        conn.execute(
+                            "UPDATE characters SET name=?, data_json=?, updated_at=datetime('now') WHERE user_id=? AND id=?",
+                            (char_name, data_str, uid, existing_id))
+                        filename = existing_filename or existing_id
+                    else:
+                        conn.execute(
+                            "UPDATE characters SET name=?, data_json=?, updated_at=datetime('now') WHERE user_id=? AND filename=?",
+                            (char_name, data_str, uid, existing_filename))
+                        filename = existing_filename
+                char_id = existing_id
             else:
+                # Новый персонаж
                 with _db() as conn:
-                    count = conn.execute("SELECT COUNT(*) FROM characters WHERE user_id=? AND filename NOT LIKE '%.log.json'", (uid,)).fetchone()[0]
+                    count = conn.execute(
+                        "SELECT COUNT(*) FROM characters WHERE user_id=? AND filename NOT LIKE '%.log.json'",
+                        (uid,)).fetchone()[0]
                 if count >= 30:
                     return jsonify({"status":"error","message":"Достигнут лимит в 30 персонажей."}), 403
-                filename = _unique_filename_db(uid, base_name)
                 char_id = secrets.token_hex(12)
+                filename = f"{base_name}.json"
                 with _db() as conn:
-                    conn.execute("INSERT INTO characters (id, user_id, filename, name, data_json, updated_at) VALUES (?,?,?,?,?,datetime('now'))",
+                    conn.execute(
+                        "INSERT INTO characters (id, user_id, filename, name, data_json, updated_at) VALUES (?,?,?,?,?,datetime('now'))",
                         (char_id, uid, filename, char_name, data_str))
         else:
             save_dir = _sd()
             save_dir.mkdir(exist_ok=True)
+            char_id = None
             filename = existing_filename or _unique_filename(save_dir, base_name)
             with open(save_dir/filename,"w",encoding="utf-8") as f:
                 f.write(data_str)
-        return jsonify({"status":"saved","filename":filename})
+        return jsonify({"status":"saved","filename":filename,"id":char_id})
     except Exception as e:
         import traceback
         return jsonify({"status":"error","message":str(e),"trace":traceback.format_exc()}), 500
 
-@app.route("/api/characters/<filename>", methods=["DELETE"])
-def delete_character(filename):
+@app.route("/api/characters/<char_id>", methods=["DELETE"])
+def delete_character(char_id):
     auth_err = _require_auth()
     if auth_err: return auth_err
     if WEB_MODE:
         uid = _uid()
         with _db() as conn:
-            conn.execute("DELETE FROM characters WHERE user_id=? AND filename=?", (uid, filename))
+            # Удаляем по id или filename
+            conn.execute(
+                "DELETE FROM characters WHERE user_id=? AND (id=? OR filename=?)",
+                (uid, char_id, char_id))
     else:
         save_dir = _sd()
-        path = save_dir/filename
+        path = save_dir / char_id
         if path.exists(): path.unlink()
-        portrait = save_dir / f"{Path(filename).stem}.jpg"
+        portrait = save_dir / f"{Path(char_id).stem}.jpg"
         if portrait.exists(): portrait.unlink()
     return jsonify({"status":"deleted"})
 
