@@ -1,12 +1,12 @@
 from flask import Flask, render_template, request, jsonify, send_file, session, redirect, url_for
-import json, os, io, time, sys, hashlib, secrets
+import json, os, io, time, sys, hashlib, secrets, sqlite3, threading
 from pathlib import Path
+from contextlib import contextmanager
 
 WEB_MODE = os.environ.get("WEB_MODE", "").lower() in ("1", "true", "yes")
 
 # ── PyInstaller / dev path resolution ────────────────────────────────────────
 def _resource_path(rel: str) -> Path:
-    """Get absolute path — works both in dev and PyInstaller one-file bundle."""
     base = Path(getattr(sys, "_MEIPASS", Path(__file__).parent))
     return base / rel
 
@@ -19,67 +19,147 @@ from fill_pdf import fill_character_sheet
 import re as _re
 
 def _strip_html(text):
-    """Убирает HTML-теги и декодирует базовые HTML-сущности."""
     if not text or not isinstance(text, str):
         return text or ''
-    # Заменяем <br>, <p>, </p>, <div>, </div> на перенос строки
     t = _re.sub(r'<br\s*/?>', '\n', text, flags=_re.IGNORECASE)
     t = _re.sub(r'</?(p|div|li)[^>]*>', '\n', t, flags=_re.IGNORECASE)
-    # Убираем остальные теги
     t = _re.sub(r'<[^>]+>', '', t)
-    # Декодируем HTML-сущности
     t = t.replace('&amp;', '&').replace('&lt;', '<').replace('&gt;', '>') \
          .replace('&nbsp;', ' ').replace('&quot;', '"').replace('&#39;', "'")
-    # Убираем лишние пустые строки
     t = _re.sub(r'\n{3,}', '\n\n', t)
     return t.strip()
 
-# Flask: point templates and static to bundle paths
 app = Flask(
     __name__,
     template_folder=str(_resource_path("templates")),
     static_folder=str(_resource_path("static")),
 )
 
-# Characters saved next to the exe / script — never inside the bundle
 if getattr(sys, "frozen", False):
-    # Running as PyInstaller exe
     _DATA_DIR = Path(sys.executable).parent
 else:
     _DATA_DIR = Path(__file__).parent
 
-# В веб-режиме (Amvera) используем persistent volume /data
-# В десктопном режиме — локальная папка рядом с приложением
-if os.environ.get("WEB_MODE", "").lower() in ("1", "true", "yes"):
-    SAVE_DIR = Path("/data/characters")
-else:
-    SAVE_DIR = _DATA_DIR / "characters"
+# Десктопный режим — локальная папка для совместимости
+SAVE_DIR = _DATA_DIR / "characters"
 SAVE_DIR.mkdir(parents=True, exist_ok=True)
 BASE_DIR = _resource_path("")
 
 app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-change-me-in-production")
 
-# Web mode: per-user dirs under /data/characters/{user_id}/
+# ── SQLite (только WEB_MODE) ──────────────────────────────────────────────────
 if WEB_MODE:
     _WEB_DATA = Path("/data")
     _WEB_DATA.mkdir(exist_ok=True)
-    (_WEB_DATA / "characters").mkdir(exist_ok=True)
-    USERS_FILE = _WEB_DATA / "users.json"
+    DB_PATH = _WEB_DATA / "izzywizzy.db"
 else:
-    USERS_FILE = None
+    DB_PATH = None
+
+_db_local = threading.local()
+
+def _get_db():
+    if not hasattr(_db_local, "conn") or _db_local.conn is None:
+        _db_local.conn = sqlite3.connect(str(DB_PATH), check_same_thread=False)
+        _db_local.conn.row_factory = sqlite3.Row
+        _db_local.conn.execute("PRAGMA journal_mode=WAL")
+        _db_local.conn.execute("PRAGMA foreign_keys=ON")
+    return _db_local.conn
+
+@contextmanager
+def _db():
+    conn = _get_db()
+    try:
+        yield conn
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+
+def _init_db():
+    """Создаём таблицы если не существуют, мигрируем старые данные."""
+    with _db() as conn:
+        conn.executescript("""
+            CREATE TABLE IF NOT EXISTS users (
+                id          TEXT PRIMARY KEY,
+                email       TEXT UNIQUE NOT NULL,
+                hash        TEXT NOT NULL DEFAULT '',
+                salt        TEXT NOT NULL DEFAULT '',
+                avatar      TEXT NOT NULL DEFAULT '',
+                oauth       TEXT NOT NULL DEFAULT '[]',
+                reset_token TEXT NOT NULL DEFAULT '',
+                reset_expires INTEGER NOT NULL DEFAULT 0,
+                created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+            );
+            CREATE TABLE IF NOT EXISTS characters (
+                id          TEXT PRIMARY KEY,
+                user_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                filename    TEXT NOT NULL,
+                name        TEXT NOT NULL DEFAULT '',
+                data_json   TEXT NOT NULL DEFAULT '{}',
+                updated_at  TEXT NOT NULL DEFAULT (datetime('now')),
+                UNIQUE(user_id, filename)
+            );
+            CREATE TABLE IF NOT EXISTS portraits (
+                character_id TEXT PRIMARY KEY REFERENCES characters(id) ON DELETE CASCADE,
+                user_id      TEXT NOT NULL,
+                data         BLOB NOT NULL,
+                updated_at   TEXT NOT NULL DEFAULT (datetime('now'))
+            );
+            CREATE INDEX IF NOT EXISTS idx_chars_user ON characters(user_id);
+            CREATE INDEX IF NOT EXISTS idx_chars_updated ON characters(user_id, updated_at DESC);
+        """)
+    _migrate_from_files()
+
+def _migrate_from_files():
+    """Однократная миграция из users.json и папок с персонажами в SQLite."""
+    users_file = _WEB_DATA / "users.json"
+    migration_done = _WEB_DATA / ".db_migration_done"
+    if migration_done.exists() or not users_file.exists():
+        return
+    try:
+        users_data = json.loads(users_file.read_text(encoding="utf-8"))
+        with _db() as conn:
+            for email, u in users_data.items():
+                uid = u.get("id") or secrets.token_hex(8)
+                conn.execute("""
+                    INSERT OR IGNORE INTO users (id, email, hash, salt, avatar, oauth)
+                    VALUES (?,?,?,?,?,?)
+                """, (uid, email, u.get("hash",""), u.get("salt",""),
+                      u.get("avatar",""), json.dumps(u.get("oauth",[]))))
+                # Мигрируем персонажей
+                char_dir = _WEB_DATA / "characters" / uid
+                if char_dir.exists():
+                    for jf in char_dir.glob("*.json"):
+                        if jf.name.endswith(".log.json"):
+                            continue
+                        try:
+                            char_data = json.loads(jf.read_text(encoding="utf-8"))
+                            char_id = secrets.token_hex(12)
+                            char_name = char_data.get("name", jf.stem)
+                            conn.execute("""
+                                INSERT OR IGNORE INTO characters (id, user_id, filename, name, data_json, updated_at)
+                                VALUES (?,?,?,?,?,?)
+                            """, (char_id, uid, jf.name, char_name,
+                                  jf.read_text(encoding="utf-8"),
+                                  time.strftime("%Y-%m-%d %H:%M:%S",
+                                                time.gmtime(jf.stat().st_mtime))))
+                            # Мигрируем портрет
+                            jpg = char_dir / f"{jf.stem}.jpg"
+                            if jpg.exists():
+                                conn.execute("""
+                                    INSERT OR IGNORE INTO portraits (character_id, user_id, data)
+                                    VALUES (?,?,?)
+                                """, (char_id, uid, jpg.read_bytes()))
+                        except Exception:
+                            pass
+        migration_done.write_text("done")
+    except Exception as e:
+        print(f"Migration error: {e}")
+
+if WEB_MODE:
+    _init_db()
 
 # ── Auth helpers ──────────────────────────────────────────────────────────────
-
-def _load_users() -> dict:
-    if USERS_FILE and USERS_FILE.exists():
-        try:
-            return json.loads(USERS_FILE.read_text(encoding="utf-8"))
-        except Exception:
-            pass
-    return {}
-
-def _save_users(users: dict):
-    USERS_FILE.write_text(json.dumps(users, ensure_ascii=False, indent=2), encoding="utf-8")
 
 def _hash_password(password: str, salt: str = None) -> tuple:
     if salt is None:
@@ -91,25 +171,34 @@ def _check_password(password: str, stored_hash: str, salt: str) -> bool:
     h, _ = _hash_password(password, salt)
     return h == stored_hash
 
+def _require_auth():
+    if WEB_MODE and not session.get("user_id"):
+        return jsonify({"error": "Требуется авторизация", "auth_required": True}), 401
+    return None
+
+def _uid():
+    return session.get("user_id")
+
+# Десктопные хелперы (для совместимости с десктопным режимом)
 def _get_save_dir() -> Path:
-    """Return per-user save dir in WEB_MODE, else global SAVE_DIR. Returns None if not logged in."""
     if WEB_MODE:
-        uid = session.get("user_id")
-        if uid:
-            d = Path("/data/characters") / uid
-            d.mkdir(parents=True, exist_ok=True)
-            return d
-        return None  # не залогинен
+        return None  # в веб-режиме используем БД
     return SAVE_DIR
 
 def _sd() -> Path:
     return _get_save_dir()
 
-def _require_auth():
-    """В WEB_MODE возвращает JSON 401 если не залогинен, иначе None."""
-    if WEB_MODE and not session.get("user_id"):
-        return jsonify({"error": "Требуется авторизация", "auth_required": True}), 401
-    return None
+def _char_files(save_dir: Path):
+    return [f for f in save_dir.glob("*.json") if not f.name.endswith(".log.json")]
+
+def _unique_filename(save_dir: Path, base_name: str) -> str:
+    filename = f"{base_name}.json"
+    if not (save_dir / filename).exists():
+        return filename
+    counter = 2
+    while (save_dir / f"{base_name}({counter}).json").exists():
+        counter += 1
+    return f"{base_name}({counter}).json"
 
 # ── Version & update check ────────────────────────────────────────────────────
 APP_VERSION = "0.10B"
@@ -722,15 +811,18 @@ def auth_register():
         return jsonify({"error": "Email и пароль обязательны"}), 400
     if len(password) < 6:
         return jsonify({"error": "Пароль минимум 6 символов"}), 400
-    users = _load_users()
-    if email in users:
-        return jsonify({"error": "Пользователь с таким email уже существует"}), 409
     h, salt = _hash_password(password)
     uid = secrets.token_hex(8)
-    users[email] = {"id": uid, "email": email, "hash": h, "salt": salt}
-    _save_users(users)
-    session["user_id"] = uid
+    try:
+        with _db() as conn:
+            conn.execute(
+                "INSERT INTO users (id, email, hash, salt) VALUES (?,?,?,?)",
+                (uid, email, h, salt))
+    except sqlite3.IntegrityError:
+        return jsonify({"error": "Пользователь с таким email уже существует"}), 409
+    session["user_id"]    = uid
     session["user_email"] = email
+    session["user_avatar"] = ""
     return jsonify({"status": "ok", "email": email})
 
 @app.route("/api/auth/login", methods=["POST"])
@@ -740,12 +832,13 @@ def auth_login():
     data = request.json or {}
     email = (data.get("email") or "").strip().lower()
     password = data.get("password") or ""
-    users = _load_users()
-    user = users.get(email)
-    if not user or not _check_password(password, user["hash"], user["salt"]):
+    with _db() as conn:
+        row = conn.execute("SELECT * FROM users WHERE email=?", (email,)).fetchone()
+    if not row or not row["hash"] or not _check_password(password, row["hash"], row["salt"]):
         return jsonify({"error": "Неверный email или пароль"}), 401
-    session["user_id"] = user["id"]
+    session["user_id"]    = row["id"]
     session["user_email"] = email
+    session["user_avatar"] = row["avatar"] or ""
     return jsonify({"status": "ok", "email": email})
 
 @app.route("/api/auth/logout", methods=["POST"])
@@ -769,92 +862,72 @@ def auth_reset_request():
     if not email:
         return jsonify({"error": "Укажите email"}), 400
 
-    users = _load_users()
-    # Всегда отвечаем одинаково — не раскрываем существование аккаунта
-    if email not in users:
-        return jsonify({"status": "ok"})
+    with _db() as conn:
+        row = conn.execute("SELECT id FROM users WHERE email=?", (email,)).fetchone()
+    if not row:
+        return jsonify({"status": "ok"})  # не раскрываем существование аккаунта
 
     token = secrets.token_urlsafe(32)
-    expires = int(time.time()) + 3600  # 1 час
-    users[email]["reset_token"] = token
-    users[email]["reset_expires"] = expires
-    _save_users(users)
+    expires = int(time.time()) + 3600
+    with _db() as conn:
+        conn.execute("UPDATE users SET reset_token=?, reset_expires=? WHERE email=?",
+                     (token, expires, email))
 
-    # Отправка письма
     smtp_host = os.environ.get("SMTP_HOST", "")
     smtp_port = int(os.environ.get("SMTP_PORT", "587"))
     smtp_user = os.environ.get("SMTP_USER", "")
     smtp_pass = os.environ.get("SMTP_PASS", "")
     from_addr = os.environ.get("SMTP_FROM", smtp_user)
-    app_url   = os.environ.get("APP_URL", "https://izzy-wizzy-sirendrew.amvera.io")
-
+    app_url   = os.environ.get("APP_URL", "").rstrip("/")
+    if not app_url:
+        app_url = request.host_url.rstrip("/").replace("http://", "https://")
     reset_url = f"{app_url}/?reset_token={token}&reset_email={email}"
 
     if not smtp_host or not smtp_user:
-        # SMTP не настроен — возвращаем токен в ответе (только для дебага/дев)
         return jsonify({"status": "ok", "_debug_url": reset_url})
 
     try:
         import smtplib
         from email.mime.text import MIMEText
-        body = f"""Здравствуйте!
-
-Вы запросили сброс пароля для аккаунта Izzy Wizzy ({email}).
-
-Перейдите по ссылке для создания нового пароля (действительна 1 час):
-{reset_url}
-
-Если вы не запрашивали сброс — просто проигнорируйте это письмо.
-
-— Izzy Wizzy"""
+        body = f"""Здравствуйте!\n\nВы запросили сброс пароля для аккаунта Izzy Wizzy ({email}).\n\nПерейдите по ссылке для создания нового пароля (действительна 1 час):\n{reset_url}\n\nЕсли вы не запрашивали сброс — просто проигнорируйте это письмо.\n\n— Izzy Wizzy"""
         msg = MIMEText(body, "plain", "utf-8")
         msg["Subject"] = "Сброс пароля — Izzy Wizzy"
         msg["From"]    = from_addr
         msg["To"]      = email
         with smtplib.SMTP(smtp_host, smtp_port) as s:
-            s.ehlo()
-            s.starttls()
-            s.login(smtp_user, smtp_pass)
+            s.ehlo(); s.starttls(); s.login(smtp_user, smtp_pass)
             s.sendmail(from_addr, [email], msg.as_bytes())
     except Exception as ex:
         return jsonify({"error": f"Не удалось отправить письмо: {ex}"}), 500
-
     return jsonify({"status": "ok"})
 
 @app.route("/api/auth/reset-confirm", methods=["POST"])
 def auth_reset_confirm():
-    """Проверяет токен и устанавливает новый пароль."""
     if not WEB_MODE:
         return jsonify({"error": "Not in web mode"}), 400
     data = request.json or {}
     email    = (data.get("email") or "").strip().lower()
     token    = data.get("token", "")
     password = data.get("password", "")
-
     if not email or not token or not password:
         return jsonify({"error": "Неверный запрос"}), 400
     if len(password) < 6:
         return jsonify({"error": "Пароль минимум 6 символов"}), 400
-
-    users = _load_users()
-    user  = users.get(email)
-    if not user:
+    with _db() as conn:
+        row = conn.execute("SELECT * FROM users WHERE email=?", (email,)).fetchone()
+    if not row:
         return jsonify({"error": "Пользователь не найден"}), 404
-    if user.get("reset_token") != token:
+    if (row["reset_token"] or "") != token:
         return jsonify({"error": "Неверная или устаревшая ссылка"}), 400
-    if int(time.time()) > user.get("reset_expires", 0):
+    if int(time.time()) > (row["reset_expires"] or 0):
         return jsonify({"error": "Ссылка истекла, запросите новую"}), 400
-
     h, salt = _hash_password(password)
-    user["hash"] = h
-    user["salt"] = salt
-    user.pop("reset_token", None)
-    user.pop("reset_expires", None)
-    _save_users(users)
-
-    # Автоматически логиним
-    session["user_id"]    = user["id"]
+    with _db() as conn:
+        conn.execute("UPDATE users SET hash=?, salt=?, reset_token='', reset_expires=0 WHERE email=?",
+                     (h, salt, email))
+    session["user_id"]    = row["id"]
     session["user_email"] = email
+    session["user_avatar"] = row["avatar"] or ""
     return jsonify({"status": "ok", "email": email})
 
 @app.route("/api/auth/oauth/google")
@@ -940,20 +1013,21 @@ def oauth_google_callback():
 
     avatar = profile.get("picture", "")
 
-    # Находим или создаём пользователя
-    users = _load_users()
-    if email not in users:
-        uid = secrets.token_hex(8)
-        users[email] = {"id": uid, "email": email, "hash": "", "salt": "", "oauth": ["google"], "avatar": avatar}
-        _save_users(users)
-    else:
-        if "oauth" not in users[email]:
-            users[email]["oauth"] = ["google"]
-        elif "google" not in users[email]["oauth"]:
-            users[email]["oauth"].append("google")
-        if avatar:
-            users[email]["avatar"] = avatar
-        _save_users(users)
+    # Находим или создаём пользователя в БД
+    with _db() as conn:
+        row = conn.execute("SELECT * FROM users WHERE email=?", (email,)).fetchone()
+        if not row:
+            uid = secrets.token_hex(8)
+            conn.execute(
+                "INSERT INTO users (id, email, hash, salt, avatar, oauth) VALUES (?,?,?,?,?,?)",
+                (uid, email, "", "", avatar, json.dumps(["google"])))
+        else:
+            uid = row["id"]
+            oauth_list = json.loads(row["oauth"] or "[]")
+            if "google" not in oauth_list:
+                oauth_list.append("google")
+            conn.execute("UPDATE users SET oauth=?, avatar=? WHERE email=?",
+                         (json.dumps(oauth_list), avatar or row["avatar"], email))
 
     session["user_id"]     = users[email]["id"]
     session["user_email"]  = email
@@ -978,67 +1052,108 @@ def list_characters():
     auth_err = _require_auth()
     if auth_err: return auth_err
     chars = []
-    save_dir = _sd()
-    for f in sorted(save_dir.glob("*.json"), key=lambda x: x.stat().st_mtime, reverse=True):
-        try:
-            with open(f, encoding='utf-8') as fh:
-                d = json.load(fh)
-            stem = f.stem
-            portrait_file = save_dir / f"{stem}.jpg"
-            if portrait_file.exists():
-                portrait = f"/api/portrait/{stem}.jpg"
-            else:
-                portrait = d.get("portrait", "") or ""
-                if portrait.startswith("data:image"):
-                    portrait = ""
-            chars.append({"filename": f.name, "name": d.get("name","?"),
-                "race": d.get("raceName", d.get("race","")), "subrace": d.get("subraceName",""),
-                "class": d.get("className", d.get("class","")), "background": d.get("backgroundName",""),
-                "level": d.get("level",1), "portrait": portrait,
-                "portraitCrop": d.get("portraitCrop", None)})
-        except: pass
+    if WEB_MODE:
+        uid = _uid()
+        with _db() as conn:
+            rows = conn.execute(
+                "SELECT id, filename, name, data_json FROM characters WHERE user_id=? AND filename NOT LIKE '%.log.json' ORDER BY updated_at DESC",
+                (uid,)).fetchall()
+        for row in rows:
+            try:
+                d = json.loads(row["data_json"])
+                with _db() as conn:
+                    has_p = conn.execute("SELECT 1 FROM portraits WHERE character_id=?", (row["id"],)).fetchone()
+                portrait = f"/api/portrait/{Path(row['filename']).stem}.jpg" if has_p else ""
+                chars.append({"filename": row["filename"], "name": d.get("name","?"),
+                    "race": d.get("raceName", d.get("race","")), "subrace": d.get("subraceName",""),
+                    "class": d.get("className", d.get("class","")), "background": d.get("backgroundName",""),
+                    "level": d.get("level",1), "portrait": portrait,
+                    "portraitCrop": d.get("portraitCrop", None)})
+            except: pass
+    else:
+        save_dir = _sd()
+        for f in sorted(save_dir.glob("*.json"), key=lambda x: x.stat().st_mtime, reverse=True):
+            if f.name.endswith(".log.json"): continue
+            try:
+                with open(f, encoding="utf-8") as fh:
+                    d = json.load(fh)
+                stem = f.stem
+                portrait_file = save_dir / f"{stem}.jpg"
+                portrait = f"/api/portrait/{stem}.jpg" if portrait_file.exists() else (d.get("portrait","") or "")
+                if portrait.startswith("data:image"): portrait = ""
+                chars.append({"filename": f.name, "name": d.get("name","?"),
+                    "race": d.get("raceName", d.get("race","")), "subrace": d.get("subraceName",""),
+                    "class": d.get("className", d.get("class","")), "background": d.get("backgroundName",""),
+                    "level": d.get("level",1), "portrait": portrait,
+                    "portraitCrop": d.get("portraitCrop", None)})
+            except: pass
     return jsonify(chars)
 
 @app.route("/api/characters/<filename>", methods=["GET"])
 def get_character(filename):
     auth_err = _require_auth()
     if auth_err: return auth_err
-    import base64 as _b64
-    save_dir = _sd()
-    path = save_dir / filename
-    if not path.exists(): return jsonify({"error":"Not found"}), 404
-    with open(path, encoding="utf-8") as f:
-        d = json.load(f)
-    stem = Path(filename).stem
-    portrait_file = save_dir / f"{stem}.jpg"
-    legacy = d.get("portrait") or ""
-    if isinstance(legacy, str) and legacy.startswith("data:image") and not portrait_file.exists():
-        try:
-            b64 = legacy.split(",", 1)[1]
-            portrait_file.write_bytes(_b64.b64decode(b64))
-            d.pop("portrait", None)
-            with open(path, "w", encoding="utf-8") as fw:
-                json.dump(d, fw, ensure_ascii=False, indent=2)
-        except Exception:
-            pass
-    if portrait_file.exists():
-        d["portrait"] = f"/api/portrait/{stem}.jpg"
-    return jsonify(d)
+    if WEB_MODE:
+        uid = _uid()
+        with _db() as conn:
+            row = conn.execute("SELECT id, data_json FROM characters WHERE user_id=? AND filename=?",
+                (uid, filename)).fetchone()
+        if not row: return jsonify({"error":"Not found"}), 404
+        d = json.loads(row["data_json"])
+        with _db() as conn:
+            has_p = conn.execute("SELECT 1 FROM portraits WHERE character_id=?", (row["id"],)).fetchone()
+        if has_p:
+            d["portrait"] = f"/api/portrait/{Path(filename).stem}.jpg"
+        return jsonify(d)
+    else:
+        import base64 as _b64
+        save_dir = _sd()
+        path = save_dir / filename
+        if not path.exists(): return jsonify({"error":"Not found"}), 404
+        with open(path, encoding="utf-8") as f:
+            d = json.load(f)
+        stem = Path(filename).stem
+        portrait_file = save_dir / f"{stem}.jpg"
+        legacy = d.get("portrait") or ""
+        if isinstance(legacy, str) and legacy.startswith("data:image") and not portrait_file.exists():
+            try:
+                b64 = legacy.split(",", 1)[1]
+                portrait_file.write_bytes(_b64.b64decode(b64))
+                d.pop("portrait", None)
+                with open(path, "w", encoding="utf-8") as fw:
+                    json.dump(d, fw, ensure_ascii=False, indent=2)
+            except Exception: pass
+        if portrait_file.exists():
+            d["portrait"] = f"/api/portrait/{stem}.jpg"
+        return jsonify(d)
 
-@app.route("/api/portrait/<path:filename>")
-def get_portrait(filename):
-    auth_err = _require_auth()
-    if auth_err: return auth_err
-    path = _sd() / filename
-    if not path.exists(): return jsonify({"error":"Not found"}), 404
-    return send_file(path, mimetype="image/jpeg")
+@app.route("/api/portrait/<path:stem>")
+def get_portrait(stem):
+    clean = stem[:-4] if stem.lower().endswith(".jpg") else stem
+    if WEB_MODE:
+        uid = session.get("user_id")
+        with _db() as conn:
+            if uid:
+                row = conn.execute(
+                    "SELECT p.data FROM portraits p JOIN characters c ON p.character_id=c.id "
+                    "WHERE c.user_id=? AND c.filename=?", (uid, f"{clean}.json")).fetchone()
+            else:
+                row = conn.execute(
+                    "SELECT p.data FROM portraits p JOIN characters c ON p.character_id=c.id "
+                    "WHERE c.filename=?", (f"{clean}.json",)).fetchone()
+        if not row: return jsonify({"error":"Not found"}), 404
+        return send_file(io.BytesIO(row["data"]), mimetype="image/jpeg")
+    else:
+        path = _sd() / f"{clean}.jpg"
+        if not path.exists(): return jsonify({"error":"Not found"}), 404
+        return send_file(path, mimetype="image/jpeg")
 
 @app.route("/api/portrait/<path:stem>", methods=["POST"])
 def save_portrait(stem):
-    """Accept base64 JPEG, save as characters/<stem>.jpg, return URL."""
     auth_err = _require_auth()
     if auth_err: return auth_err
     import base64 as _b64
+    clean = stem[:-4] if stem.lower().endswith(".jpg") else stem
     data = request.json
     b64 = data.get("data","")
     if b64.startswith("data:image"):
@@ -1047,71 +1162,107 @@ def save_portrait(stem):
         img_bytes = _b64.b64decode(b64)
     except Exception as e:
         return jsonify({"error": str(e)}), 400
-    out_path = _sd() / f"{stem}.jpg"
-    out_path.write_bytes(img_bytes)
-    return jsonify({"url": f"/api/portrait/{stem}.jpg"})
+    if WEB_MODE:
+        uid = _uid()
+        with _db() as conn:
+            row = conn.execute("SELECT id FROM characters WHERE user_id=? AND filename=?",
+                (uid, f"{clean}.json")).fetchone()
+        if not row: return jsonify({"error":"Character not found"}), 404
+        with _db() as conn:
+            conn.execute("""INSERT INTO portraits (character_id, user_id, data, updated_at)
+                VALUES (?,?,?,datetime('now'))
+                ON CONFLICT(character_id) DO UPDATE SET data=excluded.data, updated_at=excluded.updated_at
+            """, (row["id"], uid, img_bytes))
+    else:
+        (_sd() / f"{clean}.jpg").write_bytes(img_bytes)
+    return jsonify({"url": f"/api/portrait/{clean}.jpg"})
 
 @app.route("/api/debug")
 def debug_info():
-    sd = _sd()
-    return jsonify({
-        "save_dir": str(sd),
-        "save_dir_exists": sd.exists(),
-        "save_dir_abs": str(sd.resolve()),
-        "cwd": str(Path.cwd()),
-        "web_mode": WEB_MODE,
-        "logged_in": bool(session.get("user_id")),
-        "files": [f.name for f in sd.glob("*.json")] if sd.exists() else [],
-    })
+    if WEB_MODE:
+        uid = _uid()
+        with _db() as conn:
+            count = conn.execute("SELECT COUNT(*) FROM characters WHERE user_id=? AND filename NOT LIKE '%.log.json'", (uid,)).fetchone()[0]
+        return jsonify({"web_mode": True, "logged_in": bool(uid), "character_count": count, "db": str(DB_PATH)})
+    else:
+        sd = _sd()
+        return jsonify({"save_dir": str(sd), "web_mode": False,
+                        "files": [f.name for f in _char_files(sd)] if sd.exists() else []})
 
 @app.route("/api/log/<stem>", methods=["GET"])
 def get_log(stem):
     safe = stem.replace("/","_").replace("\\","_")[:80]
-    path = _sd() / f"{safe}.log.json"
-    if not path.exists():
-        return jsonify([])
-    with open(path, encoding="utf-8") as f:
-        return jsonify(json.load(f))
+    if WEB_MODE:
+        uid = _uid()
+        with _db() as conn:
+            row = conn.execute("SELECT data_json FROM characters WHERE user_id=? AND filename=?",
+                (uid, f"{safe}.log.json")).fetchone()
+        return jsonify(json.loads(row["data_json"]) if row else [])
+    else:
+        path = _sd() / f"{safe}.log.json"
+        if not path.exists(): return jsonify([])
+        with open(path, encoding="utf-8") as f:
+            return jsonify(json.load(f))
 
 @app.route("/api/log/<stem>", methods=["POST"])
 def append_log(stem):
     safe = stem.replace("/","_").replace("\\","_")[:80]
-    path = _sd() / f"{safe}.log.json"
     entry = request.json
-    if not entry:
-        return jsonify({"status":"error"}), 400
-    entries = []
-    if path.exists():
-        try:
-            with open(path, encoding="utf-8") as f:
-                entries = json.load(f)
-        except Exception:
-            entries = []
-    entries.append(entry)
-    if len(entries) > 500:
-        entries = entries[-500:]
-    _sd().mkdir(exist_ok=True)
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(entries, f, ensure_ascii=False, indent=2)
+    if not entry: return jsonify({"status":"error"}), 400
+    if WEB_MODE:
+        uid = _uid()
+        if not uid: return jsonify({"status":"ok"})
+        log_fn = f"{safe}.log.json"
+        with _db() as conn:
+            row = conn.execute("SELECT id, data_json FROM characters WHERE user_id=? AND filename=?",
+                (uid, log_fn)).fetchone()
+        entries = json.loads(row["data_json"]) if row else []
+        entries.append(entry)
+        if len(entries) > 500: entries = entries[-500:]
+        log_id = row["id"] if row else secrets.token_hex(12)
+        with _db() as conn:
+            conn.execute("""INSERT INTO characters (id, user_id, filename, name, data_json, updated_at)
+                VALUES (?,?,?,?,?,datetime('now'))
+                ON CONFLICT(user_id, filename) DO UPDATE SET data_json=excluded.data_json, updated_at=excluded.updated_at
+            """, (log_id, uid, log_fn, "log", json.dumps(entries)))
+    else:
+        path = _sd() / f"{safe}.log.json"
+        entries = []
+        if path.exists():
+            try:
+                with open(path, encoding="utf-8") as f: entries = json.load(f)
+            except: pass
+        entries.append(entry)
+        if len(entries) > 500: entries = entries[-500:]
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(entries, f, ensure_ascii=False, indent=2)
     return jsonify({"status":"ok"})
 
 @app.route("/api/log/<stem>", methods=["DELETE"])
 def clear_log(stem):
     safe = stem.replace("/","_").replace("\\","_")[:80]
-    path = _sd() / f"{safe}.log.json"
-    if path.exists():
-        path.unlink()
+    if WEB_MODE:
+        uid = _uid()
+        if uid:
+            with _db() as conn:
+                conn.execute("DELETE FROM characters WHERE user_id=? AND filename=?", (uid, f"{safe}.log.json"))
+    else:
+        path = _sd() / f"{safe}.log.json"
+        if path.exists(): path.unlink()
     return jsonify({"status":"cleared"})
 
-def _unique_filename(save_dir: Path, base_name: str) -> str:
-    """Возвращает уникальное имя файла — добавляет (2), (3)... если уже существует."""
+def _unique_filename_db(uid, base_name):
     filename = f"{base_name}.json"
-    if not (save_dir / filename).exists():
-        return filename
+    with _db() as conn:
+        exists = conn.execute("SELECT 1 FROM characters WHERE user_id=? AND filename=?", (uid, filename)).fetchone()
+    if not exists: return filename
     counter = 2
-    while (save_dir / f"{base_name}({counter}).json").exists():
+    while True:
+        fn = f"{base_name}({counter}).json"
+        with _db() as conn:
+            exists = conn.execute("SELECT 1 FROM characters WHERE user_id=? AND filename=?", (uid, fn)).fetchone()
+        if not exists: return fn
         counter += 1
-    return f"{base_name}({counter}).json"
 
 @app.route("/api/characters", methods=["POST"])
 def save_character():
@@ -1125,38 +1276,52 @@ def save_character():
             data["_system"] = "DnD5e"
         if (data.get("portrait") or "").startswith("data:image"):
             data.pop("portrait", None)
-        # Если JS передал имя существующего файла — перезаписываем его
         existing_filename = data.pop("_filename", None)
         base_name = data.get("name","character").replace(" ","_").replace("/","_")[:60]
-        save_dir = _sd()
-        save_dir.mkdir(exist_ok=True)
-        if existing_filename:
-            # Перезапись существующего персонажа
-            filename = existing_filename
+        char_name = data.get("name","character")
+        data_str = json.dumps(data, ensure_ascii=False)
+        if WEB_MODE:
+            uid = _uid()
+            if existing_filename:
+                with _db() as conn:
+                    conn.execute("UPDATE characters SET name=?, data_json=?, updated_at=datetime('now') WHERE user_id=? AND filename=?",
+                        (char_name, data_str, uid, existing_filename))
+                filename = existing_filename
+            else:
+                with _db() as conn:
+                    count = conn.execute("SELECT COUNT(*) FROM characters WHERE user_id=? AND filename NOT LIKE '%.log.json'", (uid,)).fetchone()[0]
+                if count >= 30:
+                    return jsonify({"status":"error","message":"Достигнут лимит в 30 персонажей."}), 403
+                filename = _unique_filename_db(uid, base_name)
+                char_id = secrets.token_hex(12)
+                with _db() as conn:
+                    conn.execute("INSERT INTO characters (id, user_id, filename, name, data_json, updated_at) VALUES (?,?,?,?,?,datetime('now'))",
+                        (char_id, uid, filename, char_name, data_str))
         else:
-            # Новый персонаж — лимит только в веб-режиме
-            if WEB_MODE:
-                existing = list(save_dir.glob("*.json"))
-                if len(existing) >= 30:
-                    return jsonify({"status": "error", "message": "Достигнут лимит в 30 персонажей. Удалите старых персонажей чтобы создать нового."}), 403
-            filename = _unique_filename(save_dir, base_name)
-        with open(save_dir/filename,"w",encoding="utf-8") as f:
-            json.dump(data,f,ensure_ascii=False,indent=2)
+            save_dir = _sd()
+            save_dir.mkdir(exist_ok=True)
+            filename = existing_filename or _unique_filename(save_dir, base_name)
+            with open(save_dir/filename,"w",encoding="utf-8") as f:
+                f.write(data_str)
         return jsonify({"status":"saved","filename":filename})
     except Exception as e:
         import traceback
-        return jsonify({"status": "error", "message": str(e), "trace": traceback.format_exc()}), 500
-
+        return jsonify({"status":"error","message":str(e),"trace":traceback.format_exc()}), 500
 
 @app.route("/api/characters/<filename>", methods=["DELETE"])
 def delete_character(filename):
     auth_err = _require_auth()
     if auth_err: return auth_err
-    save_dir = _sd()
-    path = save_dir/filename
-    if path.exists(): path.unlink()
-    portrait = save_dir / f"{Path(filename).stem}.jpg"
-    if portrait.exists(): portrait.unlink()
+    if WEB_MODE:
+        uid = _uid()
+        with _db() as conn:
+            conn.execute("DELETE FROM characters WHERE user_id=? AND filename=?", (uid, filename))
+    else:
+        save_dir = _sd()
+        path = save_dir/filename
+        if path.exists(): path.unlink()
+        portrait = save_dir / f"{Path(filename).stem}.jpg"
+        if portrait.exists(): portrait.unlink()
     return jsonify({"status":"deleted"})
 
 @app.route("/api/export/lss/<filename>")
@@ -1211,14 +1376,22 @@ def import_character():
         else:
             return jsonify({"error": "Неизвестный формат. Ожидается наш JSON или LongStoryShort JSON."}), 400
         name = char.get("name","import").replace(" ","_").replace("/","_")[:60]
-        save_dir = _sd()
         if WEB_MODE:
-            existing = list(save_dir.glob("*.json"))
-            if len(existing) >= 30 and not (save_dir / f"{name}.json").exists():
+            uid = _uid()
+            with _db() as conn:
+                count = conn.execute("SELECT COUNT(*) FROM characters WHERE user_id=? AND filename NOT LIKE '%.log.json'", (uid,)).fetchone()[0]
+            if count >= 30:
                 return jsonify({"error": "Достигнут лимит в 30 персонажей. Удалите старых персонажей чтобы импортировать нового."}), 403
-        filename = _unique_filename(save_dir, name)
-        with open(save_dir/filename,"w",encoding='utf-8') as f:
-            json.dump(char,f,ensure_ascii=False,indent=2)
+            filename = _unique_filename_db(uid, name)
+            char_id = secrets.token_hex(12)
+            with _db() as conn:
+                conn.execute("INSERT INTO characters (id, user_id, filename, name, data_json, updated_at) VALUES (?,?,?,?,?,datetime('now'))",
+                    (char_id, uid, filename, char.get("name",""), json.dumps(char, ensure_ascii=False)))
+        else:
+            save_dir = _sd()
+            filename = _unique_filename(save_dir, name)
+            with open(save_dir/filename,"w",encoding='utf-8') as f:
+                json.dump(char,f,ensure_ascii=False,indent=2)
         return jsonify({"status":"imported","filename":filename,"name":char.get("name","")})
     except Exception as e:
         return jsonify({"error":str(e)}), 500
