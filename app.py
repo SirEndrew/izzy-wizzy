@@ -1421,7 +1421,7 @@ def import_character():
             filename = _unique_filename(save_dir, name)
             with open(save_dir/filename,"w",encoding='utf-8') as f:
                 json.dump(char,f,ensure_ascii=False,indent=2)
-        return jsonify({"status":"imported","filename":filename,"name":char.get("name","")})
+        return jsonify({"status":"imported","filename":filename,"name":char.get("name",""),"id":char_id if WEB_MODE else None})
     except Exception as e:
         return jsonify({"error":str(e)}), 500
 
