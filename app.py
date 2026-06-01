@@ -1029,7 +1029,7 @@ def oauth_google_callback():
             conn.execute("UPDATE users SET oauth=?, avatar=? WHERE email=?",
                          (json.dumps(oauth_list), avatar or row["avatar"], email))
 
-    session["user_id"]     = users[email]["id"]
+    session["user_id"]     = uid
     session["user_email"]  = email
     session["user_avatar"] = avatar
     return redirect("/")
