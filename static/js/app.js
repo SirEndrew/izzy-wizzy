@@ -912,6 +912,8 @@ function showView(v) {
   if (v === 'list')   { _logTextFlush(); loadCharList(); window.scrollTo({ top: 0, behavior: 'instant' }); }
   if (v === 'create') { _logTextFlush(); initWizard(); }
   if (v === 'sheet' && !currentChar) { showView('list'); return; }
+  syncMobileSheet();
+  if (v === 'sheet') setTimeout(syncMobileSheet, 200);
 }
 
 // ── Таблица опыта (из Опыт.xlsx) ──
@@ -1159,21 +1161,11 @@ function onPortraitFileSelected(input) {
   input.value = '';
 }
 function _renderPortraitCroppedFromData(char, targets) {
-  const c = char.portraitCrop;
-  if (!c || !char.portrait) return;
-  const img = new Image();
-  img.onload = () => {
-    const outW = 400, outH = Math.round(outW * (c.vh / c.vw));
-    const canvas = document.createElement('canvas');
-    canvas.width = outW; canvas.height = outH;
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(img, -c.ox / c.scale, -c.oy / c.scale, c.vw / c.scale, c.vh / c.scale, 0, 0, outW, outH);
-    const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
-    targets.forEach(el => {
-      if (el) el.innerHTML = `<img src="${dataUrl}" alt="portrait"><div class="portrait-overlay">📷<br>Фото</div>`;
-    });
-  };
-  img.src = char.portrait;
+  // Портрет уже кропнутый — просто показываем как есть
+  if (!char.portrait) return;
+  targets.forEach(el => {
+    if (el) el.innerHTML = `<img src="${char.portrait}" alt="portrait" style="width:100%;height:100%;object-fit:cover;display:block"><div class="portrait-overlay">📷<br>Фото</div>`;
+  });
 }
 
 function renderPortrait(char) {
@@ -1181,14 +1173,9 @@ function renderPortrait(char) {
   if (!portEl) return;
   const spPort = document.getElementById('sp-portrait-box');
   if (char?.portrait) {
-    if (char.portraitCrop) {
-      portEl.innerHTML = `<img src="${char.portrait}" alt="portrait"><div class="portrait-overlay">📷<br>Фото</div>`;
-      if (spPort) spPort.innerHTML = portEl.innerHTML;
-      _renderPortraitCroppedFromData(char, [portEl, spPort]);
-    } else {
-      portEl.innerHTML = `<img src="${char.portrait}" alt="portrait"><div class="portrait-overlay">📷<br>Фото</div>`;
-      if (spPort) spPort.innerHTML = portEl.innerHTML;
-    }
+    const html = `<img src="${char.portrait}" alt="portrait" style="width:100%;height:100%;object-fit:cover;display:block"><div class="portrait-overlay">📷<br>Фото</div>`;
+    portEl.innerHTML = html;
+    if (spPort) spPort.innerHTML = html;
   } else {
     const icon = getClassIcon(char);
     portEl.innerHTML = `<span style="font-size:2.4rem;line-height:1;filter:drop-shadow(0 1px 3px rgba(0,0,0,.5))">${icon}</span><div class="portrait-overlay">📷<br>Фото</div>`;
@@ -1309,7 +1296,7 @@ function jumpToStep(i) {
   updateWizardNav();
   renderCurrentStep();
   buildSourceFilters();
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+  window.scrollTo({ top: 0, behavior: 'instant' });
 }
 
 function updateWizardNav() {
@@ -1383,9 +1370,21 @@ function wizardNext() {
 function _wizAdvance() {
   currentStep++;
   updateWizardNav();
-  renderCurrentStep();
-  buildSourceFilters();
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+  if (currentStep === 7) {
+    // wpage-6 только что скрылся (display:none), wpage-7 стал display:block но пустой.
+    // Документ в этот момент короткий → scrollY зажимается браузером в конец.
+    // Ждём следующий таск (setTimeout 0) — к этому моменту layout пересчитан,
+    // потом наполняем DOM и скроллим уже на полной странице.
+    setTimeout(() => {
+      renderCurrentStep();
+      buildSourceFilters();
+      window.scrollTo(0, 0);
+    }, 0);
+  } else {
+    renderCurrentStep();
+    buildSourceFilters();
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }
 }
 
 function _hasUnfilledLangChoices() {
@@ -1799,24 +1798,23 @@ document.addEventListener('DOMContentLoaded', () => {
   }, { passive: false });
 });
 
-function applyCrop() {
+async function applyCrop() {
   const imgEl = document.getElementById('crop-img');
   if (!imgEl) return;
   const vw = _crop.vw;
   const vh = _crop.vh || _crop.vw;
 
+  // Рендерим кропнутое изображение квадратом 800×800
   const outW = 800;
-  const outH = Math.round(outW * (vh / vw));
+  const outH = 800;
   const canvas = document.createElement('canvas');
   canvas.width  = outW;
   canvas.height = outH;
   const ctx = canvas.getContext('2d');
-
   const srcX = -_crop.ox / _crop.scale;
   const srcY = -_crop.oy / _crop.scale;
   const srcW =  vw / _crop.scale;
   const srcH =  vh / _crop.scale;
-
   ctx.drawImage(imgEl, srcX, srcY, srcW, srcH, 0, 0, outW, outH);
   const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
 
@@ -1829,38 +1827,40 @@ function applyCrop() {
     return;
   }
 
+  // Сжимаем до 100кб
+  const compressed = await _compressImageToMaxKb(dataUrl, 100);
+
   if (_cropTarget === 'sheet') {
-    if (currentChar && currentFilename) {
+    if (currentChar && (currentCharId || currentFilename)) {
       const stem = currentCharId || (currentFilename||'').replace(/\.json$/i, '');
-      currentChar.portraitCrop = {
-        ox: _crop.ox, oy: _crop.oy, scale: _crop.scale,
-        naturalW: _crop.naturalW, naturalH: _crop.naturalH,
-        vw: _crop.vw, vh: _crop.vh,
-      };
+      // Убираем старый portraitCrop — он больше не нужен
+      delete currentChar.portraitCrop;
       fetch(`/api/portrait/${encodeURIComponent(stem)}`, {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({data: imgEl.src})
+        body: JSON.stringify({data: compressed})
       }).then(r => r.json()).then(res => {
         if (res.url) {
           currentChar.portrait = res.url + '?t=' + Date.now();
-          renderPortraitCropped(dataUrl);
+          renderPortrait(currentChar);
           saveSheet();
         }
       }).catch(() => {
-        currentChar.portrait = dataUrl;
+        currentChar.portrait = compressed;
         renderPortrait(currentChar);
         saveSheet();
       });
+      saveSheet();
     }
   } else {
-    // Wizard: оригинал на сервер, кроп для превью
-    wiz.portrait = imgEl.src;
+    // Wizard: сохраняем кропнутое изображение
+    wiz.portrait = compressed;
+    delete wiz.portraitCrop;
     const preview     = document.getElementById('portrait-preview');
     const placeholder = document.getElementById('portrait-placeholder');
     const hint        = document.getElementById('portrait-hint');
     const drop        = document.getElementById('portrait-drop');
-    if (preview)     { preview.src = dataUrl; preview.style.display = 'block'; }
+    if (preview)     { preview.src = compressed; preview.style.display = 'block'; }
     if (placeholder) placeholder.style.display = 'none';
     if (hint)        hint.style.display = 'none';
     if (drop)        drop.classList.add('has-image');
@@ -2851,10 +2851,10 @@ function buildSubclassExtras() {
         const isClassP  = wiz.skillProfs.has(sname) && !isFixed && !isChosen;
         const maxed     = (wiz.subclassSkillChoices||[]).length >= sc.count;
         const disabled  = isFixed || isClassP || (!isChosen && maxed);
-        return `<label class="skill-choice-label \${isFixed||isClassP?'skill-from-bg':''}" style="\${disabled&&!isChosen?'opacity:.45':''}">
-          <input type="checkbox" \${isChosen?'checked':''} \${disabled?'disabled':''}
-            onchange="setSubclassSkillChoice('\${sname}',this.checked,\${sc.count});autoSave()">
-          \${sname}\${isFixed?' ✓ (авто)':isClassP?' ✓ (класс)':''}
+        return `<label class="skill-choice-label ${isFixed||isClassP?'skill-from-bg':''}" style="${disabled&&!isChosen?'opacity:.45':''}">
+          <input type="checkbox" ${isChosen?'checked':''} ${disabled?'disabled':''}
+            onchange="setSubclassSkillChoice('${sname}',this.checked,${sc.count});autoSave()">
+          ${sname}${isFixed?' ✓ (авто)':isClassP?' ✓ (класс)':''}
         </label>`;
       }).join('')}
     </div>`;
@@ -4177,7 +4177,7 @@ function renderStep6Spells() {
   const c   = document.getElementById('wpage-6');
   if (!c) return;
   if (!cls?.spellcasting) {
-    c.innerHTML = `<div class="section-title">🔮 Заклинания</div>
+    c.innerHTML = `<div class="section-title lg">🔮 7. Заклинания</div>
       <div class="info-box"><b>${cls?.name||'Этот класс'}</b> не является заклинателем.</div>
       <p class="note-text" style="margin-top:.5rem">Заклинания недоступны для данного класса.</p>`;
     return;
@@ -4267,10 +4267,10 @@ function renderStep6Spells() {
   const abilDisplay = ABIL_RU[sc.ability] || sc.ability;
 
   let html = `
-    <div class="section-title">🔮 Заклинания</div>
+    <div class="section-title lg">🔮 7. Заклинания</div>
     <div class="spell-meta-bar" style="margin-bottom:1rem">
       <div class="spell-meta-item">
-        <span class="spell-meta-label">Спасбросок заклинаний</span>
+        <span class="spell-meta-label">Спасбросок</span>
         <span class="spell-meta-val">${dc}</span>
       </div>
       <div class="spell-meta-item">
@@ -5299,11 +5299,19 @@ async function saveCharacter(char) {
         body: JSON.stringify({data: wiz.portrait})
       });
       const pres = await pr.json();
-      if (pres.url) currentChar.portrait = pres.url + '?t=' + Date.now();
+      if (pres.url) {
+        currentChar.portrait = pres.url + '?t=' + Date.now();
+        // Сохраняем снова чтобы записать новый portrait URL и portraitCrop
+        const payload2 = {...currentChar};
+        if (currentCharId)        payload2._id = currentCharId;
+        else if (currentFilename) payload2._filename = currentFilename;
+        await fetch('/api/characters', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload2)});
+      }
     } catch(e) {
       currentChar.portrait = wiz.portrait; // fallback
     }
     wiz.portrait = null;
+    wiz.portraitCrop = null;
   }
 
   document.getElementById('nav-sheet').style.display='inline-block';
@@ -5939,8 +5947,36 @@ async function loadCharList() {
         Персонажей пока нет. Создайте первого героя!
       </div></div>`; return;
   }
+  const CHAR_LIMIT = 30;
+
+  // Сортировка
+  const sortKey = localStorage.getItem('charListSort') || 'updated';
+  const sortedChars = [...chars].sort((a, b) => {
+    if (sortKey === 'name')    return (a.name||'').localeCompare(b.name||'', 'ru');
+    if (sortKey === 'level')   return (b.level||0) - (a.level||0);
+    if (sortKey === 'updated') return (b.updatedAt||b.updated_at||'') > (a.updatedAt||a.updated_at||'') ? 1 : -1;
+    return 0;
+  });
+
+  const sortBar = `<div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.75rem;flex-wrap:wrap">
+    <span style="font-size:.72rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em">Сортировка:</span>
+    ${[['updated','По дате'],['name','По имени'],['level','По уровню']].map(([k,l])=>`
+      <button onclick="setCharListSort('${k}')" style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:0;border:none;background:transparent;color:${sortKey===k?'#fff':'var(--text3)'};cursor:pointer;transition:color .15s">${l}</button>
+    `).join('')}
+  </div>`;
+
+  const countHeader = _IW_webMode
+    ? `<div style="display:flex;align-items:baseline;gap:.5rem;margin-bottom:.5rem">
+        <h2 style="margin:0;font-size:1.3rem;font-weight:800;color:var(--text)">Персонажи</h2>
+        <span style="font-size:1rem;font-weight:600;color:var(--text3)">(${chars.length}/${CHAR_LIMIT})</span>
+       </div>`
+    : `<div style="margin-bottom:.5rem">
+        <h2 style="margin:0;font-size:1.3rem;font-weight:800;color:var(--text)">Персонажи</h2>
+       </div>`;
+
   c.innerHTML=`<div style="max-width:860px;margin:1.5rem auto;padding:1rem">`+
-    chars.map(ch=>{
+    countHeader + sortBar +
+    sortedChars.map(ch=>{
       const cls=(window.CLASSES||[]).find(c=>c.name===ch.class||c.id===ch.class);
       // API отдаёт: ch.race, ch.subrace, ch.class, ch.background, ch.portrait
       let portraitInner;
@@ -5953,7 +5989,7 @@ async function loadCharList() {
       const raceClass = [ch.race, ch.subrace, ch.class].filter(Boolean).join(' · ');
       const bgLine    = ch.background || '';
       const key = ch.id || ch.filename;
-      return `<div class="char-list-item" onclick="loadChar('${key}')">
+      return `<div class="char-list-item" onclick="loadChar('${key}')" data-key="${key}" data-name="${ch.name.replace(/"/g,'&quot;')}" data-filename="${ch.filename||''}">
         <div class="cli-portrait">${portraitInner}</div>
         <div class="cli-divider"></div>
         <div class="cli-body">
@@ -5961,11 +5997,15 @@ async function loadCharList() {
           ${raceClass ? `<div class="cli-race-class">${raceClass}</div>` : ''}
           ${bgLine    ? `<div class="cli-meta">${bgLine}</div>` : ''}
         </div>
+        <div class="cli-level-col">
+          <div class="cli-level-inline">Ур. ${ch.level}</div>
+        </div>
         <div class="cli-right" onclick="event.stopPropagation()">
           <div class="cli-level" onclick="loadChar('${key}')">Ур. ${ch.level}</div>
           <div class="cli-actions">
-            <button class="dice-btn" onclick="exportCharLSS('${key}')" title="LSS">📤</button>
-            <button class="dice-btn" onclick="exportCharRaw('${key}')" title="JSON">📋</button>
+            <button class="dice-btn" onclick="exportCharLSS('${key}')" title="Скачать LSS">📤</button>
+            <button class="dice-btn" onclick="exportCharRaw('${key}')" title="Скачать JSON">📋</button>
+            <button class="dice-btn" onclick="_exportCharPdfFromList('${key}')" title="Скачать PDF">📄</button>
             <button class="dice-btn" style="color:var(--red2)" onclick="deleteChar('${ch.filename}')">🗑️</button>
           </div>
         </div>
@@ -5979,16 +6019,20 @@ async function loadCharList() {
       const apply = () => {
         const canvas = document.createElement('canvas');
         canvas.width = 80; canvas.height = 80;
-        canvas.getContext('2d').drawImage(img,
-          -c.ox/c.scale, -c.oy/c.scale, c.vw/c.scale, c.vh/c.scale,
-          0, 0, 80, 80);
-        canvas.style.cssText = 'width:100%;height:100%;display:block;';
+        canvas.getContext('2d').drawImage(img, 0, 0, 80, 80);
+        canvas.style.cssText = 'width:100%;height:100%;display:block;object-fit:cover;';
         img.replaceWith(canvas);
       };
       if (img.complete && img.naturalWidth) apply();
       else img.addEventListener('load', apply, {once: true});
     });
   });
+  // Long-press на карточках (только мобиль)
+  if (window.innerWidth <= 600) {
+    document.querySelectorAll('.char-list-item').forEach(el => {
+      _attachCharCardLongPress(el);
+    });
+  }
 }
 
 async function loadChar(filename) {
@@ -6465,6 +6509,74 @@ function renderSheet(char) {
   const _invNotesEl = document.getElementById('s-inv-notes');
   if (_invNotesEl) { _invNotesEl.value = char.inventoryNotes || ''; }
   setTimeout(initRteFields, 0);
+  syncMobileSheet();
+  setTimeout(syncMobileSheet, 150); // повторно после updateHpDisplay
+  setTimeout(() => _attachAllLongPress(document.getElementById('view-sheet')), 100);
+}
+
+/* ── Синхронизация мобильных ячеек шапки листа ── */
+function syncMobileSheet() {
+  const w = window.innerWidth;
+
+  // Управляем видимостью строк всегда, независимо от currentChar
+  const mRow2   = document.querySelector('.mobile-sheet-row2');
+  const mRow3   = document.querySelector('.mobile-sheet-row3');
+  const lsStats = document.querySelector('.landscape-card-stats');
+  const lsRow2  = document.querySelector('.landscape-sheet-row2');
+  const isMobile    = w <= 600;
+  const isLandscape = w >= 601 && w <= 900;
+  if (mRow2)   mRow2.style.display   = isMobile    ? 'flex' : 'none';
+  if (mRow3)   mRow3.style.display   = isMobile    ? 'flex' : 'none';
+  if (lsStats) lsStats.style.display = isLandscape ? 'flex' : 'none';
+  if (lsRow2)  lsRow2.style.display  = isLandscape ? 'flex' : 'none';
+
+  const c = currentChar;
+  if (!c) return;
+
+  // ── Вычисляем значения из currentChar и DOM ──
+  const speedVal = document.getElementById('s-speed-input')?.textContent || c.speed || 30;
+  const profVal  = document.getElementById('s-prof-val')?.textContent || '+2';
+  const hdVal    = document.getElementById('s-hit-die')?.textContent || c.hitDie || 'd8';
+  const acVal    = document.getElementById('s-ac-input')?.textContent || c.ac || 10;
+  const shieldOn = document.getElementById('ac-shield-wrap')?.classList.contains('shield-on') || false;
+  const cur = c.currency || {};
+  const goldVal  = Math.floor((cur.gp||0) + (cur.sp||0)/10 + (cur.cp||0)/100);
+  const hpCur    = document.getElementById('hp-cur-disp')?.textContent || '—';
+  const hpMax    = document.getElementById('hp-max-disp')?.textContent || '—';
+  const hpText   = hpCur + '/' + hpMax;
+  const curN = parseInt(hpCur), maxN = parseInt(hpMax);
+  const pct  = (maxN > 0 && !isNaN(curN)) ? curN / maxN : 1;
+  const hpColor = curN <= 0 ? 'var(--red)' : pct <= 0.3 ? 'var(--red2)' : pct <= 0.66 ? 'var(--c-yellow-6,#facc15)' : 'var(--c-health)';
+
+  // ── Мобиль (≤600px) ──
+  if (w <= 600) {
+    const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+    set('m-speed', speedVal);
+    set('m-prof',  profVal);
+    set('m-hd',    hdVal);
+    set('m-gold',  goldVal);
+    set('m-ac',    acVal);
+    const mShield = document.getElementById('m-shield-wrap');
+    if (mShield) mShield.classList.toggle('shield-on', shieldOn);
+    const mHp = document.getElementById('m-hp');
+    if (mHp) { mHp.textContent = hpText; mHp.style.color = hpColor; }
+    const mHeart = document.getElementById('m-hp-heart');
+    if (mHeart) mHeart.style.color = hpColor;
+  }
+
+  // ── Ландшафт: заполняем данные ──
+  if (isLandscape) {
+    const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+    set('ls-gold',  goldVal);
+    set('ls-speed', speedVal);
+    set('ls-prof',  profVal);
+    set('ls-hd',    hdVal);
+    set('ls-ac',    acVal);
+    const lsShield = document.getElementById('ls-shield-wrap');
+    if (lsShield) lsShield.classList.toggle('shield-on', shieldOn);
+    const lsHp = document.getElementById('ls-hp');
+    if (lsHp) { lsHp.textContent = hpText; lsHp.style.color = hpColor; }
+  }
 }
 
 function setInputVal(id, v) {
@@ -7154,7 +7266,7 @@ function renderSpellsSheet(char, pb) {
     document.getElementById('s-spell-meta').innerHTML=`
       <div class="spell-meta-bar" style="margin-bottom:.65rem;cursor:pointer" onclick="openSpellMetaDialog()">
         <div class="spell-meta-item">
-          <span class="spell-meta-label">Спасбросок заклинаний</span>
+          <span class="spell-meta-label">Спасбросок</span>
           <span class="spell-meta-val">${dc}</span>
         </div>
         <div class="spell-meta-item">
@@ -7176,7 +7288,7 @@ function renderSpellsSheet(char, pb) {
         `<div class="spell-slot-box">
           <div class="slot-level">${pactLvl}</div>
           <div class="slot-pips">${Array.from({length:pactCount},(_,j)=>
-            `<div class="slot-pip ${j<used?'used':''}" onclick="toggleSlot(${pactLvl},${j},${pactCount})"></div>`
+            `<div class="slot-pip ${j<used?'used':''}" onclick="toggleSlot(${pactLvl},${j},${pactCount})">${pactLvl}</div>`
           ).join('')}</div>
         </div>` +
         '</div>';
@@ -7195,7 +7307,7 @@ function renderSpellsSheet(char, pb) {
           return `<div class="spell-slot-box${compact}">
             <div class="slot-level">${lvl}</div>
             <div class="slot-pips">${Array.from({length:max},(_,j)=>
-              `<div class="slot-pip ${j<used?'used':''}" onclick="toggleSlot(${lvl},${j})"></div>`
+              `<div class="slot-pip ${j<used?'used':''}" onclick="toggleSlot(${lvl},${j})">${lvl}</div>`
             ).join('')}</div>
           </div>`;
         }).join('')+'</div>';
@@ -7315,7 +7427,7 @@ function renderSpellsSheet(char, pb) {
       <span class="sc-gh-label">${grpName}</span>
       <div class="sc-gh-cols">
         <span class="sc-gh-col">Дист.</span>
-        <span class="sc-gh-col">Спасбр.</span>
+        <span class="sc-gh-col">СБ</span>
         <span class="sc-gh-col">Атака</span>
         <span class="sc-gh-col">Урон</span>
       </div>
@@ -7332,6 +7444,7 @@ function renderSpellsSheet(char, pb) {
   const notesEl = document.getElementById('s-spells-notes');
   if (notesEl && char.spellsNotes) { notesEl.value = char.spellsNotes; rteSetValue('s-spells-notes', char.spellsNotes); }
   if (notesEl) notesEl.oninput = () => { if(currentChar) { currentChar.spellsNotes = notesEl.value; autoSave(); } };
+  setTimeout(() => _attachAllLongPress(document.getElementById('view-sheet')), 100);
 }
 
 function _spellDel(idx) {
@@ -7615,7 +7728,7 @@ function renderInventorySheet(char) {
           + `<span class="inv-gh-col inv-gh-sortbtn" onclick="setInvSort('qty')" title="Сортировать по количеству">Кол.${_ghSortArrow('qty')}</span>`
           + `<span class="inv-gh-col inv-gh-sortbtn" onclick="setInvSort('wt')" title="Сортировать по весу">Вес${_ghSortArrow('wt')}</span>`
           + `<span class="inv-gh-col inv-gh-sortbtn" onclick="setInvSort('cost')" title="Сортировать по стоимости">Стоим.${_ghSortArrow('cost')}</span>`
-          + `</div><span class="inv-gh-act"></span></div>`;
+          + `</div></div>`;
       }
 
       const qty     = item.qty || 1;
@@ -7659,9 +7772,6 @@ function renderInventorySheet(char) {
           </div>
           <div class="inv-stat-val">${totalWtStr}</div>
           <div class="inv-stat-val ${costVal != null ? 'inv-cost-val' : ''}">${costStr}</div>
-        </div>
-        <div class="inv-actions">
-          <span class="inv-del" onclick="event.stopPropagation();_invDel(${i})" title="Продать / Выбросить">✕</span>
         </div>
       </div>`;
     }
@@ -7765,6 +7875,7 @@ function updateHpDisplay() {
   if (tmpBig) { if (tmp>0){tmpBig.textContent='(+'+tmp+' врем.)';tmpBig.style.display='inline';}else{tmpBig.style.display='none';} }
   // Show/hide death saves panel
   if (typeof _syncDeathSavesVisibility === 'function') _syncDeathSavesVisibility();
+  syncMobileSheet();
 }
 
 // Алиас для обратной совместимости
@@ -8074,6 +8185,7 @@ function toggleShield() {
   const _sb = currentChar.shieldBonus ?? 2;
   currentChar.ac = currentChar.acBase + (on ? _sb : 0);
   _updateAcDisplay();
+  syncMobileSheet();
   saveSheet();
 }
 
@@ -9537,10 +9649,11 @@ function _updateHeaderGold(cur) {
   const gp = cur?.gp || 0;
   const sp = cur?.sp || 0;
   const cp = cur?.cp || 0;
-  // Total in gold: 1 gp = 10 sp = 100 cp
   const total = Math.floor(gp + sp / 10 + cp / 100);
   const el = document.getElementById('hs-gold-display');
   if (el) el.textContent = total;
+  const mel = document.getElementById('m-gold');
+  if (mel) mel.textContent = total;
 }
 
 function openCurrencyDialog() {
@@ -9881,17 +9994,24 @@ function openSheetSettings() {
   if (hpEl && currentChar) hpEl.checked = !!currentChar.halfProficiency;
   if (raEl && currentChar) raEl.checked = !!currentChar.remarkableAthlete;
   if (faEl && currentChar) faEl.checked = !!currentChar.allowFirearms;
-  // Position below the gear button, right-aligned to it
-  const btn = document.getElementById('nav-sheet-gear');
+  // На мобиле (≤600px) — прижимаем к правому краю экрана под шестерёнкой
+  const mobileGear = document.querySelector('.mobile-header-gear');
+  const isMobile = window.innerWidth <= 600 && mobileGear;
+  const btn = isMobile ? mobileGear : document.getElementById('nav-sheet-gear');
   if (btn) {
     const r = btn.getBoundingClientRect();
     const _z_gear = parseFloat(document.documentElement.style.zoom) || 1;
     menu.style.top   = (r.bottom / _z_gear + 4) + 'px';
-    menu.style.right = 'auto';
-    menu.style.left = '-9999px';
-    menu.style.display = 'block';
-    const mw = menu.offsetWidth;
-    menu.style.left = Math.max(4, r.right / _z_gear - mw) + 'px';
+    menu.style.left  = 'auto';
+    if (isMobile) {
+      menu.style.right = '4px';
+    } else {
+      menu.style.right = 'auto';
+      menu.style.left  = '-9999px';
+      menu.style.display = 'block';
+      const mw = menu.offsetWidth;
+      menu.style.left = Math.max(4, r.right / _z_gear - mw) + 'px';
+    }
   }
   overlay.style.display = 'block';
   menu.style.display    = 'block';
@@ -11584,6 +11704,10 @@ function spellCtxAction(action) {
     _copyToClipboard(text, document.getElementById('sctx-copy-full'));
   } else if (action === 'open-url') {
     if (sp?.url) window.open(sp.url, '_blank', 'noopener');
+  } else if (action === 'delete') {
+    if (!currentChar?.spells || !sp) return;
+    const idx = currentChar.spells.indexOf(sp.name);
+    if (idx >= 0) _spellDel(idx);
   }
 }
 
@@ -11699,6 +11823,11 @@ function invCtxAction(action) {
 
   if (action === 'equip') {
     _invEquipItem(idx);
+    return;
+  }
+
+  if (action === 'delete') {
+    _invDel(idx);
     return;
   }
 }
@@ -12564,7 +12693,6 @@ function openSlotDialog() {
   let rows = '';
   for (let lvl = 1; lvl <= 9; lvl++) {
     const base = baseSlots[lvl] || 0;
-    if (!base && !overrides[lvl]) continue;
     const ov = overrides[lvl] || {};
     rows += `<div class="slot-ctx-row">
       <label>${lvl}</label>
@@ -12596,51 +12724,288 @@ function saveSlotOverrides() {
   autoSave();
 }
 
-// ══════════════════════════════════════════════════════════════════════
-// SLOT OVERRIDE DIALOG
-// ══════════════════════════════════════════════════════════════════════
-function openSlotDialog() {
-  if (!currentChar) return;
-  const char = currentChar;
-  const isWarlock = isWarlockChar(char);
-  const baseSlots = isWarlock
-    ? (() => { const [cnt,lvl]=WARLOCK_PACT_TABLE[char.level||1]||[1,1]; const o={}; o[lvl]=cnt; return o; })()
-    : (SLOT_TABLE[char.level||1]||SLOT_TABLE[1]).reduce((o,v,i)=>{ if(v) o[i+1]=v; return o; }, {});
-
-  const overrides = char._slotOverrides || {};
-  let rows = '';
-  for (let lvl = 1; lvl <= 9; lvl++) {
-    const base = baseSlots[lvl] || 0;
-    if (!base && !overrides[lvl]) continue;
-    const ov = overrides[lvl] || {};
-    rows += `<div class="slot-ctx-row">
-      <label>${lvl}</label>
-      <input type="number" id="slotov-bonus-${lvl}" placeholder="+0" value="${ov.bonus != null ? ov.bonus : ''}">
-      <input type="number" id="slotov-override-${lvl}" placeholder="${base||'авто'}" value="${ov.override != null ? ov.override : ''}">
-    </div>`;
-  }
-  document.getElementById('slot-dialog-rows').innerHTML = rows;
-  document.getElementById('slot-dialog-overlay').classList.remove('hidden');
+function setCharListSort(key) {
+  localStorage.setItem('charListSort', key);
+  loadCharList();
 }
 
-function closeSlotDialog() {
-  document.getElementById('slot-dialog-overlay').classList.add('hidden');
+// ══════════════════════════════════════════════════════════════════════
+// LONG-PRESS ADV/DIS MENU (мобиль)
+// ══════════════════════════════════════════════════════════════════════
+
+let _advMenuRollFn = null;
+let _longPressTimer = null;
+const _LONG_PRESS_MS = 350;
+
+// Показать меню преимущества/помехи
+function _showAdvMenu(x, y, rollFn) {
+  _advMenuRollFn = rollFn;
+  const menu    = document.getElementById('roll-adv-menu');
+  const overlay = document.getElementById('roll-adv-overlay');
+  const advBtn  = document.getElementById('roll-adv-btn');
+  const disBtn  = document.getElementById('roll-dis-btn');
+  if (!menu || !overlay) return;
+
+  // Вешаем обработчики через touchend и mousedown
+  // чтобы сработать до закрытия по оверлею
+  const _act = (mode) => (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const fn = _advMenuRollFn;
+    _closeAdvMenu();
+    if (!fn) return;
+    const fakeEv = { shiftKey: mode === 'adv', altKey: mode === 'dis' };
+    fn(fakeEv);
+  };
+  advBtn.ontouchend = _act('adv');
+  advBtn.onmousedown = _act('adv');
+  disBtn.ontouchend = _act('dis');
+  disBtn.onmousedown = _act('dis');
+
+  // Оверлей закрывает меню
+  overlay.ontouchend = overlay.onclick = (e) => {
+    e.preventDefault();
+    _closeAdvMenu();
+  };
+
+  menu.style.display = 'block';
+  overlay.style.display = 'block';
+  const mw = menu.offsetWidth || 200;
+  const mh = menu.offsetHeight || 80;
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  menu.style.left = Math.min(x, vw - mw - 8) + 'px';
+  menu.style.top  = Math.min(y, vh - mh - 8) + 'px';
 }
 
-function saveSlotOverrides() {
-  if (!currentChar) return;
-  const overrides = {};
-  for (let lvl = 1; lvl <= 9; lvl++) {
-    const bonusEl    = document.getElementById(`slotov-bonus-${lvl}`);
-    const overrideEl = document.getElementById(`slotov-override-${lvl}`);
-    if (!bonusEl && !overrideEl) continue;
-    const bonus    = bonusEl?.value.trim()    !== '' ? parseInt(bonusEl.value)    : null;
-    const override = overrideEl?.value.trim() !== '' ? parseInt(overrideEl.value) : null;
-    if (bonus != null || override != null) overrides[lvl] = { bonus, override };
-  }
-  currentChar._slotOverrides = Object.keys(overrides).length ? overrides : null;
-  closeSlotDialog();
-  const pb = currentChar.proficiencyBonus || profBonus(currentChar.level||1);
-  renderSpellsSheet(currentChar, pb);
-  autoSave();
+function _closeAdvMenu() {
+  const menu = document.getElementById('roll-adv-menu');
+  const overlay = document.getElementById('roll-adv-overlay');
+  if (menu) menu.style.display = 'none';
+  if (overlay) overlay.style.display = 'none';
+  _advMenuRollFn = null;
+}
+
+function _rollAdvMenuAction(mode) {
+  const fn = _advMenuRollFn; // сохраняем до закрытия
+  _closeAdvMenu();
+  if (!fn) return;
+  const fakeEv = { shiftKey: mode === 'adv', altKey: mode === 'dis' };
+  fn(fakeEv);
+}
+
+// Навесить long-press на элемент
+// rollFn(ev) — функция броска, принимает event
+function _attachLongPress(el, rollFn) {
+  if (!el || el._lpAttached) return;
+  el._lpAttached = true;
+
+  el.addEventListener('touchstart', function(e) {
+    if (window.innerWidth > 600) return;
+    const touch = e.touches[0];
+    _longPressTimer = setTimeout(() => {
+      e.preventDefault();
+      console.log('[longpress] fn=', rollFn);
+      _showAdvMenu(touch.clientX, touch.clientY, rollFn);
+    }, _LONG_PRESS_MS);
+  }, { passive: false });
+
+  el.addEventListener('touchend', function() {
+    clearTimeout(_longPressTimer);
+  });
+
+  el.addEventListener('touchmove', function() {
+    clearTimeout(_longPressTimer);
+  });
+}
+
+// Навесить long-press на все броски в контейнере
+function _attachAllLongPress(container) {
+  if (!container || window.innerWidth > 600) return;
+
+  // Навыки
+  container.querySelectorAll('.ab-skill-val[onclick*="rollSkillCheck"]').forEach(el => {
+    const m = el.getAttribute('onclick').match(/rollSkillCheck\('([^']+)'/);
+    if (m) _attachLongPress(el, ev => rollSkillCheck(m[1], ev));
+  });
+
+  // Характеристики (проверки)
+  container.querySelectorAll('.ab-badge[onclick*="rollAbilityCheck"]').forEach(el => {
+    const m = el.getAttribute('onclick').match(/rollAbilityCheck\('([^']+)'/);
+    if (m) _attachLongPress(el, ev => rollAbilityCheck(m[1], ev));
+  });
+
+  // Спасброски
+  container.querySelectorAll('.ab-badge-val[onclick*="rollSaveCheck"]').forEach(el => {
+    const m = el.getAttribute('onclick').match(/rollSaveCheck\('([^']+)'/);
+    if (m) _attachLongPress(el, ev => rollSaveCheck(m[1], ev));
+  });
+
+  // Атаки оружием
+  container.querySelectorAll('.weapon-card-atk[onclick*="rollWeaponAtk"]').forEach(el => {
+    const m = el.getAttribute('onclick').match(/rollWeaponAtk\((\d+)/);
+    if (m) _attachLongPress(el, ev => rollWeaponAtk(parseInt(m[1]), ev));
+  });
+
+  // Атаки заклинаниями
+  container.querySelectorAll('[onclick*="rollSpellAtk"]').forEach(el => {
+    const m = el.getAttribute('onclick').match(/rollSpellAtk\((\d+)/);
+    if (m) _attachLongPress(el, ev => rollSpellAtk(parseInt(m[1]), ev));
+  });
+
+  // Инициатива
+  container.querySelectorAll('[onclick*="rollInitiative"]').forEach(el => {
+    _attachLongPress(el, ev => rollInitiative(ev));
+  });
+
+  // Спасбросок от смерти
+  container.querySelectorAll('[onclick*="rollDeathSave"]').forEach(el => {
+    _attachLongPress(el, ev => rollDeathSave(ev));
+  });
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// CHAR CARD CONTEXT MENU (long-press на мобиле)
+// ══════════════════════════════════════════════════════════════════════
+
+let _charCardCtxKey  = null;
+let _charCardCtxName = null;
+let _charCardCtxFilename = null;
+let _charCardLpTimer = null;
+
+function _attachCharCardLongPress(el) {
+  if (el._lpCharAttached) return;
+  el._lpCharAttached = true;
+
+  el.addEventListener('touchstart', function(e) {
+    const touch = e.touches[0];
+    _charCardLpTimer = setTimeout(() => {
+      e.preventDefault();
+      _charCardCtxKey      = el.dataset.key;
+      _charCardCtxName     = el.dataset.name;
+      _charCardCtxFilename = el.dataset.filename;
+      _openCharCardCtx(touch.clientX, touch.clientY);
+    }, 350);
+  }, { passive: false });
+
+  el.addEventListener('touchend',  () => clearTimeout(_charCardLpTimer));
+  el.addEventListener('touchmove', () => clearTimeout(_charCardLpTimer));
+}
+
+function _openCharCardCtx(x, y) {
+  const menu    = document.getElementById('char-card-ctx-menu');
+  const overlay = document.getElementById('char-card-ctx-overlay');
+  const nameEl  = document.getElementById('cctx-name');
+  if (!menu || !overlay) return;
+  if (nameEl) nameEl.textContent = _charCardCtxName || '—';
+  menu.style.display    = 'block';
+  overlay.style.display = 'block';
+  const mw = menu.offsetWidth  || 200;
+  const mh = menu.offsetHeight || 160;
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  menu.style.left = Math.min(x, vw - mw - 8) + 'px';
+  menu.style.top  = Math.min(y, vh - mh - 8) + 'px';
+}
+
+function _closeCharCardCtx() {
+  const menu    = document.getElementById('char-card-ctx-menu');
+  const overlay = document.getElementById('char-card-ctx-overlay');
+  if (menu)    menu.style.display    = 'none';
+  if (overlay) overlay.style.display = 'none';
+  _charCardCtxKey = _charCardCtxName = _charCardCtxFilename = null;
+}
+
+function _charCardCtxAction(action) {
+  const key      = _charCardCtxKey;
+  const filename = _charCardCtxFilename;
+  _closeCharCardCtx();
+  if (!key) return;
+  if (action === 'lss')    exportCharLSS(key);
+  if (action === 'json')   exportCharRaw(key);
+  if (action === 'pdf')    _exportCharPdfFromList(key);
+  if (action === 'delete') deleteChar(filename || key);
+}
+
+async function _exportCharPdfFromList(key) {
+  try {
+    const r = await fetch('/api/characters/' + encodeURIComponent(key));
+    if (!r.ok) { toast('❌ Не удалось получить данные', 'error'); return; }
+    const char = await r.json();
+    delete char._id;
+    const resp = await fetch('/api/export/pdf', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ char, portrait: null })
+    });
+    if (!resp.ok) { toast('❌ Ошибка PDF', 'error'); return; }
+    const blob = await resp.blob();
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url; a.download = (char.name || 'character') + '.pdf';
+    a.click(); URL.revokeObjectURL(url);
+  } catch(e) { toast('❌ Ошибка: ' + e.message, 'error'); }
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// PORTRAIT COMPRESSION
+// ══════════════════════════════════════════════════════════════════════
+
+/**
+ * Сжимает изображение (data URL) до максимального размера maxKb КБ.
+ * Итеративно снижает качество JPEG, при необходимости уменьшает размер.
+ * Возвращает сжатый data URL.
+ */
+async function _compressImageToMaxKb(dataUrl, maxKb = 100) {
+  const maxBytes = maxKb * 1024;
+
+  // Если уже маленькое — возвращаем как есть
+  const approxBytes = Math.round(dataUrl.length * 0.75);
+  if (approxBytes <= maxBytes) return dataUrl;
+
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      let w = img.naturalWidth;
+      let h = img.naturalHeight;
+
+      // Сначала масштабируем до разумного максимума (800px по длинной стороне)
+      const MAX_DIM = 800;
+      if (w > MAX_DIM || h > MAX_DIM) {
+        const ratio = Math.min(MAX_DIM / w, MAX_DIM / h);
+        w = Math.round(w * ratio);
+        h = Math.round(h * ratio);
+      }
+
+      canvas.width  = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, w, h);
+
+      // Итеративно снижаем качество
+      let quality = 0.85;
+      let result  = canvas.toDataURL('image/jpeg', quality);
+
+      while (result.length * 0.75 > maxBytes && quality > 0.1) {
+        quality = Math.max(0.1, quality - 0.1);
+        result = canvas.toDataURL('image/jpeg', quality);
+      }
+
+      // Если всё ещё большой — уменьшаем размер
+      if (result.length * 0.75 > maxBytes) {
+        let scale = 0.8;
+        while (result.length * 0.75 > maxBytes && scale > 0.2) {
+          canvas.width  = Math.round(w * scale);
+          canvas.height = Math.round(h * scale);
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          result = canvas.toDataURL('image/jpeg', 0.7);
+          scale -= 0.1;
+        }
+      }
+
+      resolve(result);
+    };
+    img.src = dataUrl;
+  });
 }

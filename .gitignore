@@ -1,6 +1,7 @@
 # Виртуальные окружения
 myenv/
 myenv313/
+.env
 
 # Python
 __pycache__/
@@ -18,5 +19,6 @@ characters/
 # Прочее
 *.log
 *.tmp
+
 .DS_Store
 Thumbs.db

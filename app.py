@@ -2,6 +2,8 @@ from flask import Flask, render_template, request, jsonify, send_file, session, 
 import json, os, io, time, sys, hashlib, secrets, sqlite3, threading
 from pathlib import Path
 from contextlib import contextmanager
+from dotenv import load_dotenv
+load_dotenv()
 
 WEB_MODE = os.environ.get("WEB_MODE", "").lower() in ("1", "true", "yes")
 
@@ -1132,22 +1134,19 @@ def get_character(filename):
 
 @app.route("/api/portrait/<path:stem>")
 def get_portrait(stem):
-    # stem может быть char_id (новый способ) или name.jpg (старый/десктоп)
     clean = stem[:-4] if stem.lower().endswith(".jpg") else stem
     if WEB_MODE:
         uid = session.get("user_id")
         with _db() as conn:
             if uid:
-                # Сначала ищем по id, потом по filename для совместимости
                 row = conn.execute(
                     "SELECT p.data FROM portraits p JOIN characters c ON p.character_id=c.id "
-                    "WHERE c.user_id=? AND (c.id=? OR c.filename=?)",
-                    (uid, clean, f"{clean}.json")).fetchone()
+                    "WHERE c.user_id=? AND c.id=?",
+                    (uid, clean)).fetchone()
             else:
                 row = conn.execute(
-                    "SELECT p.data FROM portraits p JOIN characters c ON p.character_id=c.id "
-                    "WHERE c.id=? OR c.filename=?",
-                    (clean, f"{clean}.json")).fetchone()
+                    "SELECT p.data FROM portraits p WHERE p.character_id=?",
+                    (clean,)).fetchone()
         if not row: return jsonify({"error":"Not found"}), 404
         return send_file(io.BytesIO(row["data"]), mimetype="image/jpeg")
     else:
@@ -1173,17 +1172,19 @@ def save_portrait(stem):
         uid = _uid()
         with _db() as conn:
             row = conn.execute(
-                "SELECT id FROM characters WHERE user_id=? AND (id=? OR filename=?)",
-                (uid, clean, f"{clean}.json")).fetchone()
+                "SELECT id FROM characters WHERE user_id=? AND id=?",
+                (uid, clean)).fetchone()
         if not row: return jsonify({"error":"Character not found"}), 404
+        char_id = row["id"]
         with _db() as conn:
             conn.execute("""INSERT INTO portraits (character_id, user_id, data, updated_at)
                 VALUES (?,?,?,datetime('now'))
                 ON CONFLICT(character_id) DO UPDATE SET data=excluded.data, updated_at=excluded.updated_at
-            """, (row["id"], uid, img_bytes))
+            """, (char_id, uid, img_bytes))
+        return jsonify({"url": f"/api/portrait/{char_id}"})
     else:
         (_sd() / f"{clean}.jpg").write_bytes(img_bytes)
-    return jsonify({"url": f"/api/portrait/{clean}.jpg"})
+        return jsonify({"url": f"/api/portrait/{clean}.jpg"})
 
 @app.route("/api/debug")
 def debug_info():
@@ -1317,7 +1318,7 @@ def save_character():
                 if count >= 30:
                     return jsonify({"status":"error","message":"Достигнут лимит в 30 персонажей."}), 403
                 char_id = secrets.token_hex(12)
-                filename = f"{base_name}.json"
+                filename = f"{char_id}.json"
                 with _db() as conn:
                     conn.execute(
                         "INSERT INTO characters (id, user_id, filename, name, data_json, updated_at) VALUES (?,?,?,?,?,datetime('now'))",
@@ -1353,20 +1354,36 @@ def delete_character(char_id):
         if portrait.exists(): portrait.unlink()
     return jsonify({"status":"deleted"})
 
-@app.route("/api/export/lss/<filename>")
+@app.route("/api/export/lss/<filename>", methods=["GET","POST"])
 def export_lss(filename):
     auth_err = _require_auth()
     if auth_err: return auth_err
-    save_dir = _sd()
-    path = save_dir/filename
-    if not path.exists(): return jsonify({"error":"Not found"}), 404
-    with open(path,encoding='utf-8') as f:
-        char = json.load(f)
+    # POST: данные переданы в теле (из JS)
+    if request.method == "POST":
+        payload = request.json or {}
+        char = payload.get("char")
+        if not char: return jsonify({"error":"No char data"}), 400
+    elif WEB_MODE:
+        user_id = session.get("user_id")
+        with get_db() as db:
+            row = db.execute(
+                "SELECT data_json FROM characters WHERE (id=? OR filename=?) AND user_id=?",
+                (filename, filename, user_id)
+            ).fetchone()
+        if not row: return jsonify({"error":"Not found"}), 404
+        char = json.loads(row["data_json"])
+    else:
+        save_dir = _sd()
+        path = save_dir/filename
+        if not path.exists(): return jsonify({"error":"Not found"}), 404
+        with open(path,encoding='utf-8') as f:
+            char = json.load(f)
     lss = char_to_lss(char)
     name = char.get("name","Character").replace(" ","_")
     out_name = f"{name}___Long_Story_Short.json"
     lss_bytes = json.dumps(lss,ensure_ascii=False,indent=2).encode('utf-8')
     if app.config.get("USE_WEBVIEW", False):
+        save_dir = _sd()
         out_path = save_dir / out_name
         out_path.write_bytes(lss_bytes)
         return jsonify({"saved": True, "path": str(out_path), "name": out_name})
@@ -1374,15 +1391,34 @@ def export_lss(filename):
     buf.seek(0)
     return send_file(buf,as_attachment=True,download_name=out_name,mimetype='application/json')
 
-@app.route("/api/export/raw/<filename>")
+@app.route("/api/export/raw/<filename>", methods=["GET","POST"])
 def export_raw(filename):
     auth_err = _require_auth()
     if auth_err: return auth_err
-    path = _sd()/filename
-    if not path.exists(): return jsonify({"error":"Not found"}), 404
-    if app.config.get("USE_WEBVIEW", False):
-        return jsonify({"saved": True, "path": str(path), "name": path.name})
-    return send_file(path,as_attachment=True)
+    # POST: данные переданы в теле (из JS)
+    if request.method == "POST":
+        payload = request.json or {}
+        char = payload.get("char")
+        if not char: return jsonify({"error":"No char data"}), 400
+    elif WEB_MODE:
+        user_id = session.get("user_id")
+        with get_db() as db:
+            row = db.execute(
+                "SELECT data_json FROM characters WHERE (id=? OR filename=?) AND user_id=?",
+                (filename, filename, user_id)
+            ).fetchone()
+        if not row: return jsonify({"error":"Not found"}), 404
+        char = json.loads(row["data_json"])
+    else:
+        path = _sd()/filename
+        if not path.exists(): return jsonify({"error":"Not found"}), 404
+        if app.config.get("USE_WEBVIEW", False):
+            return jsonify({"saved": True, "path": str(path), "name": path.name})
+        return send_file(path,as_attachment=True)
+    name = char.get("name","character").replace(" ","_")
+    buf = io.BytesIO(json.dumps(char,ensure_ascii=False,indent=2).encode('utf-8'))
+    buf.seek(0)
+    return send_file(buf,as_attachment=True,download_name=f"{name}.json",mimetype='application/json')
 
 @app.route("/api/import", methods=["POST"])
 def import_character():
@@ -1477,6 +1513,10 @@ def export_pdf_direct():
         if pdf_portrait:
             char_for_pdf = {**char, "portrait": pdf_portrait}
             pdf_bytes = fill_character_sheet(char_for_pdf, template_path, portrait_path=None)
+        elif WEB_MODE:
+            # В WEB_MODE портрет хранится в БД — передаём char как есть
+            # (portrait URL уже есть в char.portrait если он был загружен)
+            pdf_bytes = fill_character_sheet(char, template_path, portrait_path=None)
         else:
             portrait_file = _sd() / f"{name}.jpg"
             pdf_bytes = fill_character_sheet(
@@ -1484,7 +1524,7 @@ def export_pdf_direct():
                 portrait_path=portrait_file if portrait_file.exists() else None
             )
 
-        if app.config.get("USE_WEBVIEW", False):
+        if app.config.get("USE_WEBVIEW", False) and not WEB_MODE:
             sd = _sd()
             sd.mkdir(parents=True, exist_ok=True)
             base_name = f"{name}_DnD5e"

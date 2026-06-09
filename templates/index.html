@@ -166,7 +166,7 @@
   --c-red-6:    #f87171;
 }
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0 }
-html { font-size: 15px; scroll-behavior: smooth }
+html { font-size: 15px; }
 body { background: var(--bg); color: var(--text); font-family: var(--font); min-height: 100vh; overflow-x: hidden; line-height: 1.5 }
 
 /* ════════ SCROLLBAR (LSS style) ════════ */
@@ -581,7 +581,7 @@ input[type=number]::-webkit-inner-spin-button,
 input[type=number]::-webkit-outer-spin-button { opacity: .4; }
 
 /* ════════ HEADER (LSS style) ════════ */
-.site-header { background: #272e43; border-bottom: 1px solid #606b85; padding: .6rem 1.2rem; display: flex; align-items: center; justify-content: space-between; z-index: 200 }
+.site-header { background: #272e43; border-bottom: 1px solid #606b85; padding: .6rem 1.2rem; display: flex; align-items: center; justify-content: space-between; z-index: 1000; position: sticky; top: 0; }
 .boosty-btn {
   display: inline-flex; align-items: center;
   padding: .3rem .75rem; border-radius: 5px; font-size: .78rem; font-weight: 700;
@@ -598,7 +598,7 @@ input[type=number]::-webkit-outer-spin-button { opacity: .4; }
 /* ════════ NAV (LSS style) ════════ */
 .nav-bar { background: #272e43; border-bottom: 1px solid #606b85; padding: .4rem 1rem; display: flex; gap: .35rem; flex-wrap: wrap; align-items: center; z-index: 199 }
 /* Sheet save/export actions in navbar */
-.nav-sheet-actions { margin-left: auto; display: flex; gap: .3rem; align-items: center }
+.nav-sheet-actions { margin-left: auto; display: flex; gap: .3rem; align-items: center; flex-shrink: 0 }
 .nav-btn-gold { background: rgba(230,168,23,.12) !important; border-color: var(--gold) !important; color: var(--gold) !important }
 .nav-btn-gold:hover { background: rgba(230,168,23,.25) !important }
 /* Remove number input spinners */
@@ -720,6 +720,8 @@ hr.divider { border: none; border-top: 1px solid #606b85; margin: .9rem 0 }
 .wizard-page { display: none }
 .wizard-page.active { display: block }
 .wizard-nav { display: flex; justify-content: space-between; align-items: center; margin-top: 1.5rem; padding-top: .9rem; border-top: 1px solid #606b85 }
+.wbtn-icon { display: inline; }
+.wbtn-label { display: inline; }
 .step-label-text { font-size: .8rem; font-weight: 600; color: var(--text3) }
 .mode-row { display: flex; gap: .35rem; flex-wrap: wrap; margin-bottom: .85rem }
 .equip-fixed-row { display: flex; flex-wrap: wrap; gap: .35rem; margin-bottom: .35rem }
@@ -1716,7 +1718,7 @@ hr.divider { border: none; border-top: 1px solid #606b85; margin: .9rem 0 }
 .spell-slot-box.slot-box-compact { flex: 1 1 0; padding: .35rem .2rem }
 .slot-level { font-size: .62rem; font-weight: 700; color: var(--text3); letter-spacing: .04em }
 .slot-pips { display: flex; gap: 2px; justify-content: center; margin-top: .2rem; flex-wrap: wrap }
-.slot-pip { width: 10px; height: 10px; border: 1px solid #606b85; border-radius: 50%; cursor: pointer; transition: all .1s; background: none }
+.slot-pip { width: 10px; height: 10px; border: 1px solid #606b85; border-radius: 50%; cursor: pointer; transition: all .1s; background: none; font-size: 0; color: transparent; }
 .slot-pip.used { background: rgba(71,118,230,.9); border-color: var(--accent) }
 /* spell-meta одна строка */
 /* Spell meta bar: 3 равные колонки */
@@ -3302,6 +3304,953 @@ hr.divider { border: none; border-top: 1px solid #606b85; margin: .9rem 0 }
   padding: .15rem 0; border-top: 1px solid #2a3050; margin-top: .1rem;
 }
 .toast.log-suppress { display: none !important; }
+
+/* Группы навбара: прозрачные обёртки по умолчанию */
+.nav-left-group  { display: contents; }
+.nav-right-group { display: contents; }
+
+/* ════════════════════════════════════════════════════════════════
+   TABLET  (601px – 900px) — вертикальный iPad mini и аналоги
+   ════════════════════════════════════════════════════════════════ */
+@media (min-width: 601px) and (max-width: 900px) {
+  /* Весь контент не выступает за экран */
+  body {
+    overflow-x: hidden !important;
+  }
+  #view-sheet,
+  #view-list,
+  #view-create {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    overflow-x: hidden !important;
+    padding: 0 .5rem !important;
+  }
+  /* Блоки листа персонажа — масштабируем под ширину */
+  .sheet-layout,
+  .sheet-left,
+  .sheet-right,
+  .sheet-left > *,
+  .sheet-right > * {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    overflow-x: hidden !important;
+  }
+  /* Таблицы и фиксированные блоки */
+  .ability-block,
+  .ab-badges,
+  .saves-block,
+  .skills-list,
+  .ab-table,
+  .spell-slot-grid,
+  .sheet-tabs,
+  .weapon-card,
+  .inv-row {
+    max-width: 100% !important;
+    overflow-x: hidden !important;
+    box-sizing: border-box !important;
+  }
+  .sheet-tabs {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: none !important;
+  }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   TABLET LANDSCAPE / SMALL DESKTOP  (901px – 1100px)
+   iPad mini горизонталь — масштабируем блоки под char-card
+   ════════════════════════════════════════════════════════════════ */
+@media (min-width: 901px) and (max-width: 1100px) {
+  .sheet-layout {
+    width: 100% !important;
+    box-sizing: border-box !important;
+    overflow-x: hidden !important;
+  }
+  .sheet-left,
+  .sheet-right {
+    min-width: 0 !important;
+    overflow-x: hidden !important;
+    box-sizing: border-box !important;
+  }
+  .sheet-left > *,
+  .sheet-right > * {
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    overflow-x: hidden !important;
+  }
+  /* Масштабируем ability-block и его содержимое */
+  .ability-block {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    min-width: 0 !important;
+  }
+  .ab-cell-a1, .ab-cell-b1,
+  .ab-cell-a2, .ab-cell-b2,
+  .ab-cell-a3, .ab-cell-b3 {
+    min-width: 0 !important;
+    overflow: hidden !important;
+  }
+  .ab-card {
+    min-width: 0 !important;
+    overflow: hidden !important;
+  }
+  .ab-card-header { padding: .3rem .5rem !important; }
+  .ab-card-name   { font-size: 16px !important; }
+  .ab-card-score  { font-size: 16px !important; }
+  .ab-badges      { flex-wrap: wrap !important; }
+  .ab-badge       { font-size: .55rem !important; padding: .15rem .4rem !important; }
+  .ab-badge-val   { font-size: .85rem !important; }
+  .ab-skill-name  { font-size: .65rem !important; }
+  .ab-skill-val   { font-size: .75rem !important; }
+  .ab-skill-row   { padding: .28rem .5rem !important; }
+  /* Пассивные чувства и владения */
+  .b3-prof-textarea { font-size: .78rem !important; }
+  .passive-item   { font-size: .75rem !important; }
+  .sheet-tabs {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: none !important;
+    flex-wrap: nowrap !important;
+  }
+  .sheet-tabs::-webkit-scrollbar { display: none !important; }
+  /* Таблицы — не выступают */
+  .ability-block,
+  .ab-badges,
+  .weapon-card,
+  .inv-row,
+  .spell-slot-grid {
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    overflow-x: hidden !important;
+  }
+}
+
+
+@media (min-width: 601px) and (max-width: 900px) {
+
+  /* ── Навбар: 2 колонки пополам ── */
+  .nav-bar {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    gap: .2rem !important;
+    padding: .3rem .5rem !important;
+    align-items: flex-start !important;
+  }
+  /* Левая группа: 2 строки по 3 кнопки, занимает ровно половину */
+  .nav-left-group {
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+    grid-template-rows: auto auto !important;
+    gap: .2rem !important;
+    flex: 0 0 50% !important;
+    width: 50% !important;
+    box-sizing: border-box !important;
+  }
+  .nav-left-group .nav-btn {
+    width: 100% !important;
+    text-align: center !important;
+    justify-content: center !important;
+    padding: .32rem .2rem !important;
+    font-size: .68rem !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+  /* Правая группа: flex в строку, прижата вправо */
+  .nav-right-group {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: flex-start !important;
+    justify-content: flex-end !important;
+    flex: 0 0 50% !important;
+    width: 50% !important;
+    box-sizing: border-box !important;
+    gap: .2rem !important;
+    padding-top: 0 !important;
+  }
+  .nav-right-group .nav-sheet-actions {
+    display: flex !important;
+    flex-direction: row !important;
+    gap: .2rem !important;
+    margin-left: 0 !important;
+    align-items: center !important;
+  }
+  .nav-right-group .nav-btn {
+    flex-shrink: 0 !important;
+    white-space: nowrap !important;
+    font-size: .68rem !important;
+    padding: .32rem .4rem !important;
+    margin-left: 0 !important;
+  }
+  #nav-sheet-gear {
+    margin-left: 0 !important;
+  }
+
+  /* ── Большие диалоги в ландшафте ── */
+  #rest-browser-overlay .currency-dialog-box,
+  #items-browser-overlay .currency-dialog-box {
+    min-width: 0 !important;
+    width: 90vw !important;
+    max-width: 90vw !important;
+    max-height: 88vh !important;
+    box-sizing: border-box !important;
+  }
+  #rb-list {
+    max-height: 30vh !important;
+    min-height: 80px !important;
+  }
+  #ib-list {
+    max-height: 30vh !important;
+    min-height: 80px !important;
+  }
+
+  /* ── char-card: 2 строки ── */
+
+  /* Скрываем мобильные строки 2 и 3 — у нас свои */
+  .mobile-sheet-row2,
+  .mobile-sheet-row3 { display: none; }
+
+  /* Скрываем десктопный topbar-hp */
+  .topbar-hp { display: none !important; }
+
+  /* Строка 1: портрет+инфо слева, золото+HP справа */
+  .sheet-header { flex-direction: column !important; }
+  .char-card {
+    width: 100% !important;
+    border-bottom: 1px solid #606b85 !important;
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    align-items: stretch !important;
+    min-height: 0 !important;
+  }
+  .sheet-portrait {
+    width: 56px !important;
+    height: auto !important;
+    align-self: stretch !important;
+    flex-shrink: 0 !important;
+  }
+  .sheet-name-block {
+    flex: 1 1 auto !important;
+    max-width: calc(50% - 56px) !important;
+    min-width: 0 !important;
+    overflow: hidden !important;
+  }
+  .landscape-card-stats {
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    flex: 0 0 50% !important;
+    align-self: stretch !important;
+    padding: 0 .8rem !important;
+    box-sizing: border-box !important;
+  }
+  .landscape-stat-item {
+    display: flex !important;
+    align-items: center !important;
+    gap: .35rem !important;
+    cursor: pointer !important;
+    height: 100% !important;
+  }
+  .landscape-stat-val {
+    font-size: 1.7rem !important;
+    font-weight: 700 !important;
+    font-family: 'PT Mono', monospace !important;
+    line-height: 1 !important;
+  }
+  .landscape-card-stats svg { width: 24px !important; height: 24px !important; }
+  /* Сердечко */
+  .landscape-card-stats .landscape-stat-item span:first-child { font-size: 1.4rem !important; }
+
+  /* Строка 2: скорость-владение-щит-кость хитов-костёр */
+  .landscape-sheet-row2 {
+    align-items: stretch !important;
+    border-top: 1px solid #606b85 !important;
+    width: 100% !important;
+    min-height: 60px !important;
+  }
+  .landscape-sheet-row2 .mobile-sheet-cell {
+    display: flex !important;
+    flex: 1 !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: .3rem .2rem !important;
+    gap: .15rem !important;
+    cursor: pointer !important;
+    transition: background .12s !important;
+  }
+  .landscape-sheet-row2 .mobile-cell-val {
+    font-family: 'PT Mono', monospace !important;
+    font-size: 1.2rem !important;
+    font-weight: 700 !important;
+    color: var(--text) !important;
+    line-height: 1 !important;
+    text-align: center !important;
+    background: transparent !important;
+    border: none !important;
+    outline: none !important;
+    width: 100% !important;
+  }
+  .landscape-sheet-row2 .mobile-cell-label {
+    font-size: .55rem !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    letter-spacing: .06em !important;
+    color: var(--text3) !important;
+    text-align: center !important;
+    white-space: nowrap !important;
+    line-height: 1 !important;
+  }
+  .landscape-sheet-row2 .mobile-shield-wrap {
+    position: relative !important;
+    width: 46px !important;
+    height: 50px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    cursor: pointer !important;
+  }
+  .landscape-sheet-row2 .mobile-shield-wrap svg {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    transition: filter .2s !important;
+  }
+  .landscape-sheet-row2 .mobile-shield-wrap.shield-on svg {
+    filter: drop-shadow(0 0 8px rgba(212,170,36,.95)) !important;
+  }
+  .landscape-sheet-row2 .mobile-shield-wrap.shield-on svg path { stroke: var(--gold) !important; }
+  .landscape-sheet-row2 .mobile-shield-val {
+    position: relative !important;
+    z-index: 2 !important;
+    font-family: 'Open Sans', sans-serif !important;
+    font-size: 1.1rem !important;
+    font-weight: 900 !important;
+    color: #fff !important;
+    text-shadow: 0 1px 4px rgba(0,0,0,.9) !important;
+    line-height: 1 !important;
+    padding-bottom: .2rem !important;
+    transition: color .2s !important;
+  }
+  .landscape-sheet-row2 .mobile-shield-wrap.shield-on .mobile-shield-val { color: var(--gold) !important; }
+  .landscape-sheet-row2 .rest-campfire-icon { width: 2rem !important; height: 2rem !important; }
+
+  /* Скрываем overlay */
+  .header-stats-overlay { display: none !important; }
+}
+
+
+.mobile-header-row2 { display: none; }
+.mobile-header-gear { display: none; }
+.mobile-sheet-row2  { display: none; }
+.mobile-sheet-row3  { display: none; }
+.mobile-card-right  { display: none; }
+.landscape-card-stats { display: none; }
+.landscape-sheet-row2 { display: none; }
+.cli-level-col { display: none; }
+
+@media (min-width: 901px) {
+  .landscape-card-stats { display: none !important; }
+  .landscape-sheet-row2 { display: none !important; }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   WIZARD (создание персонажа) — все экраны ≤ 900px
+   ════════════════════════════════════════════════════════════════ */
+@media (max-width: 900px) {
+  /* Пилюли этапов: убираем */
+  .wizard-steps { display: none !important; }
+
+  /* Номер шага: убираем */
+  #step-label { display: none !important; }
+
+  /* wizard-nav: 3 колонки grid, Случайно в центре */
+  .wizard-nav {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr 1fr !important;
+    grid-template-areas: "prev random next" !important;
+    gap: .3rem !important;
+    margin-top: 1rem !important;
+    padding-top: .7rem !important;
+    align-items: stretch !important;
+  }
+  .wizard-nav > div { display: contents !important; }
+  #btn-prev        { grid-area: prev !important; visibility: visible !important; }
+  #btn-next-random { grid-area: random !important; margin: 0 !important; }
+  #btn-next        { grid-area: next !important; }
+
+  #btn-next, #btn-prev, #btn-next-random {
+    width: 100% !important;
+    padding: .42rem .3rem !important;
+  }
+  #btn-next, #btn-next-random {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: .1rem !important;
+    font-size: .7rem !important;
+    line-height: 1.2 !important;
+  }
+  #btn-prev {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: .3rem !important;
+    font-size: .7rem !important;
+  }
+
+  /* Характеристики: методы 2×2 */
+  .mode-row {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: .35rem !important;
+  }
+  .mode-row .mode-btn {
+    width: 100% !important;
+    text-align: center !important;
+  }
+
+  /* Форма создания: убираем card-рамку */
+  #view-create > .card {
+    background: transparent !important;
+    border: none !important;
+    padding: .5rem 0 !important;
+    border-radius: 0 !important;
+  }
+  #view-create {
+    padding: .5rem .5rem !important;
+  }
+
+  /* Портрет на шаге 0: по центру */
+  #wpage-0 .portrait-upload {
+    justify-content: center !important;
+  }
+}
+
+
+ /*  Десктоп не трогаем — всё ниже только для мобильных
+   ════════════════════════════════════════════════════════════════ */
+@media (max-width: 600px) {
+
+  /* ════════════════════════════════
+     ЛИСТ ПЕРСОНАЖА — мобильные стили
+     ════════════════════════════════ */
+
+  /* ── sheet-header: 3 строки ── */
+  .sheet-header {
+    flex-direction: column !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    margin-top: .6rem !important;
+  }
+
+  /* overlay скрываем — его элементы переедут в мобильные строки */
+  .header-stats-overlay { display: none !important; }
+
+  /* HP прячем из десктопного места */
+  .topbar-hp { display: none !important; }
+
+  /* Строка 1: char-card на всю ширину */
+  .char-card {
+    width: 100% !important;
+    border-radius: 5px 5px 0 0 !important;
+    border-bottom: 1px solid #606b85 !important;
+    position: relative !important;
+  }
+  .sheet-portrait {
+    width: 64px !important;
+    height: 64px !important;
+    flex-shrink: 0 !important;
+  }
+
+  /* Щит и костёр справа в строке 1 */
+  .mobile-card-right {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: .5rem !important;
+    margin-left: auto !important;
+    padding-right: .5rem !important;
+    flex-shrink: 0 !important;
+  }
+  .mobile-card-campfire {
+    width: 2rem !important;
+    height: 2rem !important;
+    cursor: pointer !important;
+    transition: filter .15s !important;
+  }
+
+  /* Строки 2 и 3 */
+  .mobile-sheet-row2,
+  .mobile-sheet-row3 {
+    align-items: stretch !important;
+    border-top: 1px solid #606b85 !important;
+    width: 100% !important;
+    min-height: 52px !important;
+  }
+
+  .mobile-sheet-cell {
+    flex: 1 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: .3rem .2rem !important;
+    gap: .15rem !important;
+    cursor: pointer !important;
+    transition: background .12s !important;
+  }
+  .mobile-sheet-cell:last-child { border-right: none !important; }
+  .mobile-sheet-cell:active { background: rgba(255,255,255,.04) !important; }
+
+  .mobile-cell-val {
+    font-family: 'PT Mono', monospace;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1;
+    text-align: center;
+    background: transparent;
+    border: none;
+    outline: none;
+    width: 100%;
+  }
+  .mobile-cell-val:focus { color: var(--accent2); }
+
+  .mobile-cell-label {
+    font-size: .52rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: var(--text3);
+    text-align: center;
+    white-space: nowrap;
+    line-height: 1;
+  }
+
+  /* Щит компактный */
+  .mobile-shield-wrap {
+    position: relative;
+    width: 42px;
+    height: 46px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+  .mobile-shield-wrap svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    transition: filter .2s;
+  }
+  .mobile-shield-wrap.shield-on svg {
+    filter: drop-shadow(0 0 8px rgba(212,170,36,.95));
+  }
+  .mobile-shield-wrap.shield-on svg path {
+    stroke: var(--gold) !important;
+  }
+  .mobile-shield-val {
+    position: relative;
+    z-index: 2;
+    font-family: 'Open Sans', sans-serif;
+    font-size: 1.15rem;
+    font-weight: 900;
+    color: #fff;
+    text-shadow: 0 1px 4px rgba(0,0,0,.9);
+    line-height: 1;
+    padding-bottom: .2rem;
+    transition: color .2s;
+  }
+  .mobile-shield-wrap.shield-on .mobile-shield-val { color: var(--gold); }
+
+  /* HP в строке 3 */
+  .mobile-hp-val {
+    font-size: .95rem !important;
+    color: var(--red2) !important;
+  }
+
+  /* ── Блок навыков: одна колонка на всю ширину ── */
+  .ability-block {
+    grid-template-columns: 1fr !important;
+    grid-template-rows: none !important;
+    width: 100% !important;
+  }
+  /* Все ячейки — в одну колонку, в нужном порядке */
+  .ab-cell-a1 { grid-column: 1 !important; grid-row: auto !important; }
+  .ab-cell-b1 { grid-column: 1 !important; grid-row: auto !important; }
+  .ab-cell-a2 { grid-column: 1 !important; grid-row: auto !important; }
+  .ab-cell-b2 { grid-column: 1 !important; grid-row: auto !important; }
+  .ab-cell-a3 { grid-column: 1 !important; grid-row: auto !important; align-self: auto !important; }
+  .ab-cell-b3 { grid-column: 1 !important; grid-row: auto !important; }
+
+  /* Порядок: СИЛ+ТЕЛ, ИНТ, ХАР, ЛОВ, МДР, пассивные+владения */
+  .ab-cell-a1 { order: 1 !important; }
+  .ab-cell-a2 { order: 2 !important; }
+  .ab-cell-a3 { order: 3 !important; }
+  .ab-cell-b1 { order: 4 !important; }
+  .ab-cell-b2 { order: 5 !important; }
+  .ab-cell-b3 { order: 6 !important; }
+
+  /* ab-cell-a1 содержит СИЛ и ТЕЛ стопкой — оставляем как есть */
+  .ab-cell-a1 { flex-direction: column !important; }
+
+  /* Убираем фиксированные padding чтобы не выступало */
+  .ab-badges {
+    padding: .28rem .6rem !important;
+    flex-wrap: wrap !important;
+    gap: .25rem !important;
+  }
+  .ab-badge {
+    padding: .18rem .5rem !important;
+    font-size: .55rem !important;
+  }
+  .ab-badge-val {
+    font-size: .9rem !important;
+    min-width: 18px !important;
+  }
+  .ab-skill-row {
+    padding: .32rem .6rem !important;
+  }
+  .ab-skill-name { font-size: .65rem !important; }
+  .ab-skill-val  { font-size: .78rem !important; }
+
+  /* Вкладки */
+  .sheet-tabs {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: none !important;
+  }
+  .sheet-tabs::-webkit-scrollbar { display: none !important; }
+  .sheet-tab {
+    font-size: .6rem !important;
+    padding: .38rem .5rem !important;
+    letter-spacing: .02em !important;
+  }
+
+
+  /* ── Большие диалоги: Питание и Библиотека предметов ── */
+  #rest-browser-overlay .currency-dialog-box,
+  #items-browser-overlay .currency-dialog-box {
+    min-width: 0 !important;
+    width: 96vw !important;
+    max-width: 96vw !important;
+    max-height: 90vh !important;
+    box-sizing: border-box !important;
+    padding: .7rem !important;
+  }
+  /* Список внутри диалогов — убираем фиксированный max-height */
+  #rb-list, #ib-list {
+    min-height: 120px !important;
+    max-height: 35vh !important;
+  }
+  /* Hint про Ctrl+клик скрываем на мобиле (нет Ctrl) */
+  #items-browser-overlay [style*="Ctrl"] {
+    display: none !important;
+  }
+
+
+  .sc-card .sc-level { display: none !important; }
+  .sc-card .weapon-card-del { display: none !important; }
+  .sc-col-dmg { width: calc(var(--sc-dmg-w) / 2) !important; }
+  .sc-gh-col:nth-child(4) { width: calc((var(--sc-sep-w) + var(--sc-dmg-w)) / 2) !important; }
+  .sc-group-header { justify-content: flex-start !important; }
+  /* Убираем padding-left который был под sc-level — теперь он скрыт */
+  .sc-gh-label {
+    flex: 0 0 auto !important;
+    margin-right: auto !important;
+    padding-left: 0 !important;
+  }
+  .sc-gh-cols { flex-shrink: 0 !important; margin-left: 0 !important; }
+  /* Убираем sc-gh-act (место под кнопку удалить) */
+  .sc-gh-act { display: none !important; }
+
+  /* ── Ячейки заклинаний: пипки крупные с цифрой уровня ── */
+  .spell-slot-grid {
+    flex-wrap: wrap !important;
+    gap: 1rem !important;
+    align-items: center !important;
+  }
+  .spell-slot-box {
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+    flex: 0 0 auto !important;
+  }
+  .slot-level { display: none !important; }
+  .slot-pips {
+    gap: 4px !important;
+    margin-top: 0 !important;
+    flex-wrap: nowrap !important;
+  }
+  .slot-pip {
+    width: 30px !important;
+    height: 30px !important;
+    border-radius: 50% !important;
+    border: 1px solid #606b85 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: .82rem !important;
+    font-weight: 700 !important;
+    color: var(--text3) !important;
+  }
+  .slot-pip.used {
+    background: rgba(71,118,230,.9) !important;
+    border-color: var(--accent) !important;
+    color: #fff !important;
+  }
+
+  /* ── Вкладка атак: заголовки над ячейками + карточки ── */
+  .wh-del { display: none !important; }
+  .wh-dmg { width: calc(var(--wc-dmg-w) / 2) !important; }
+  .weapon-card-del { display: none !important; }
+  .weapon-card-dmg { width: calc(var(--wc-dmg-w) / 2) !important; }
+
+  #view-sheet {
+    padding: 0 .4rem .5rem !important;
+    box-sizing: border-box !important;
+    width: 100% !important;
+    overflow-x: hidden !important;
+  }
+  .sheet-layout,
+  .sheet-left,
+  .sheet-right {
+    width: 100% !important;
+    box-sizing: border-box !important;
+    overflow-x: hidden !important;
+  }
+  .sheet-left > *,
+  .sheet-right > * {
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    overflow-x: hidden !important;
+  }
+  .ability-grid, .saves-grid, .skills-list, .ab-table {
+    width: 100% !important;
+    overflow-x: hidden !important;
+  }
+
+
+  .site-header {
+    flex-direction: column;
+    align-items: stretch;
+    padding: .45rem .75rem .3rem;
+    gap: 0;
+  }
+
+  /* Строка 1: лого слева, войти/аватар справа */
+  .mobile-header-row1 {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+  }
+
+  /* Строка 2: бусти растягивается, шестерёнка справа */
+  .mobile-header-row2 {
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+    width: 100%;
+    margin-top: .3rem;
+  }
+
+  .mobile-header-row2 .boosty-btn {
+    flex: 1;
+    justify-content: center;
+    text-align: center;
+    padding: .35rem .5rem;
+    font-size: .78rem;
+  }
+
+  /* Кнопка шестерёнки в шапке (мобиль) */
+  .mobile-header-gear {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    color: var(--text3);
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: color .15s;
+  }
+  .mobile-header-gear:hover {
+    color: var(--text2);
+  }
+
+  /* На десктопе скрываем мобильные обёртки */
+  /* (они видны только внутри этого media query) */
+
+  /* Скрываем бусти из header-right на мобиле — он переехал в row2 */
+  .header-right .boosty-btn { display: none; }
+
+  /* Шестерёнка в навбаре — скрываем на мобиле */
+  #nav-sheet-gear { display: none !important; }
+
+  /* ── Навбар: сетка ── */
+  .nav-bar {
+    display: grid !important;
+    gap: .3rem;
+    padding: .35rem .5rem;
+    /* по умолчанию 3 колонки (список / создание) */
+    grid-template-columns: repeat(3, 1fr);
+    /* sheet-actions и gear не ломают сетку */
+    align-items: stretch;
+  }
+
+  .nav-bar .nav-btn {
+    width: 100%;
+    text-align: center;
+    padding: .4rem .3rem;
+    font-size: .7rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    justify-content: center;
+  }
+
+  /* sheet-actions: JS управляет display, мы задаём сетку и равную ширину кнопок */
+  .nav-sheet-actions {
+    grid-column: 1 / -1 !important;
+    margin-left: 0 !important;
+    width: 100% !important;
+    gap: .3rem !important;
+    align-items: stretch !important;
+  }
+  .nav-sheet-actions .nav-btn {
+    flex: 1 !important;
+    text-align: center !important;
+    min-width: 0 !important;
+  }
+
+  /* ── Режим ЛИСТ: 9 кнопок в 3 строки по 3 ── */
+  /* Когда активен view-sheet — grid уже 3 колонки, кнопок 6 основных +
+     sheet-actions (3 кнопки) растянуты на всю строку выше.
+     Итого визуально: 3+3+3 ✓ */
+
+  /* ── Режим СОЗДАНИЕ и СПИСОК: 5 кнопок → 3+2 ──
+     nav-sheet и nav-sheet-actions скрыты → 5 кнопок в grid-3col = 3+2 ✓
+     Последние 2 кнопки во второй строке занимают оставшееся место,
+     но не растянуты. Чтобы они занимали всю ширину — используем subgrid-трик: */
+
+  /* Последние 2 кнопки (4-я и 5-я в потоке) при 5 кнопках в 3col-grid
+     занимают col 1 и col 2. Чтобы они были одинаковой ширины и занимали
+     всю ширину — делаем их span через auto-placement нельзя напрямую,
+     зато можно задать явно через :nth-child */
+
+  /* Когда view-list/create активен (sheet-actions скрыты),
+     видимых .nav-btn = 5: Персонажи, Создать, Случайный, Пустой, Импорт.
+     4-я и 5-я должны занимать 1.5 колонки каждая → span через CSS невозможен,
+     но можно сделать их grid-column: span 1 и обернуть row2 в subgrid.
+     Проще: меняем grid на 2 строки с явными зонами через auto.
+     Самое чистое решение — 3 cols, 4-й и 5-й кнопкам ставим style через JS,
+     но лучше без JS. Используем: в строке 2 col 3 пустая ячейка → кнопки
+     всё равно одинаковы по ширине (1/3 каждая), что выглядит нормально.
+     Если хочешь именно 50%+50% для строки 2 — меняем подход ниже: */
+
+  /* Вариант: nav-bar в list/create режиме — 6 ячеек (3+3), последняя пустая.
+     Кнопки одинаковые, ширина = 1/3 экрана. Это читабельно и симметрично. */
+
+  /* ── Шестерёнка: та же высота что у boosty-btn ── */
+  .mobile-header-gear {
+    width: auto !important;
+    min-width: 0 !important;
+    aspect-ratio: 1 !important;
+    height: auto !important;
+    min-height: 0 !important;
+    align-self: stretch !important;
+    padding: .3rem !important;
+    box-sizing: border-box !important;
+    font-size: 1.81rem !important;
+    line-height: 1 !important;
+  }
+
+  /* ── Карточка персонажа: одна строка, уровень справа снизу ── */
+  .char-list-item {
+    height: auto !important;
+    min-height: 0 !important;
+    display: flex !important;
+    align-items: stretch !important;
+  }
+  .char-list-item:hover { transform: none !important; }
+  .char-list-item .cli-divider { display: none !important; }
+  .char-list-item .cli-portrait {
+    width: 64px !important;
+    height: auto !important;
+    align-self: stretch !important;
+  }
+  .char-list-item .cli-portrait-class-icon { width: 36px !important; height: 36px !important; }
+  .char-list-item .cli-portrait-placeholder { font-size: 2rem !important; }
+  /* Убираем правую колонку с кнопками */
+  .char-list-item .cli-right { display: none !important; }
+  /* Тело: имя + раса + уровень */
+  .char-list-item .cli-body {
+    padding: .45rem .5rem .45rem .65rem !important;
+    gap: .1rem !important;
+    justify-content: center !important;
+    flex: 1 !important;
+    min-width: 0 !important;
+  }
+  .char-list-item .cli-name { font-size: .9rem !important; }
+  .char-list-item .cli-race-class { font-size: .72rem !important; }
+  .char-list-item .cli-meta { font-size: .67rem !important; }
+  /* Уровень — правая колонка снизу */
+  .char-list-item .cli-level-col {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-end !important;
+    justify-content: flex-end !important;
+    padding: .45rem .55rem !important;
+    flex-shrink: 0 !important;
+  }
+  .char-list-item .cli-level-inline {
+    font-size: .72rem !important;
+    font-weight: 700 !important;
+    color: var(--text3) !important;
+    white-space: nowrap !important;
+  }
+
+  /* ── Панель кубиков: иконки −30% от базового 48px → 34px ── */
+  .dice-panel-anchor { --dp-w: 57px !important; --dp-die: 48px !important; }
+  .dice-panel-anchor .dp-img {
+    width: 34px !important;
+    height: 34px !important;
+  }
+  .dice-panel-anchor .dp-slot.dp-d20 .dp-img {
+    width: 38px !important;
+    height: 38px !important;
+  }
+
+  /* Надпись "Бросить" +15% */
+  .dp-roll-label {
+    font-size: .67rem !important;
+    letter-spacing: .02em !important;
+  }
+
+  /* d20 hover на тачскрине — убираем залипающий hover, сохраняем белый цвет */
+  .dp-slot:hover .dp-img {
+    filter: brightness(0) invert(.82) drop-shadow(0 0 2px rgba(200,220,255,.2)) !important;
+    transform: none !important;
+  }
+  .dp-slot.dp-active .dp-img {
+    filter: brightness(0) invert(1) drop-shadow(0 0 8px rgba(80,220,140,.8)) !important;
+  }
+
+  .site-logo { font-size: .92rem; }
+  .site-logo img { width: 24px !important; height: 24px !important; }
+
+  /* Строка 2 шапки — показываем на мобиле */
+  .mobile-header-row2 { display: flex; }
+}
 </style>
 </head>
 <body>
@@ -3309,42 +4258,56 @@ hr.divider { border: none; border-top: 1px solid #606b85; margin: .9rem 0 }
 <!-- ══ HEADER ══ -->
 <div class="sticky-top-bar">
 <header class="site-header">
-  <div class="site-logo"><img src="/static/img/icon.svg" alt="" style="width:28px;height:28px;vertical-align:middle;margin-right:.4rem;position:relative;top:-1px"> Izzy Wizzy</div>
-  <div class="header-right" style="display:flex;align-items:center;gap:.6rem;position:relative">
-    <a href="https://boosty.to/izzywizzy" target="_blank" rel="noopener" class="boosty-btn">Поддержать проект</a>
-    <span id="header-user-email" style="display:none;font-size:.78rem;color:var(--text2);max-width:180px;cursor:pointer;padding:.25rem .5rem;border-radius:4px;border:1px solid transparent;transition:all .15s;font-weight:600;align-items:center;gap:.4rem" onclick="_toggleUserMenu()" title="Аккаунт">
-      <span id="header-user-email-text"></span>
-      <img id="header-user-avatar" src="" alt="" style="display:none;width:22px;height:22px;border-radius:50%;object-fit:cover;flex-shrink:0">
-    </span>
-    <!-- Дропдаун под email -->
-    <div id="header-user-menu" style="display:none;position:absolute;top:2.6rem;right:0;background:var(--dlg-bg);border:1px solid var(--dlg-border);border-radius:8px;box-shadow:var(--dlg-shadow);min-width:150px;z-index:20000;overflow:hidden">
-      <button onclick="doLogout()" style="width:100%;padding:.6rem 1rem;background:none;border:none;color:var(--text);font-size:.85rem;text-align:left;cursor:pointer;display:flex;align-items:center;gap:.5rem" onmouseover="this.style.background='var(--hover)'" onmouseout="this.style.background='none'">🚪 Выйти</button>
+  <!-- Строка 1 (все экраны): лого + правая часть -->
+  <div class="mobile-header-row1" style="display:flex;align-items:center;justify-content:space-between;width:100%">
+    <div class="site-logo"><img src="/static/img/icon.svg" alt="" style="width:28px;height:28px;vertical-align:middle;margin-right:.4rem;position:relative;top:-1px"> Izzy Wizzy</div>
+    <div class="header-right" style="display:flex;align-items:center;gap:.6rem;position:relative">
+      <!-- Бусти: виден на десктопе, скрыт на мобиле (переехал в строку 2) -->
+      <a href="https://boosty.to/izzywizzy" target="_blank" rel="noopener" class="boosty-btn">Поддержать проект</a>
+      <span id="header-user-email" style="display:none;font-size:.78rem;color:var(--text2);max-width:180px;cursor:pointer;padding:.25rem .5rem;border-radius:4px;border:1px solid transparent;transition:all .15s;font-weight:600;align-items:center;gap:.4rem" onclick="_toggleUserMenu()" title="Аккаунт">
+        <span id="header-user-email-text"></span>
+        <img id="header-user-avatar" src="" alt="" style="display:none;width:22px;height:22px;border-radius:50%;object-fit:cover;flex-shrink:0">
+      </span>
+      <!-- Дропдаун под email -->
+      <div id="header-user-menu" style="display:none;position:absolute;top:2.6rem;right:0;background:var(--dlg-bg);border:1px solid var(--dlg-border);border-radius:8px;box-shadow:var(--dlg-shadow);min-width:150px;z-index:20000;overflow:hidden">
+        <button onclick="doLogout()" style="width:100%;padding:.6rem 1rem;background:none;border:none;color:var(--text);font-size:.85rem;text-align:left;cursor:pointer;display:flex;align-items:center;gap:.5rem" onmouseover="this.style.background='var(--hover)'" onmouseout="this.style.background='none'">🚪 Выйти</button>
+      </div>
+      <button id="header-login-btn" onclick="openAuthDialog()" style="display:none" class="nav-btn import">Войти</button>
     </div>
-    <button id="header-login-btn" onclick="openAuthDialog()" style="display:none" class="nav-btn import">Войти</button>
+  </div>
+  <!-- Строка 2 (только мобиль): бусти во всю ширину + шестерёнка -->
+  <div class="mobile-header-row2">
+    <a href="https://boosty.to/izzywizzy" target="_blank" rel="noopener" class="boosty-btn">Поддержать проект</a>
+    <button class="mobile-header-gear" onclick="openSheetSettings()" title="Настройки">⚙</button>
   </div>
 </header>
+
+<nav class="nav-bar">
+  <!-- Левая группа: 6 основных кнопок -->
+  <div class="nav-left-group">
+    <button class="nav-btn active" id="nav-list"   onclick="showView('list')">📜 Персонажи</button>
+    <button class="nav-btn"        id="nav-sheet"  onclick="showView('sheet')" style="display:none">📋 Лист</button>
+    <button class="nav-btn"        id="nav-create" onclick="_guardedActionFromSheet(()=>showView('create'))">⚗️ Создать</button>
+    <button class="nav-btn" id="nav-random" onclick="_guardedActionFromSheet(openRandDialog)" title="Сгенерировать случайного персонажа">🎲 Случайный</button>
+    <button class="nav-btn" id="nav-blank"  onclick="createBlankChar()" title="Создать пустой лист персонажа">📄 Пустой</button>
+    <button class="nav-btn"                 onclick="importChar()">📥 Импорт</button>
+  </div>
+  <!-- Правая группа: sheet-actions + gear -->
+  <div class="nav-right-group">
+    <div class="nav-sheet-actions" id="nav-sheet-actions" style="display:none;gap:.3rem;align-items:center">
+      <button class="nav-btn" onclick="exportSheet()">📤 LSS</button>
+      <button class="nav-btn" onclick="exportRaw()">📋 JSON</button>
+      <button class="nav-btn" id="btn-export-pdf" onclick="exportPdf()" title="Скачать заполненный PDF">📄 PDF</button>
+    </div>
+    <button class="nav-btn" id="nav-sheet-gear" onclick="openSheetSettings()" title="Настройки" style="padding:.25rem .5rem;font-size:1rem">⚙</button>
+  </div>
+</nav>
 
 <div class="source-bar" id="source-bar">
   <span class="source-bar-label">Источники:</span>
   <div id="source-filters" style="display:flex;gap:.3rem;flex-wrap:wrap"></div>
 </div>
 
-<nav class="nav-bar">
-  <button class="nav-btn active" id="nav-list"   onclick="showView('list')">📜 Персонажи</button>
-  <button class="nav-btn"        id="nav-sheet"  onclick="showView('sheet')" style="display:none">📋 Лист</button>
-  <button class="nav-btn"        id="nav-create" onclick="_guardedActionFromSheet(()=>showView('create'))">⚗️ Создать</button>
-  <button class="nav-btn" id="nav-random" onclick="_guardedActionFromSheet(openRandDialog)" title="Сгенерировать случайного персонажа">🎲 Случайный</button>
-  <button class="nav-btn" id="nav-blank"  onclick="createBlankChar()" title="Создать пустой лист персонажа">📄 Пустой</button>
-  <button class="nav-btn"                 onclick="importChar()">📥 Импорт</button>
-  <!-- Sheet actions — shown only when sheet is active -->
-  <div class="nav-sheet-actions" id="nav-sheet-actions" style="display:none;margin-left:auto;display:none;gap:.3rem;align-items:center">
-    <button class="nav-btn" onclick="exportSheet()">📤 LSS</button>
-    <button class="nav-btn" onclick="exportRaw()">📋 JSON</button>
-    <button class="nav-btn" id="btn-export-pdf" onclick="exportPdf()" title="Скачать заполненный PDF">📄 PDF</button>
-  </div>
-  <!-- Gear: always visible, right-aligned -->
-  <button class="nav-btn" id="nav-sheet-gear" onclick="openSheetSettings()" title="Настройки" style="margin-left:auto;padding:.25rem .5rem;font-size:1rem">⚙</button>
-</nav>
 </div>
 
 <!-- ══ LIST ══ -->
@@ -3359,7 +4322,7 @@ hr.divider { border: none; border-top: 1px solid #606b85; margin: .9rem 0 }
 
     <!-- 0: Информация -->
     <div class="wizard-page active" id="wpage-0">
-      <div class="section-title lg">📖 Основная информация</div>
+      <div class="section-title lg">📖 1. Основная информация</div>
       <div class="portrait-upload">
         <div class="portrait-drop" id="portrait-drop">
           <img id="portrait-preview" src="" style="display:none">
@@ -3378,7 +4341,7 @@ hr.divider { border: none; border-top: 1px solid #606b85; margin: .9rem 0 }
 
     <!-- 1: Раса -->
     <div class="wizard-page" id="wpage-1">
-      <div class="section-title lg">🌍 Раса</div>
+      <div class="section-title lg">🌍 2. Раса</div>
       <div class="option-grid" id="race-grid"></div>
       <div id="subrace-container"></div>
       <div id="race-traits-container"></div>
@@ -3391,21 +4354,21 @@ hr.divider { border: none; border-top: 1px solid #606b85; margin: .9rem 0 }
 
     <!-- 2: Класс -->
     <div class="wizard-page" id="wpage-2">
-      <div class="section-title lg">⚔️ Класс</div>
+      <div class="section-title lg">⚔️ 3. Класс</div>
       <div class="option-grid" id="class-grid"></div>
       <div id="class-details"></div>
     </div>
 
     <!-- 3: Предыстория -->
     <div class="wizard-page" id="wpage-3">
-      <div class="section-title lg">📜 Предыстория</div>
+      <div class="section-title lg">📜 4. Предыстория</div>
       <div class="option-grid" id="background-grid"></div>
       <div id="background-details"></div>
     </div>
 
     <!-- 4: Характеристики -->
     <div class="wizard-page" id="wpage-4">
-      <div class="section-title lg">💪 Характеристики</div>
+      <div class="section-title lg">💪 5. Характеристики</div>
       <div class="mode-row">
         <button class="mode-btn active" data-amode="pointbuy" onclick="setAbilityMode('pointbuy')">🎯 Закуп (27)</button>
         <button class="mode-btn" data-amode="standard" onclick="setAbilityMode('standard')">📊 Стандарт</button>
@@ -3424,7 +4387,7 @@ hr.divider { border: none; border-top: 1px solid #606b85; margin: .9rem 0 }
 
     <!-- 5: Навыки -->
     <div class="wizard-page" id="wpage-5">
-      <div class="section-title lg">🎯 Навыки и владения</div>
+      <div class="section-title lg">🎯 6. Навыки и владения</div>
       <div id="skills-step"></div>
       <div id="subclass-extras-section"></div>
       <div id="lang-tool-section"></div>
@@ -3436,13 +4399,13 @@ hr.divider { border: none; border-top: 1px solid #606b85; margin: .9rem 0 }
 
     <!-- 7: Снаряжение -->
     <div class="wizard-page" id="wpage-7">
-      <div class="section-title lg">🎒 Снаряжение</div>
+      <div class="section-title lg">🎒 8. Снаряжение</div>
       <div id="equipment-choices"></div>
     </div>
 
     <!-- 8: Личность -->
     <div class="wizard-page" id="wpage-8">
-      <div class="section-title lg">🪶 Личность</div>
+      <div class="section-title lg">🪶 9. Личность</div>
       <p class="note-text" style="margin-bottom:1rem">Необязательный шаг — всё это можно заполнить позже на листе персонажа.</p>
       <div class="form-row">
         <div class="form-group"><label>Мировоззрение</label>
@@ -3478,13 +4441,13 @@ hr.divider { border: none; border-top: 1px solid #606b85; margin: .9rem 0 }
     </div>
 
     <div class="wizard-nav">
-      <button class="btn btn-secondary" id="btn-prev" onclick="wizardPrev()" style="visibility:hidden">← Назад</button>
+      <button class="btn btn-secondary" id="btn-prev" onclick="wizardPrev()" style="visibility:hidden"><span class="wbtn-icon">←</span><span class="wbtn-label">Назад</span></button>
       <span class="step-label-text" id="step-label">1 / 8</span>
       <div style="display:flex;gap:.45rem;align-items:center">
-        <button class="btn btn-primary" id="btn-next" onclick="wizardNext()">Далее →</button>
+        <button class="btn btn-primary" id="btn-next" onclick="wizardNext()"><span class="wbtn-icon">→</span><span class="wbtn-label">Далее</span></button>
         <button class="btn" id="btn-next-random" onclick="wizardNextRandom()"
           style="background:transparent;border:1.5px solid #c084fc;color:#c084fc;font-size:.82rem;padding:.42rem .75rem"
-          title="Заполнить все оставшиеся шаги случайно с учётом активных источников">🎲 Случайно</button>
+          title="Заполнить все оставшиеся шаги случайно с учётом активных источников"><span class="wbtn-icon">🎲</span><span class="wbtn-label">Случайно</span></button>
       </div>
     </div>
   </div>
@@ -3512,6 +4475,53 @@ hr.divider { border: none; border-top: 1px solid #606b85; margin: .9rem 0 }
           <span class="char-xp-nums" id="s-xp-val">0 XP</span>
           <span class="char-xp-next-lvl" id="s-xp-nextlvl">→3</span>
         </div>
+      </div>
+
+      <!-- Ландшафт: золото + HP справа в строке 1 -->
+      <div class="landscape-card-stats" style="display:none">
+        <div class="landscape-stat-item" onclick="openCurrencyDialog()">
+          <svg style="width:18px;height:18px;color:var(--gold);flex-shrink:0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M21 6.375c0 2.692-4.03 4.875-9 4.875S3 9.067 3 6.375 7.03 1.5 12 1.5s9 2.183 9 4.875Z"/>
+            <path d="M12 12.75c2.685 0 5.19-.586 7.078-1.609a8.283 8.283 0 0 0 1.897-1.384c.016.121.025.244.025.368C21 12.817 16.97 15 12 15s-9-2.183-9-4.875c0-.124.009-.247.025-.368a8.285 8.285 0 0 0 1.897 1.384C6.809 12.164 9.315 12.75 12 12.75Z"/>
+            <path d="M12 16.5c2.685 0 5.19-.586 7.078-1.609a8.282 8.282 0 0 0 1.897-1.384c.016.121.025.244.025.368 0 2.692-4.03 4.875-9 4.875s-9-2.183-9-4.875c0-.124.009-.247.025-.368a8.284 8.284 0 0 0 1.897 1.384C6.809 15.914 9.315 16.5 12 16.5Z"/>
+            <path d="M12 20.25c2.685 0 5.19-.586 7.078-1.609a8.282 8.282 0 0 0 1.897-1.384c.016.121.025.244.025.368 0 2.692-4.03 4.875-9 4.875s-9-2.183-9-4.875c0-.124.009-.247.025-.368a8.284 8.284 0 0 0 1.897 1.384C6.809 19.664 9.315 20.25 12 20.25Z"/>
+          </svg>
+          <span class="landscape-stat-val" id="ls-gold" style="color:var(--gold)">0</span>
+        </div>
+        <div class="landscape-stat-item" onclick="openHpDialog()">
+          <span style="font-size:1rem;color:var(--c-health)">♥</span>
+          <span class="landscape-stat-val" id="ls-hp" style="color:var(--c-health)">—/—</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Ландшафт: строка 2 — Скорость, Владение, Щит, Кость хитов, Костёр -->
+    <div class="landscape-sheet-row2" style="display:none">
+      <div class="mobile-sheet-cell" onclick="event.stopPropagation()">
+        <div class="mobile-cell-val" id="ls-speed" contenteditable="true"
+          onblur="onSheetStatChange('speed',{value:this.textContent.trim()})"
+          onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur()}">30</div>
+        <div class="mobile-cell-label">Скорость</div>
+      </div>
+      <div class="mobile-sheet-cell" style="pointer-events:none">
+        <div class="mobile-cell-val" id="ls-prof">+2</div>
+        <div class="mobile-cell-label">Владение</div>
+      </div>
+      <div class="mobile-sheet-cell" style="padding:.1rem !important" onclick="toggleShield()" oncontextmenu="openAcDialog(event)">
+        <div class="mobile-shield-wrap" id="ls-shield-wrap" style="cursor:pointer">
+          <svg viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M63.7,115c0.1,0,0.2,0,0.3,0c0.1,0,0.2,0,0.3,0c19.2-5.7,33.1-21,40-44.2c5.2-17.4,4.7-33.4,4.7-33.5c0-0.5-0.5-1-1-1c-4.2,0-7.6-1.3-10-3.8c-4.9-5-4.9-13.1-4.9-13.2c0-0.4-0.2-0.8-0.6-0.9C79.9,13.4,64.7,13,64,13c-0.6,0-15.8,0.4-28.4,5.3c-0.4,0.1-0.6,0.5-0.6,0.9c0,0.1,0,8.3-4.9,13.2c-2.5,2.5-5.9,3.8-10,3.8c-0.5,0-1,0.4-1,1c0,0.2-0.5,16.1,4.7,33.5C30.6,94,44.5,109.2,63.7,115L63.7,115z"
+              fill="rgba(0,0,0,0)" stroke="rgba(255,255,255,0.72)" stroke-width="3.5"/>
+          </svg>
+          <div class="mobile-shield-val" id="ls-ac">10</div>
+        </div>
+      </div>
+      <div class="mobile-sheet-cell" onclick="event.stopPropagation()">
+        <div class="mobile-cell-val" id="ls-hd">d8</div>
+        <div class="mobile-cell-label">Кость хитов</div>
+      </div>
+      <div class="mobile-sheet-cell" onclick="openRestDialog()">
+        <img src="/static/img/campfire.svg" alt="Отдых" style="width:1.6rem;height:1.6rem;transition:filter .15s;cursor:pointer" class="rest-campfire-icon">
       </div>
     </div>
 
@@ -3591,6 +4601,57 @@ hr.divider { border: none; border-top: 1px solid #606b85; margin: .9rem 0 }
       </div>
 
     </div><!-- /overlay -->
+
+    <!-- Мобиль: строка 2 — Скорость, Владение, Щит, Кость хитов, Костёр -->
+    <div class="mobile-sheet-row2">
+      <div class="mobile-sheet-cell" onclick="event.stopPropagation()">
+        <div class="mobile-cell-val" id="m-speed" contenteditable="true"
+          onblur="onSheetStatChange('speed',{value:this.textContent.trim()})"
+          onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur()}">30</div>
+        <div class="mobile-cell-label">Скорость</div>
+      </div>
+      <div class="mobile-sheet-cell" style="pointer-events:none">
+        <div class="mobile-cell-val" id="m-prof">+2</div>
+        <div class="mobile-cell-label">Владение</div>
+      </div>
+      <div class="mobile-sheet-cell" style="padding:.1rem !important" onclick="toggleShield()" oncontextmenu="openAcDialog(event)" title="ЛКМ — щит · ПКМ — изменить КБ">
+        <div class="mobile-shield-wrap" id="m-shield-wrap" style="cursor:pointer">
+          <svg viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M63.7,115c0.1,0,0.2,0,0.3,0c0.1,0,0.2,0,0.3,0c19.2-5.7,33.1-21,40-44.2c5.2-17.4,4.7-33.4,4.7-33.5c0-0.5-0.5-1-1-1c-4.2,0-7.6-1.3-10-3.8c-4.9-5-4.9-13.1-4.9-13.2c0-0.4-0.2-0.8-0.6-0.9C79.9,13.4,64.7,13,64,13c-0.6,0-15.8,0.4-28.4,5.3c-0.4,0.1-0.6,0.5-0.6,0.9c0,0.1,0,8.3-4.9,13.2c-2.5,2.5-5.9,3.8-10,3.8c-0.5,0-1,0.4-1,1c0,0.2-0.5,16.1,4.7,33.5C30.6,94,44.5,109.2,63.7,115L63.7,115z"
+              fill="rgba(0,0,0,0)" stroke="rgba(255,255,255,0.72)" stroke-width="3.5"/>
+          </svg>
+          <div class="mobile-shield-val" id="m-ac">10</div>
+        </div>
+      </div>
+      <div class="mobile-sheet-cell" onclick="event.stopPropagation()">
+        <div class="mobile-cell-val" id="m-hd" contenteditable="true"
+          onblur="if(currentChar){currentChar.hitDieOverride=this.textContent.trim()}"
+          onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur()}">d8</div>
+        <div class="mobile-cell-label">Кость хитов</div>
+      </div>
+      <div class="mobile-sheet-cell" onclick="openRestDialog()" title="Отдых">
+        <img src="/static/img/campfire.svg" alt="Отдых" style="width:1.9rem;height:1.9rem;transition:filter .15s;cursor:pointer" class="rest-campfire-icon">
+      </div>
+    </div>
+
+    <!-- Мобиль: строка 3 — Золото слева, ХП справа -->
+    <div class="mobile-sheet-row3" style="display:none">
+      <!-- Золото слева -->
+      <div style="display:flex;align-items:center;gap:.3rem;flex:1;justify-content:flex-start;cursor:pointer;padding:0 .9rem" onclick="openCurrencyDialog()">
+        <svg style="width:22px;height:22px;color:var(--gold);flex-shrink:0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M21 6.375c0 2.692-4.03 4.875-9 4.875S3 9.067 3 6.375 7.03 1.5 12 1.5s9 2.183 9 4.875Z"/>
+          <path d="M12 12.75c2.685 0 5.19-.586 7.078-1.609a8.283 8.283 0 0 0 1.897-1.384c.016.121.025.244.025.368C21 12.817 16.97 15 12 15s-9-2.183-9-4.875c0-.124.009-.247.025-.368a8.285 8.285 0 0 0 1.897 1.384C6.809 12.164 9.315 12.75 12 12.75Z"/>
+          <path d="M12 16.5c2.685 0 5.19-.586 7.078-1.609a8.282 8.282 0 0 0 1.897-1.384c.016.121.025.244.025.368 0 2.692-4.03 4.875-9 4.875s-9-2.183-9-4.875c0-.124.009-.247.025-.368a8.284 8.284 0 0 0 1.897 1.384C6.809 15.914 9.315 16.5 12 16.5Z"/>
+          <path d="M12 20.25c2.685 0 5.19-.586 7.078-1.609a8.282 8.282 0 0 0 1.897-1.384c.016.121.025.244.025.368 0 2.692-4.03 4.875-9 4.875s-9-2.183-9-4.875c0-.124.009-.247.025-.368a8.284 8.284 0 0 0 1.897 1.384C6.809 19.664 9.315 20.25 12 20.25Z"/>
+        </svg>
+        <div id="m-gold" style="color:var(--gold);font-size:1.8rem;font-weight:700;font-family:'PT Mono',monospace;line-height:1">0</div>
+      </div>
+      <!-- ХП справа -->
+      <div style="display:flex;align-items:center;gap:.3rem;flex:1;justify-content:flex-end;cursor:pointer;padding:0 .9rem" onclick="openHpDialog()">
+        <div id="m-hp" style="font-size:1.8rem;font-weight:700;font-family:'PT Mono',monospace;line-height:1;color:var(--c-health)">—/—</div>
+        <span id="m-hp-heart" style="font-size:1.4rem;line-height:1;color:var(--c-health)">♥</span>
+      </div>
+    </div>
 
   </div><!-- /sheet-header -->
 
@@ -3852,10 +4913,10 @@ hr.divider { border: none; border-top: 1px solid #606b85; margin: .9rem 0 }
             <span style="width:var(--wc-sep-w)"></span>
             <span style="width:var(--wc-atk-w);flex-shrink:0;text-align:center">Атака</span>
             <span style="width:var(--wc-sep-w)"></span>
-            <span style="width:var(--wc-dmg-w);flex-shrink:0;text-align:center">Урон</span>
+            <span class="wh-dmg" style="width:var(--wc-dmg-w);flex-shrink:0;text-align:center">Урон</span>
             <span style="width:var(--wc-sep-w)"></span>
             <span style="width:var(--wc-type-w);flex-shrink:0;text-align:center">Вид</span>
-            <span style="width:var(--wc-del-w)"></span>
+            <span class="wh-del" style="width:var(--wc-del-w)"></span>
           </div>
           <div id="s-weapons"></div>
           <button class="dice-btn" onclick="openWeaponDialog()" style="margin-top:.5rem;margin-left:auto;display:block">+ Атака</button>
@@ -5135,6 +6196,11 @@ document.getElementById('ability-pb-grid').innerHTML =
     <span class="sctx-item-icon">🔗</span>
     <span>Открыть на dnd.su</span>
   </div>
+  <div class="sctx-divider"></div>
+  <div class="sctx-item" id="sctx-delete" onclick="spellCtxAction('delete')" style="color:var(--red2)">
+    <span class="sctx-item-icon">🗑</span>
+    <span>Удалить</span>
+  </div>
 </div>
 
 
@@ -5233,6 +6299,10 @@ document.getElementById('ability-pb-grid').innerHTML =
   </div>
   <div class="sctx-item" id="ictx-equip" onclick="invCtxAction('equip')">
     <span class="sctx-item-icon">⚔️</span><span id="ictx-equip-label">Экипировать</span>
+  </div>
+  <div class="sctx-divider"></div>
+  <div class="sctx-item" onclick="invCtxAction('delete')" style="color:var(--red2)">
+    <span class="sctx-item-icon">🗑</span><span>Удалить</span>
   </div>
 </div>
 
@@ -5669,6 +6739,10 @@ async function _authInit() {
     if (loginBtn) { loginBtn.style.display = ''; }
     if (emailEl)  { emailEl.style.display = 'none'; }
   }
+  // Перезагружаем список чтобы показать правильный счётчик (теперь _IW_webMode известен)
+  if (document.getElementById('view-list')?.classList.contains('active')) {
+    loadCharList();
+  }
 }
 
 // ── User menu dropdown ────────────────────────────────────────────────────────
@@ -5891,5 +6965,25 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 });
 </script>
+<!-- Контекстное меню карточки персонажа -->
+<div id="char-card-ctx-menu" style="display:none;position:fixed;z-index:20100;background:var(--dlg-bg);border:1px solid var(--dlg-border);border-radius:8px;box-shadow:var(--dlg-shadow);min-width:200px;overflow:hidden">
+  <div class="sctx-header" style="padding:.6rem 1rem;border-bottom:1px solid var(--dlg-border)">
+    <div class="sctx-name" id="cctx-name">—</div>
+  </div>
+  <div class="sctx-item" onclick="_charCardCtxAction('lss')"><span class="sctx-item-icon">📤</span><span>Скачать LSS</span></div>
+  <div class="sctx-item" onclick="_charCardCtxAction('json')"><span class="sctx-item-icon">📋</span><span>Скачать JSON</span></div>
+  <div class="sctx-item" onclick="_charCardCtxAction('pdf')"><span class="sctx-item-icon">📄</span><span>Скачать PDF</span></div>
+  <div class="sctx-divider"></div>
+  <div class="sctx-item" onclick="_charCardCtxAction('delete')" style="color:var(--red2)"><span class="sctx-item-icon">🗑</span><span>Удалить</span></div>
+</div>
+<div id="char-card-ctx-overlay" style="display:none;position:fixed;inset:0;z-index:20099" onclick="_closeCharCardCtx()"></div>
+
+</body>
+<div id="roll-adv-menu" style="display:none;position:fixed;z-index:20100;background:var(--dlg-bg);border:1px solid var(--dlg-border);border-radius:8px;box-shadow:var(--dlg-shadow);min-width:200px;overflow:hidden">
+  <div id="roll-adv-btn" class="gear-menu-btn" style="padding:.6rem 1rem;cursor:pointer;display:flex;align-items:center;gap:.5rem;font-size:.85rem;color:var(--text)">🟢 С преимуществом</div>
+  <div id="roll-dis-btn" class="gear-menu-btn" style="padding:.6rem 1rem;cursor:pointer;display:flex;align-items:center;gap:.5rem;font-size:.85rem;color:var(--text)">🔴 С помехой</div>
+</div>
+<div id="roll-adv-overlay" style="display:none;position:fixed;inset:0;z-index:20099"></div>
+
 </body>
 </html>
