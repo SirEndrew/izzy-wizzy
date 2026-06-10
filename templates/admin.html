@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Izzy Wizzy — Админка</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:           #20222c;
+    --bg2:          #20222c;
+    --bg3:          #283351;
+    --surface:      #272e43;
+    --border:       #4a5570;
+    --border2:      #606b85;
+    --accent:       #4776e6;
+    --accent2:      #6693ff;
+    --accent-glow:  rgba(71,118,230,.3);
+    --red:          #e64747;
+    --red2:         #ff6b6b;
+    --gold:         #e6a817;
+    --gold2:        #fbbf24;
+    --green:        #27ae60;
+    --text:         #e8eaf0;
+    --text2:        #9aabb8;
+    --text3:        #606b85;
+    --hover:        #283351;
+    --font:         'Open Sans', sans-serif;
+    --radius:       6px;
+    --dlg-shadow:   0 12px 50px rgba(0,0,0,.85);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    font-size: .88rem;
+    line-height: 1.5;
+  }
+
+  ::-webkit-scrollbar { width: 5px; height: 5px }
+  ::-webkit-scrollbar-track { background: var(--bg) }
+  ::-webkit-scrollbar-thumb { background: #606b85; border-radius: 3px }
+  ::-webkit-scrollbar-thumb:hover { background: var(--accent) }
+
+  /* ── Header ─────────────────────── */
+  .site-header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border2);
+    padding: .6rem 1.4rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .site-logo {
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: var(--text);
+    letter-spacing: .02em;
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+  }
+  .site-logo span {
+    color: var(--text3);
+    font-weight: 400;
+    font-size: .78rem;
+    margin-left: .3rem;
+    vertical-align: middle;
+  }
+  .header-back {
+    font-family: var(--font);
+    font-size: .78rem;
+    font-weight: 700;
+    padding: .35rem .9rem;
+    background: transparent;
+    border: 1px solid var(--border2);
+    color: var(--text2);
+    cursor: pointer;
+    border-radius: var(--radius);
+    transition: all .15s;
+    white-space: nowrap;
+    text-transform: uppercase;
+    letter-spacing: .03em;
+    text-decoration: none;
+  }
+  .header-back:hover { background: var(--hover); color: var(--text); }
+
+  /* ── Layout ─────────────────────── */
+  .main { max-width: 1140px; margin: 0 auto; padding: 28px 20px 64px; }
+
+  /* ── Tabs ───────────────────────── */
+  .nav-tabs {
+    display: flex;
+    gap: 2px;
+    border-bottom: 1px solid var(--border2);
+    margin-bottom: 28px;
+  }
+  .nav-tab {
+    font-family: var(--font);
+    font-size: .78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .03em;
+    padding: .5rem 1.1rem;
+    cursor: pointer;
+    color: var(--text3);
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: color .15s, border-color .15s;
+    user-select: none;
+    background: transparent;
+    border-top: none;
+    border-left: none;
+    border-right: none;
+  }
+  .nav-tab:hover { color: var(--text2); }
+  .nav-tab.active { color: var(--text); border-bottom-color: var(--accent); }
+
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* ── Section title ──────────────── */
+  .section-label {
+    font-size: .65rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: var(--text3);
+    margin-bottom: .75rem;
+  }
+
+  /* ── Stat cards ─────────────────── */
+  .stat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px 16px 14px;
+  }
+  .stat-card .val {
+    font-size: 2.2rem;
+    font-weight: 800;
+    color: var(--gold);
+    line-height: 1;
+    margin-bottom: 5px;
+  }
+  .stat-card .lbl {
+    font-size: .65rem;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    font-weight: 700;
+  }
+  .stat-card.accent-blue .val { color: var(--accent2); }
+  .stat-card.accent-green .val { color: var(--green); }
+
+  /* ── Chart ──────────────────────── */
+  .chart-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px 18px 12px;
+    margin-bottom: 24px;
+  }
+  .bar-chart { display: flex; align-items: flex-end; gap: 3px; height: 72px; }
+  .bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; }
+  .bar {
+    width: 100%;
+    background: rgba(71,118,230,.45);
+    border-radius: 3px 3px 0 0;
+    min-height: 2px;
+    transition: background .15s;
+    position: relative;
+  }
+  .bar:hover { background: var(--accent2); }
+  .bar-label { font-size: 8px; color: var(--text3); white-space: nowrap; font-family: var(--font); }
+  .bar-tooltip {
+    position: absolute;
+    bottom: calc(100% + 4px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 2px 7px;
+    font-size: .72rem;
+    color: var(--text);
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity .1s;
+    z-index: 5;
+    font-family: var(--font);
+  }
+  .bar:hover .bar-tooltip { opacity: 1; }
+
+  /* ── Top lists ──────────────────── */
+  .top-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  .top-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+  }
+  .top-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+    font-size: .83rem;
+    position: relative;
+  }
+  .top-item .rank { color: var(--text3); font-size: .72rem; width: 14px; flex-shrink: 0; font-weight: 700; }
+  .top-item-inner {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    overflow: hidden;
+    border-radius: 3px;
+    padding: 1px 4px;
+  }
+  .top-bar-bg {
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    background: rgba(71,118,230,.1);
+    border-radius: 3px;
+    z-index: 0;
+  }
+  .top-item .name {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    position: relative;
+    color: var(--text2);
+  }
+  .top-item .count {
+    font-size: .72rem;
+    color: var(--accent2);
+    font-weight: 700;
+    flex-shrink: 0;
+    position: relative;
+  }
+
+  /* ── Longest name ───────────────── */
+  .longest-name-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--gold);
+    border-radius: var(--radius);
+    padding: 14px 18px;
+    margin-bottom: 24px;
+  }
+  .longest-name-card .name {
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: var(--gold);
+    margin-top: 4px;
+    word-break: break-all;
+  }
+  .longest-name-card .len { font-size: .78rem; color: var(--text3); margin-top: 2px; }
+
+  /* ── Settings ───────────────────── */
+  .settings-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 14px;
+    max-width: 460px;
+  }
+  .settings-card h3 {
+    font-size: .88rem;
+    font-weight: 800;
+    color: var(--text);
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: .02em;
+  }
+  .settings-card p {
+    font-size: .78rem;
+    color: var(--text3);
+    margin-bottom: 14px;
+    line-height: 1.6;
+  }
+  .input-row { display: flex; gap: 8px; align-items: center; }
+
+  /* ── Inputs ─────────────────────── */
+  input[type="number"], input[type="text"] {
+    background: #0e1525;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: .83rem;
+    padding: .3rem .55rem;
+    outline: none;
+    transition: border-color .15s;
+  }
+  input[type="number"]:focus, input[type="text"]:focus { border-color: var(--accent); }
+  input[type="number"].w-80  { width: 80px; }
+  input[type="text"].w-search { width: 260px; }
+
+  /* ── Buttons ────────────────────── */
+  .btn {
+    font-family: var(--font);
+    font-size: .78rem;
+    font-weight: 700;
+    padding: .35rem 1rem;
+    border: none;
+    cursor: pointer;
+    border-radius: var(--radius);
+    transition: all .15s;
+    letter-spacing: .02em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .btn-primary {
+    background: rgba(71,118,230,.25);
+    color: var(--text);
+    border: 1px solid var(--accent);
+  }
+  .btn-primary:hover { background: rgba(71,118,230,.4); box-shadow: 0 0 14px var(--accent-glow); }
+  .btn-ghost {
+    background: transparent;
+    border: 1px solid var(--border2);
+    color: var(--text3);
+  }
+  .btn-ghost:hover { background: var(--hover); color: var(--text2); border-color: var(--border2); }
+  .btn-danger {
+    background: rgba(230,71,71,.2);
+    color: var(--red2);
+    border: 1px solid var(--red);
+  }
+  .btn-danger:hover { background: rgba(230,71,71,.35); }
+  .btn-gold {
+    background: rgba(230,168,23,.2);
+    color: var(--gold);
+    border: 1px solid var(--gold);
+  }
+  .btn-gold:hover { background: rgba(230,168,23,.35); }
+  .btn-sm { padding: .2rem .65rem; font-size: .72rem; }
+
+  /* ── Badge ──────────────────────── */
+  .badge {
+    display: inline-block;
+    padding: 1px 8px;
+    border-radius: 20px;
+    font-size: .65rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+  }
+  .badge-admin { background: rgba(230,168,23,.15); color: var(--gold); border: 1px solid rgba(230,168,23,.35); }
+  .badge-user  { background: rgba(96,107,133,.15);  color: var(--text3); border: 1px solid var(--border); }
+
+  /* ── Users table ────────────────── */
+  .table-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+  }
+  table { width: 100%; border-collapse: collapse; font-size: .83rem; }
+  thead tr { background: var(--surface); }
+  th {
+    padding: 8px 12px;
+    text-align: left;
+    font-size: .65rem;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: var(--text3);
+    font-weight: 800;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  td {
+    padding: 9px 12px;
+    border-bottom: 1px solid rgba(74,85,112,.4);
+    vertical-align: middle;
+    color: var(--text2);
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(40,51,81,.5); }
+  td.email-cell { color: var(--text); font-weight: 600; }
+
+  .limit-cell { display: flex; align-items: center; gap: 6px; }
+  .limit-inp {
+    background: #0e1525;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: .78rem;
+    padding: 3px 7px;
+    width: 60px;
+    outline: none;
+  }
+  .limit-inp:focus { border-color: var(--accent); }
+  .limit-reset {
+    font-size: .65rem;
+    color: var(--text3);
+    cursor: pointer;
+    text-decoration: underline;
+    font-family: var(--font);
+  }
+  .limit-reset:hover { color: var(--text2); }
+
+  /* ── Search row ─────────────────── */
+  .search-row { display: flex; gap: 10px; margin-bottom: 16px; align-items: center; }
+
+  /* ── Toast ──────────────────────── */
+  #toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius);
+    padding: 8px 16px;
+    font-size: .83rem;
+    color: var(--text);
+    box-shadow: var(--dlg-shadow);
+    opacity: 0;
+    transform: translateY(6px);
+    transition: opacity .2s, transform .2s;
+    pointer-events: none;
+    z-index: 9999;
+    font-family: var(--font);
+    font-weight: 600;
+  }
+  #toast.show { opacity: 1; transform: none; }
+  #toast.ok  { border-color: var(--green); }
+  #toast.err { border-color: var(--red); }
+
+  .loading {
+    color: var(--text3);
+    font-size: .83rem;
+    padding: 48px 0;
+    text-align: center;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+  }
+
+  /* ── Info box ───────────────────── */
+  .info-box {
+    background: var(--surface);
+    border-left: 3px solid var(--accent);
+    border-radius: 0 var(--radius) var(--radius) 0;
+    padding: .6rem .9rem;
+    font-size: .78rem;
+    color: var(--text2);
+    line-height: 1.7;
+    margin-bottom: 16px;
+    max-width: 460px;
+  }
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="site-logo">
+    <img src="/static/img/icon.svg" alt="" style="width:24px;height:24px;vertical-align:middle">
+    Izzy Wizzy<span>Панель администратора</span>
+  </div>
+  <a class="header-back" href="/">← К приложению</a>
+</header>
+
+<main class="main">
+
+  <div class="nav-tabs">
+    <button class="nav-tab active" data-tab="stats">📊 Статистика</button>
+    <button class="nav-tab" data-tab="users">👥 Пользователи</button>
+    <button class="nav-tab" data-tab="settings">⚙️ Настройки</button>
+  </div>
+
+  <!-- ── STATS ─────────────────────────────────────────────────── -->
+  <div class="tab-panel active" id="tab-stats">
+    <div id="stats-loading" class="loading">Загрузка…</div>
+    <div id="stats-content" style="display:none">
+
+      <div class="section-label">Общие показатели</div>
+      <div class="stat-grid" id="stat-cards"></div>
+
+      <div class="section-label">Создано персонажей — последние 30 дней</div>
+      <div class="chart-wrap">
+        <div class="bar-chart" id="daily-chart"></div>
+      </div>
+
+      <div class="section-label">Топы</div>
+      <div class="top-grid" id="top-lists"></div>
+
+      <div id="longest-name-wrap"></div>
+
+    </div>
+  </div>
+
+  <!-- ── USERS ─────────────────────────────────────────────────── -->
+  <div class="tab-panel" id="tab-users">
+    <div class="search-row">
+      <input type="text" class="w-search" id="user-search" placeholder="Поиск по email…">
+    </div>
+    <div id="users-loading" class="loading">Загрузка…</div>
+    <div id="users-table-wrap" class="table-wrap" style="display:none">
+      <table>
+        <thead>
+          <tr>
+            <th>Email</th>
+            <th>Роль</th>
+            <th>Персонажей</th>
+            <th>Лимит</th>
+            <th>Последняя активность</th>
+            <th>Зарегистрирован</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="users-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── SETTINGS ──────────────────────────────────────────────── -->
+  <div class="tab-panel" id="tab-settings">
+    <div class="info-box">
+      Индивидуальный лимит на пользователя задаётся во вкладке <strong>Пользователи</strong>.<br>
+      Здесь можно изменить глобальный дефолт — применяется ко всем, у кого нет индивидуального.
+    </div>
+    <div class="settings-card">
+      <h3>Глобальный лимит персонажей</h3>
+      <p>Применяется к пользователям без индивидуального лимита. Текущее значение по умолчанию: 30.</p>
+      <div class="input-row">
+        <input type="number" class="w-80" id="global-limit-inp" min="1" max="9999" value="30">
+        <button class="btn btn-primary" onclick="saveGlobalLimit()">Сохранить</button>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<div id="toast"></div>
+
+<script>
+// ── State ─────────────────────────────────────────────────────────────────────
+let _users = [];
+let _defaultLimit = 30;
+
+// ── Tabs ──────────────────────────────────────────────────────────────────────
+document.querySelectorAll('.nav-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+  });
+});
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+let _toastTimer;
+function toast(msg, type = 'ok') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'show ' + type;
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => el.className = '', 2800);
+}
+
+// ── API helpers ───────────────────────────────────────────────────────────────
+async function api(url, method = 'GET', body = null) {
+  const opts = { method, headers: { 'Content-Type': 'application/json' } };
+  if (body) opts.body = JSON.stringify(body);
+  const r = await fetch(url, opts);
+  return r.json();
+}
+
+function fmtDate(s) {
+  if (!s) return '—';
+  const d = new Date(s.replace(' ', 'T') + 'Z');
+  return d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: '2-digit' });
+}
+
+function esc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── STATS ─────────────────────────────────────────────────────────────────────
+async function loadStats() {
+  const data = await api('/api/admin/stats');
+  document.getElementById('stats-loading').style.display = 'none';
+  document.getElementById('stats-content').style.display = '';
+
+  const cards = [
+    { val: data.total_users,         lbl: 'Пользователей',      cls: '' },
+    { val: data.total_chars,         lbl: 'Всего персонажей',   cls: '' },
+    { val: data.active_7d,           lbl: 'Активных за 7 дней', cls: 'accent-green' },
+    { val: data.created_7d,          lbl: 'Создано за 7 дней',  cls: 'accent-blue' },
+    { val: data.total_stats_tracked, lbl: 'Со статистикой',     cls: '' },
+  ];
+  document.getElementById('stat-cards').innerHTML = cards.map(c =>
+    `<div class="stat-card ${c.cls}">
+       <div class="val">${c.val}</div>
+       <div class="lbl">${c.lbl}</div>
+     </div>`
+  ).join('');
+
+  renderDailyChart(data.daily_created);
+  renderTopLists(data);
+
+  if (data.longest_name) {
+    document.getElementById('longest-name-wrap').innerHTML =
+      `<div class="section-label">Рекорды</div>
+       <div class="longest-name-card">
+         <div class="lbl">Самое длинное имя персонажа</div>
+         <div class="name">${esc(data.longest_name.name)}</div>
+         <div class="len">${data.longest_name.len} символов</div>
+       </div>`;
+  }
+}
+
+function renderDailyChart(daily) {
+  const wrap = document.getElementById('daily-chart');
+  if (!daily || !daily.length) {
+    wrap.innerHTML = '<span style="color:var(--text3);font-size:.78rem;font-family:var(--font)">Нет данных за последние 30 дней</span>';
+    return;
+  }
+  const max = Math.max(...daily.map(d => d.count), 1);
+  wrap.innerHTML = daily.map(d => {
+    const h = Math.max(3, Math.round((d.count / max) * 72));
+    return `<div class="bar-col">
+      <div class="bar" style="height:${h}px">
+        <div class="bar-tooltip">${d.day}: ${d.count}</div>
+      </div>
+      <div class="bar-label">${d.day.slice(5)}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderTopLists(data) {
+  const sections = [
+    { title: '🧝 Популярные расы',    items: data.top_races },
+    { title: '⚔️ Популярные классы',  items: data.top_classes },
+    { title: '🔮 Редкие подклассы',   items: data.rare_subclasses },
+  ];
+  document.getElementById('top-lists').innerHTML = sections.map(s => {
+    if (!s.items || !s.items.length) return '';
+    const maxCnt = Math.max(...s.items.map(i => i.count), 1);
+    return `<div class="top-card">
+      <div class="section-label" style="margin-bottom:.6rem">${s.title}</div>
+      ${s.items.map((item, idx) => {
+        const pct = Math.round((item.count / maxCnt) * 100);
+        return `<div class="top-item">
+          <span class="rank">${idx + 1}</span>
+          <div class="top-item-inner">
+            <div class="top-bar-bg" style="width:${pct}%"></div>
+            <span class="name">${esc(item.name)}</span>
+            <span class="count">${item.count}</span>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`;
+  }).join('');
+}
+
+// ── USERS ─────────────────────────────────────────────────────────────────────
+async function loadUsers() {
+  const data = await api('/api/admin/users');
+  _users = data.users;
+  _defaultLimit = data.default_limit;
+  document.getElementById('global-limit-inp').value = _defaultLimit;
+  document.getElementById('users-loading').style.display = 'none';
+  document.getElementById('users-table-wrap').style.display = '';
+  renderUsers(_users);
+}
+
+function renderUsers(users) {
+  document.getElementById('users-tbody').innerHTML = users.map(u => `
+    <tr>
+      <td class="email-cell">${esc(u.email)}</td>
+      <td><span class="badge ${u.is_admin ? 'badge-admin' : 'badge-user'}">${u.is_admin ? 'Админ' : 'Юзер'}</span></td>
+      <td>${u.char_count} / ${u.effective_limit}</td>
+      <td>
+        <div class="limit-cell">
+          <input class="limit-inp" type="number" min="0" max="9999"
+                 value="${u.char_limit !== null ? u.char_limit : ''}"
+                 placeholder="${_defaultLimit}"
+                 onchange="setUserLimit('${u.id}', this)">
+          ${u.char_limit !== null
+            ? `<span class="limit-reset" onclick="resetUserLimit('${u.id}')">сброс</span>`
+            : ''}
+        </div>
+      </td>
+      <td>${fmtDate(u.last_active)}</td>
+      <td>${fmtDate(u.created_at)}</td>
+      <td>
+        <button class="btn btn-ghost btn-sm" onclick="toggleAdmin('${u.id}', ${u.is_admin})">
+          ${u.is_admin ? 'Снять права' : 'Сделать админом'}
+        </button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+document.getElementById('user-search').addEventListener('input', function() {
+  const q = this.value.toLowerCase();
+  renderUsers(q ? _users.filter(u => u.email.toLowerCase().includes(q)) : _users);
+});
+
+async function setUserLimit(uid, inp) {
+  const val = inp.value.trim();
+  const limit = val === '' ? null : parseInt(val);
+  if (limit !== null && (isNaN(limit) || limit < 0)) { toast('Некорректное значение', 'err'); return; }
+  const res = await api(`/api/admin/users/${uid}/char_limit`, 'POST', { limit });
+  if (res.error) { toast(res.error, 'err'); return; }
+  toast('✓ Лимит сохранён');
+  loadUsers();
+}
+
+async function resetUserLimit(uid) {
+  const res = await api(`/api/admin/users/${uid}/char_limit`, 'POST', { limit: null });
+  if (res.error) { toast(res.error, 'err'); return; }
+  toast('✓ Лимит сброшен к дефолту');
+  loadUsers();
+}
+
+async function toggleAdmin(uid, isAdmin) {
+  if (!confirm(isAdmin ? 'Снять права администратора у этого пользователя?' : 'Назначить этого пользователя администратором?')) return;
+  const res = await api(`/api/admin/users/${uid}/toggle_admin`, 'POST');
+  if (res.error) { toast(res.error, 'err'); return; }
+  toast(res.is_admin ? '✓ Права администратора выданы' : '✓ Права сняты');
+  loadUsers();
+}
+
+// ── SETTINGS ──────────────────────────────────────────────────────────────────
+async function saveGlobalLimit() {
+  const val = parseInt(document.getElementById('global-limit-inp').value);
+  if (isNaN(val) || val < 1) { toast('Некорректное значение', 'err'); return; }
+  const res = await api('/api/admin/settings/char_limit', 'POST', { limit: val });
+  if (res.error) { toast(res.error, 'err'); return; }
+  _defaultLimit = val;
+  toast('✓ Глобальный лимит сохранён');
+  loadUsers();
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+loadStats();
+loadUsers();
+</script>
+</body>
+</html>

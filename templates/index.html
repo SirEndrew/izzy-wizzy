@@ -4270,6 +4270,7 @@ hr.divider { border: none; border-top: 1px solid #606b85; margin: .9rem 0 }
       </span>
       <!-- Дропдаун под email -->
       <div id="header-user-menu" style="display:none;position:absolute;top:2.6rem;right:0;background:var(--dlg-bg);border:1px solid var(--dlg-border);border-radius:8px;box-shadow:var(--dlg-shadow);min-width:150px;z-index:20000;overflow:hidden">
+        <a id="header-admin-link" href="/admin" style="display:none;width:100%;padding:.6rem 1rem;background:none;border:none;color:var(--gold);font-size:.85rem;text-align:left;cursor:pointer;text-decoration:none;box-sizing:border-box;align-items:center;gap:.5rem" onmouseover="this.style.background='var(--hover)'" onmouseout="this.style.background='none'">⚙️ Админка</a>
         <button onclick="doLogout()" style="width:100%;padding:.6rem 1rem;background:none;border:none;color:var(--text);font-size:.85rem;text-align:left;cursor:pointer;display:flex;align-items:center;gap:.5rem" onmouseover="this.style.background='var(--hover)'" onmouseout="this.style.background='none'">🚪 Выйти</button>
       </div>
       <button id="header-login-btn" onclick="openAuthDialog()" style="display:none" class="nav-btn import">Войти</button>
@@ -6672,6 +6673,7 @@ document.getElementById('ability-pb-grid').innerHTML =
 // ── Auth state ────────────────────────────────────────────────────────────────
 var _IW_webMode = false;
 var _IW_loggedIn = false;
+var _IW_isAdmin = false;
 var _IW_userEmail = null;
 var _IW_userAvatar = null;
 var _IW_noauthCallback = null;
@@ -6708,6 +6710,7 @@ async function _authInit() {
     const d = await res.json();
     _IW_webMode  = d.webMode  || false;
     _IW_loggedIn = d.loggedIn || false;
+    _IW_isAdmin  = d.isAdmin  || false;
     _IW_userEmail = d.email   || null;
     _IW_userAvatar = d.avatar || null;
   } catch(e) { return; }
@@ -6726,6 +6729,7 @@ async function _authInit() {
   const emailEl   = document.getElementById('header-user-email');
   const emailText = document.getElementById('header-user-email-text');
   const avatarEl  = document.getElementById('header-user-avatar');
+  const adminLink = document.getElementById('header-admin-link');
 
   if (_IW_loggedIn) {
     if (emailText) emailText.textContent = _IW_userEmail;
@@ -6735,9 +6739,11 @@ async function _authInit() {
     }
     if (emailEl)  { emailEl.style.display = 'flex'; }
     if (loginBtn) { loginBtn.style.display = 'none'; }
+    if (adminLink) { adminLink.style.display = _IW_isAdmin ? '' : 'none'; }
   } else {
     if (loginBtn) { loginBtn.style.display = ''; }
     if (emailEl)  { emailEl.style.display = 'none'; }
+    if (adminLink) { adminLink.style.display = 'none'; }
   }
   // Перезагружаем список чтобы показать правильный счётчик (теперь _IW_webMode известен)
   if (document.getElementById('view-list')?.classList.contains('active')) {

@@ -148,7 +148,14 @@ window.CLASSES = [
   ],
   subclasses: [
     { name: 'Мастер боевых искусств',    source: 'PH14', type: 'official', toolChoice: { count: 1, category: 'artisan' } },
-    { name: 'Мистический рыцарь',        source: 'PH14', type: 'official' },
+    { name: 'Мистический рыцарь',        source: 'PH14', type: 'official', spellcasting: {
+                                                                                          type: "third",        // третьеуровневый кастер
+                                                                                          ability: "ИНТ",
+                                                                                          cantrips: 2,
+                                                                                          cantripsByLevel: [2,2,2,2,2,2,2,3,3,3,3,3,3,3,3,3,3,3], // ур.3–20
+                                                                                          spellsByLevel:   [3,4,4,4,5,6,6,6,7,8,8,9,10,10,11,11,11,12,13],
+                                                                                         }
+ },
     { name: 'Чемпион',                   source: 'PH14', type: 'official' },
     { name: 'Рыцарь Пурпурного дракона', source: 'SCAG', type: 'official' },
     { name: 'Кавалерист',                source: 'XGE',  type: 'official', skillChoices: { count: 1, from: ['Выступление', 'История', 'Проницательность', 'Убеждение', 'Уход за животными'] } },

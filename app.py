@@ -109,7 +109,43 @@ def _init_db():
             );
             CREATE INDEX IF NOT EXISTS idx_chars_user ON characters(user_id);
             CREATE INDEX IF NOT EXISTS idx_chars_updated ON characters(user_id, updated_at DESC);
+            CREATE TABLE IF NOT EXISTS app_settings (
+                key   TEXT PRIMARY KEY,
+                value TEXT NOT NULL DEFAULT ''
+            );
+            CREATE TABLE IF NOT EXISTS stats_events (
+                id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                event_type TEXT NOT NULL DEFAULT 'character_created',
+                race       TEXT NOT NULL DEFAULT '',
+                class      TEXT NOT NULL DEFAULT '',
+                subclass   TEXT NOT NULL DEFAULT '',
+                name_len   INTEGER NOT NULL DEFAULT 0,
+                char_name  TEXT NOT NULL DEFAULT '',
+                user_id    TEXT NOT NULL DEFAULT '',
+                created_at TEXT NOT NULL DEFAULT (datetime('now'))
+            );
+            CREATE INDEX IF NOT EXISTS idx_stats_created ON stats_events(created_at);
         """)
+        # Миграция: добавляем колонки если их ещё нет (для существующих БД)
+        for col_sql in [
+            "ALTER TABLE users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE users ADD COLUMN char_limit INTEGER",
+        ]:
+            try:
+                conn.execute(col_sql)
+            except Exception:
+                pass  # колонка уже существует
+        # Дефолтный глобальный лимит
+        conn.execute(
+            "INSERT OR IGNORE INTO app_settings (key, value) VALUES ('char_limit_default', '30')"
+        )
+        # Автоматически выдаём права первому email из ADMIN_EMAILS при каждом старте
+        admin_email = os.environ.get("ADMIN_EMAILS", "").split(",")[0].strip().lower()
+        if admin_email:
+            conn.execute(
+                "UPDATE users SET is_admin=1 WHERE email=? AND is_admin=0",
+                (admin_email,)
+            )
     _migrate_from_files()
 
 def _migrate_from_files():
@@ -180,6 +216,56 @@ def _require_auth():
 
 def _uid():
     return session.get("user_id")
+
+def _get_char_limit(uid=None):
+    """Возвращает лимит персонажей для пользователя (индивидуальный или глобальный дефолт)."""
+    with _db() as conn:
+        if uid:
+            row = conn.execute("SELECT char_limit FROM users WHERE id=?", (uid,)).fetchone()
+            if row and row["char_limit"] is not None:
+                return int(row["char_limit"])
+        row = conn.execute("SELECT value FROM app_settings WHERE key='char_limit_default'").fetchone()
+        return int(row["value"]) if row else 30
+
+def _is_admin(uid=None):
+    if not WEB_MODE:
+        return False
+    uid = uid or _uid()
+    if not uid:
+        return False
+    with _db() as conn:
+        row = conn.execute("SELECT is_admin FROM users WHERE id=?", (uid,)).fetchone()
+    return bool(row and row["is_admin"])
+
+def _require_admin():
+    if not WEB_MODE:
+        return jsonify({"error": "Только в веб-режиме"}), 403
+    if not session.get("user_id"):
+        return jsonify({"error": "Требуется авторизация", "auth_required": True}), 401
+    if not _is_admin():
+        return jsonify({"error": "Нет доступа"}), 403
+    return None
+
+def _log_stats_event(char_data: dict, uid: str):
+    """Записывает событие создания персонажа в stats_events."""
+    if not WEB_MODE:
+        return
+    try:
+        with _db() as conn:
+            conn.execute(
+                """INSERT INTO stats_events (event_type, race, class, subclass, name_len, char_name, user_id)
+                   VALUES ('character_created', ?, ?, ?, ?, ?, ?)""",
+                (
+                    char_data.get("raceName") or char_data.get("race") or "",
+                    char_data.get("className") or char_data.get("class") or "",
+                    char_data.get("subclass") or "",
+                    len(char_data.get("name") or ""),
+                    char_data.get("name") or "",
+                    uid or "",
+                )
+            )
+    except Exception:
+        pass  # статистика не должна ломать основной поток
 
 # Десктопные хелперы (для совместимости с десктопным режимом)
 def _get_save_dir() -> Path:
@@ -815,11 +901,13 @@ def auth_register():
         return jsonify({"error": "Пароль минимум 6 символов"}), 400
     h, salt = _hash_password(password)
     uid = secrets.token_hex(8)
+    admin_emails = [e.strip().lower() for e in os.environ.get("ADMIN_EMAILS", "").split(",") if e.strip()]
+    is_admin = 1 if email in admin_emails else 0
     try:
         with _db() as conn:
             conn.execute(
-                "INSERT INTO users (id, email, hash, salt) VALUES (?,?,?,?)",
-                (uid, email, h, salt))
+                "INSERT INTO users (id, email, hash, salt, is_admin) VALUES (?,?,?,?,?)",
+                (uid, email, h, salt, is_admin))
     except sqlite3.IntegrityError:
         return jsonify({"error": "Пользователь с таким email уже существует"}), 409
     session["user_id"]    = uid
@@ -841,6 +929,7 @@ def auth_login():
     session["user_id"]    = row["id"]
     session["user_email"] = email
     session["user_avatar"] = row["avatar"] or ""
+    session["is_admin"]   = bool(row["is_admin"])
     return jsonify({"status": "ok", "email": email})
 
 @app.route("/api/auth/logout", methods=["POST"])
@@ -851,8 +940,10 @@ def auth_logout():
 @app.route("/api/auth/me")
 def auth_me():
     if WEB_MODE and session.get("user_id"):
-        return jsonify({"loggedIn": True, "email": session.get("user_email"), "id": session.get("user_id"), "webMode": True, "avatar": session.get("user_avatar", "")})
-    return jsonify({"loggedIn": False, "email": None, "id": None, "webMode": WEB_MODE, "avatar": ""})
+        return jsonify({"loggedIn": True, "email": session.get("user_email"), "id": session.get("user_id"),
+                        "webMode": True, "avatar": session.get("user_avatar", ""),
+                        "isAdmin": bool(session.get("is_admin", False))})
+    return jsonify({"loggedIn": False, "email": None, "id": None, "webMode": WEB_MODE, "avatar": "", "isAdmin": False})
 
 @app.route("/api/auth/reset-request", methods=["POST"])
 def auth_reset_request():
@@ -1016,13 +1107,15 @@ def oauth_google_callback():
     avatar = profile.get("picture", "")
 
     # Находим или создаём пользователя в БД
+    admin_emails = [e.strip().lower() for e in os.environ.get("ADMIN_EMAILS", "").split(",") if e.strip()]
     with _db() as conn:
         row = conn.execute("SELECT * FROM users WHERE email=?", (email,)).fetchone()
         if not row:
             uid = secrets.token_hex(8)
+            is_admin = 1 if email in admin_emails else 0
             conn.execute(
-                "INSERT INTO users (id, email, hash, salt, avatar, oauth) VALUES (?,?,?,?,?,?)",
-                (uid, email, "", "", avatar, json.dumps(["google"])))
+                "INSERT INTO users (id, email, hash, salt, avatar, oauth, is_admin) VALUES (?,?,?,?,?,?,?)",
+                (uid, email, "", "", avatar, json.dumps(["google"]), is_admin))
         else:
             uid = row["id"]
             oauth_list = json.loads(row["oauth"] or "[]")
@@ -1034,6 +1127,7 @@ def oauth_google_callback():
     session["user_id"]     = uid
     session["user_email"]  = email
     session["user_avatar"] = avatar
+    session["is_admin"]    = bool(email in admin_emails if not row else row["is_admin"])
     return redirect("/")
 
 def favicon():
@@ -1060,6 +1154,7 @@ def list_characters():
             rows = conn.execute(
                 "SELECT id, filename, name, data_json FROM characters WHERE user_id=? AND filename NOT LIKE '%.log.json' ORDER BY updated_at DESC",
                 (uid,)).fetchall()
+        char_limit = _get_char_limit(uid)
         for row in rows:
             try:
                 d = json.loads(row["data_json"])
@@ -1089,6 +1184,8 @@ def list_characters():
                     "level": d.get("level",1), "portrait": portrait,
                     "portraitCrop": d.get("portraitCrop", None)})
             except: pass
+    if WEB_MODE:
+        return jsonify({"chars": chars, "limit": char_limit})
     return jsonify(chars)
 
 @app.route("/api/characters/<filename>", methods=["GET"])
@@ -1315,14 +1412,16 @@ def save_character():
                     count = conn.execute(
                         "SELECT COUNT(*) FROM characters WHERE user_id=? AND filename NOT LIKE '%.log.json'",
                         (uid,)).fetchone()[0]
-                if count >= 30:
-                    return jsonify({"status":"error","message":"Достигнут лимит в 30 персонажей."}), 403
+                char_limit = _get_char_limit(uid)
+                if count >= char_limit:
+                    return jsonify({"status":"error","message":f"Достигнут лимит в {char_limit} персонажей."}), 403
                 char_id = secrets.token_hex(12)
                 filename = f"{char_id}.json"
                 with _db() as conn:
                     conn.execute(
                         "INSERT INTO characters (id, user_id, filename, name, data_json, updated_at) VALUES (?,?,?,?,?,datetime('now'))",
                         (char_id, uid, filename, char_name, data_str))
+                _log_stats_event(data, uid)
         else:
             save_dir = _sd()
             save_dir.mkdir(exist_ok=True)
@@ -1445,13 +1544,15 @@ def import_character():
             uid = _uid()
             with _db() as conn:
                 count = conn.execute("SELECT COUNT(*) FROM characters WHERE user_id=? AND filename NOT LIKE '%.log.json'", (uid,)).fetchone()[0]
-            if count >= 30:
-                return jsonify({"error": "Достигнут лимит в 30 персонажей. Удалите старых персонажей чтобы импортировать нового."}), 403
+            char_limit = _get_char_limit(uid)
+            if count >= char_limit:
+                return jsonify({"error": f"Достигнут лимит в {char_limit} персонажей. Удалите старых персонажей чтобы импортировать нового."}), 403
             filename = _unique_filename_db(uid, name)
             char_id = secrets.token_hex(12)
             with _db() as conn:
                 conn.execute("INSERT INTO characters (id, user_id, filename, name, data_json, updated_at) VALUES (?,?,?,?,?,datetime('now'))",
                     (char_id, uid, filename, char.get("name",""), json.dumps(char, ensure_ascii=False)))
+            _log_stats_event(char, uid)
         else:
             save_dir = _sd()
             filename = _unique_filename(save_dir, name)
@@ -1588,6 +1689,179 @@ def export_pdf(filename):
         download_name=f"{name}_DnD5e.pdf",
         mimetype="application/pdf"
     )
+
+
+
+# ── Admin routes ──────────────────────────────────────────────────────────────
+
+@app.route("/admin")
+def admin_page():
+    if not WEB_MODE:
+        return "Admin available in web mode only", 403
+    if not session.get("user_id"):
+        return redirect("/?auth_required=1")
+    if not _is_admin():
+        return "Access denied", 403
+    return render_template("admin.html")
+
+@app.route("/api/admin/users")
+def admin_users():
+    err = _require_admin()
+    if err: return err
+    with _db() as conn:
+        rows = conn.execute("""
+            SELECT u.id, u.email, u.is_admin, u.char_limit, u.created_at,
+                   COUNT(CASE WHEN c.filename NOT LIKE '%.log.json' THEN 1 END) AS char_count,
+                   MAX(c.updated_at) AS last_active
+            FROM users u
+            LEFT JOIN characters c ON c.user_id = u.id
+            GROUP BY u.id
+            ORDER BY u.created_at DESC
+        """).fetchall()
+    default_limit = _get_char_limit()
+    result = []
+    for r in rows:
+        result.append({
+            "id": r["id"],
+            "email": r["email"],
+            "is_admin": bool(r["is_admin"]),
+            "char_limit": r["char_limit"],           # None = глобальный дефолт
+            "effective_limit": r["char_limit"] if r["char_limit"] is not None else default_limit,
+            "char_count": r["char_count"] or 0,
+            "last_active": r["last_active"] or r["created_at"],
+            "created_at": r["created_at"],
+        })
+    return jsonify({"users": result, "default_limit": default_limit})
+
+@app.route("/api/admin/users/<uid>/char_limit", methods=["POST"])
+def admin_set_char_limit(uid):
+    err = _require_admin()
+    if err: return err
+    data = request.json or {}
+    value = data.get("limit")
+    if value is None:
+        # сброс к дефолту
+        with _db() as conn:
+            conn.execute("UPDATE users SET char_limit=NULL WHERE id=?", (uid,))
+        return jsonify({"status": "ok", "limit": None})
+    try:
+        value = int(value)
+        if value < 0 or value > 9999:
+            raise ValueError
+    except (ValueError, TypeError):
+        return jsonify({"error": "Лимит должен быть числом от 0 до 9999"}), 400
+    with _db() as conn:
+        conn.execute("UPDATE users SET char_limit=? WHERE id=?", (value, uid))
+    return jsonify({"status": "ok", "limit": value})
+
+@app.route("/api/admin/users/<uid>/toggle_admin", methods=["POST"])
+def admin_toggle_admin(uid):
+    err = _require_admin()
+    if err: return err
+    if uid == _uid():
+        return jsonify({"error": "Нельзя снять права у себя"}), 400
+    with _db() as conn:
+        row = conn.execute("SELECT is_admin FROM users WHERE id=?", (uid,)).fetchone()
+        if not row:
+            return jsonify({"error": "Пользователь не найден"}), 404
+        new_val = 0 if row["is_admin"] else 1
+        conn.execute("UPDATE users SET is_admin=? WHERE id=?", (new_val, uid))
+    return jsonify({"status": "ok", "is_admin": bool(new_val)})
+
+@app.route("/api/admin/settings/char_limit", methods=["POST"])
+def admin_set_global_limit():
+    err = _require_admin()
+    if err: return err
+    data = request.json or {}
+    try:
+        value = int(data.get("limit", 30))
+        if value < 1 or value > 9999:
+            raise ValueError
+    except (ValueError, TypeError):
+        return jsonify({"error": "Лимит должен быть числом от 1 до 9999"}), 400
+    with _db() as conn:
+        conn.execute("INSERT OR REPLACE INTO app_settings (key, value) VALUES ('char_limit_default', ?)",
+                     (str(value),))
+    return jsonify({"status": "ok", "limit": value})
+
+@app.route("/api/admin/stats")
+def admin_stats():
+    err = _require_admin()
+    if err: return err
+    with _db() as conn:
+        # Общие числа
+        total_users = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+        total_chars = conn.execute(
+            "SELECT COUNT(*) FROM characters WHERE filename NOT LIKE '%.log.json'"
+        ).fetchone()[0]
+
+        # Активные за последние 7 дней (персонажи обновлялись)
+        active_7d = conn.execute("""
+            SELECT COUNT(DISTINCT user_id) FROM characters
+            WHERE updated_at >= datetime('now', '-7 days')
+        """).fetchone()[0]
+
+        # Создано за последние 7 дней (из stats_events)
+        created_7d = conn.execute("""
+            SELECT COUNT(*) FROM stats_events
+            WHERE event_type='character_created'
+              AND created_at >= datetime('now', '-7 days')
+        """).fetchone()[0]
+
+        # Топ рас
+        top_races = conn.execute("""
+            SELECT race, COUNT(*) AS cnt FROM stats_events
+            WHERE event_type='character_created' AND race != ''
+            GROUP BY race ORDER BY cnt DESC LIMIT 5
+        """).fetchall()
+
+        # Топ классов
+        top_classes = conn.execute("""
+            SELECT class, COUNT(*) AS cnt FROM stats_events
+            WHERE event_type='character_created' AND class != ''
+            GROUP BY class ORDER BY cnt DESC LIMIT 5
+        """).fetchall()
+
+        # Непопулярные подклассы (у кого всего 1 персонаж)
+        rare_subclasses = conn.execute("""
+            SELECT subclass, COUNT(*) AS cnt FROM stats_events
+            WHERE event_type='character_created' AND subclass != ''
+            GROUP BY subclass ORDER BY cnt ASC LIMIT 5
+        """).fetchall()
+
+        # Самое длинное имя
+        longest_name = conn.execute("""
+            SELECT char_name, name_len FROM stats_events
+            WHERE event_type='character_created'
+            ORDER BY name_len DESC LIMIT 1
+        """).fetchone()
+
+        # Персонажей по дням за последние 30 дней
+        daily = conn.execute("""
+            SELECT date(created_at) AS day, COUNT(*) AS cnt
+            FROM stats_events
+            WHERE event_type='character_created'
+              AND created_at >= datetime('now', '-30 days')
+            GROUP BY day ORDER BY day ASC
+        """).fetchall()
+
+        # Всего stats_events (всего персонажей со статистикой)
+        total_stats = conn.execute(
+            "SELECT COUNT(*) FROM stats_events WHERE event_type='character_created'"
+        ).fetchone()[0]
+
+    return jsonify({
+        "total_users": total_users,
+        "total_chars": total_chars,
+        "active_7d": active_7d,
+        "created_7d": created_7d,
+        "total_stats_tracked": total_stats,
+        "top_races": [{"name": r["race"], "count": r["cnt"]} for r in top_races],
+        "top_classes": [{"name": r["class"], "count": r["cnt"]} for r in top_classes],
+        "rare_subclasses": [{"name": r["subclass"], "count": r["cnt"]} for r in rare_subclasses],
+        "longest_name": {"name": longest_name["char_name"], "len": longest_name["name_len"]} if longest_name else None,
+        "daily_created": [{"day": r["day"], "count": r["cnt"]} for r in daily],
+    })
 
 
 if __name__ == "__main__":

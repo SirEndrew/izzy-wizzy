@@ -1903,20 +1903,20 @@ function getRaceAsiPreview(r) {
   if (r.asiMode === 'select') {
     // asi — массив вариантов: [{ИНТ:2,МДР:1},{ИНТ:1,МДР:2}]
     const opts = (r.asi||[]).map(opt =>
-      Object.entries(opt).map(([k,v])=>`${k}+${v}`).join('/')
+      Object.entries(opt).map(([k,v])=>`${k} +${v}`).join(' / ')
     );
     return 'Выбор: ' + opts.join(' или ');
   }
   if (r.asiMode === 'partial') {
     // asi — фиксированная часть, asiChoice — выбор
-    const fixed = Object.entries(r.asi||{}).map(([k,v])=>`${k}+${v}`).join(', ');
+    const fixed = Object.entries(r.asi||{}).map(([k,v])=>`${k} +${v}`).join(', ');
     const ch = r.asiChoice;
     const choiceStr = ch ? (ch.any ? `+${ch.bonus||1} к любой` : `+${ch.bonus||1} к ${(ch.from||[]).join('/')}`) : '';
     return [fixed, choiceStr].filter(Boolean).join(' + ');
   }
   if (r.asiMode === 'multi-choice') return 'Составной выбор ASI';
   return Object.entries(r.asi||{}).filter(([k])=>!k.includes('выбор'))
-    .map(([k,v])=>`${k} ${v>0?'+':''}${v}`).join(', ') || 'вариативно';
+    .map(([k,v])=>`${k} +${v}`).join(', ') || 'вариативно';
 }
 
 function selectRace(id) {
@@ -5938,7 +5938,10 @@ async function loadCharList() {
       </div></div>`;
     return;
   }
-  const chars= await res.json();
+  const _raw = await res.json();
+  // В WEB_MODE API возвращает {chars, limit}, в десктопе — просто массив
+  const chars = Array.isArray(_raw) ? _raw : (_raw.chars || []);
+  const CHAR_LIMIT = Array.isArray(_raw) ? 30 : (_raw.limit ?? 30);
   const c=document.getElementById('char-list-container');
   if (!chars.length) {
     c.innerHTML=`<div style="max-width:860px;margin:1.5rem auto;padding:1rem">
@@ -5947,7 +5950,6 @@ async function loadCharList() {
         Персонажей пока нет. Создайте первого героя!
       </div></div>`; return;
   }
-  const CHAR_LIMIT = 30;
 
   // Сортировка
   const sortKey = localStorage.getItem('charListSort') || 'updated';
@@ -6202,7 +6204,8 @@ async function createBlankChar() {
   let existingNames = [];
   try {
     const res = await fetch('/api/characters');
-    const chars = await res.json();
+    const _raw2 = await res.json();
+    const chars = Array.isArray(_raw2) ? _raw2 : (_raw2.chars || []);
     existingNames = chars.map(c => c.name || '');
   } catch(e) { /* если не загрузилось — просто создаём */ }
 
