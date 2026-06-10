@@ -139,13 +139,6 @@ def _init_db():
         conn.execute(
             "INSERT OR IGNORE INTO app_settings (key, value) VALUES ('char_limit_default', '30')"
         )
-        # Автоматически выдаём права первому email из ADMIN_EMAILS при каждом старте
-        admin_email = os.environ.get("ADMIN_EMAILS", "").split(",")[0].strip().lower()
-        if admin_email:
-            conn.execute(
-                "UPDATE users SET is_admin=1 WHERE email=? AND is_admin=0",
-                (admin_email,)
-            )
     _migrate_from_files()
 
 def _migrate_from_files():
@@ -1123,11 +1116,17 @@ def oauth_google_callback():
                 oauth_list.append("google")
             conn.execute("UPDATE users SET oauth=?, avatar=? WHERE email=?",
                          (json.dumps(oauth_list), avatar or row["avatar"], email))
+            # Если email теперь в ADMIN_EMAILS — выдаём права (на случай если добавили позже)
+            if email in admin_emails:
+                conn.execute("UPDATE users SET is_admin=1 WHERE id=? AND is_admin=0", (uid,))
 
+    # Перечитываем is_admin из БД — учитываем и только что выданные права
+    with _db() as conn:
+        fresh = conn.execute("SELECT is_admin FROM users WHERE id=?", (uid,)).fetchone()
     session["user_id"]     = uid
     session["user_email"]  = email
     session["user_avatar"] = avatar
-    session["is_admin"]    = bool(email in admin_emails if not row else row["is_admin"])
+    session["is_admin"]    = bool(fresh and fresh["is_admin"])
     return redirect("/")
 
 def favicon():
