@@ -59,12 +59,9 @@ const EK_SLOT_TABLE = {
   15:[4,3,2,0], 16:[4,3,3,0], 17:[4,3,3,0], 18:[4,3,3,0],
   19:[4,3,3,1], 20:[4,3,3,1],
 };
-// Известные заклинания МР по уровням персонажа (с 3-го)
-const EK_KNOWN_SPELLS = [0,0,3,4,4,4,5,6,6,6,7,8,8,9,10,10,11,11,11,12,13];
-// Заговоры МР
 const EK_KNOWN_CANTRIPS = [0,0,2,2,2,2,2,2,2,2,3,3,3,3,3,3,3,3,3,3,3];
+const EK_KNOWN_SPELLS   = [0,0,3,4,4,4,5,6,6,6,7,8,8,9,10,10,11,11,11,12,13];
 
-// Синтетический объект spellcasting для МР — используется в renderStep6Spells и _randomSpells
 function _ekSpellcasting(level) {
   return {
     ability: 'ИНТ',
@@ -4210,11 +4207,8 @@ function renderStep6Spells() {
   const cls = wiz.cls;
   const c   = document.getElementById('wpage-6');
   if (!c) return;
-
-  // Мистический рыцарь — подкласс без cls.spellcasting, подставляем синтетику
   const isEK = isEldritchKnightChar({ subclass: wiz.subclass||'', className: cls?.name||'', class: cls?.id||'' });
   const effectiveSC = cls?.spellcasting || (isEK ? _ekSpellcasting(wiz.level||1) : null);
-
   if (!effectiveSC) {
     c.innerHTML = `<div class="section-title lg">🔮 7. Заклинания</div>
       <div class="info-box"><b>${cls?.name||'Этот класс'}</b> не является заклинателем.</div>
@@ -4254,7 +4248,7 @@ function renderStep6Spells() {
   }
 
   // Все заклинания для данного класса из включённых источников
-  // Мистический рыцарь использует список заклинаний волшебника
+  // Мистический рыцарь использует список волшебника
   const classKey = cls.id;
   const spellKeys = isEK ? [classKey, 'wizard'] : [classKey];
   const allSpells = (window.SPELLS||[]).filter(s =>
@@ -7288,7 +7282,7 @@ function renderSpellsSheet(char, pb) {
       '<p class="note-text" style="margin-bottom:.75rem">Нет характеристики заклинателя — слоты недоступны. Особые способности и заклинания можно добавить вручную.</p>' +
       '<button class="btn btn-secondary" style="font-size:.78rem;padding:.3rem .9rem;margin-bottom:.4rem" onclick="enableSpellcasting()">' +
       '🔮 Сделать заклинателем</button>';
-    document.getElementById('s-spell-slots').innerHTML = '';
+    document.getElementById('s-spell-slots').innerHTML='';
     // Still render spells list for non-casters (homebrew / racial spells)
     const spells = char.spells || [];
     if (!spells.length) {
@@ -7343,7 +7337,6 @@ function renderSpellsSheet(char, pb) {
         </div>` +
         '</div>';
     } else if (isEldritchKnightChar(char)) {
-      // Мистический рыцарь: своя таблица, максимум 4 уровня заклинаний
       const ekSlots = EK_SLOT_TABLE[char.level||1] || [0,0,0,0];
       const _slotOvs = char._slotOverrides || {};
       const html = ekSlots.map((baseMax, i) => {
@@ -8776,16 +8769,18 @@ function _randomSpells() {
   const maxSpellLevel = levelTable[level] || 1;
 
   // Пул заклинаний с учётом enabledSources
+  // МР использует список волшебника
   const classKey  = cls.id;
+  const spellKeys = isEK ? [classKey, 'wizard'] : [classKey];
   const subclassNameRnd = (wiz.subclass || '').toLowerCase().trim();
   const allSpells = (window.SPELLS || []).filter(s =>
-    s.classes?.includes(classKey) && enabledSources.has(s.source || 'PH14')
+    spellKeys.some(k => s.classes?.includes(k)) && enabledSources.has(s.source || 'PH14')
   );
 
   // Добавляем заклинания подкласса из spells.subclasses[], которых нет в classes[] класса
   const subclassExtra = subclassNameRnd
     ? (window.SPELLS || []).filter(s =>
-        !s.classes?.includes(classKey) &&
+        !spellKeys.some(k => s.classes?.includes(k)) &&
         enabledSources.has(s.source || 'PH14') &&
         Array.isArray(s.subclasses) &&
         s.subclasses.some(sc => sc.class === classKey && sc.name.toLowerCase().trim() === subclassNameRnd)
