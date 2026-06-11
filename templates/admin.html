@@ -372,8 +372,25 @@
     text-transform: uppercase;
     letter-spacing: .04em;
   }
-  .badge-admin { background: rgba(230,168,23,.15); color: var(--gold); border: 1px solid rgba(230,168,23,.35); }
-  .badge-user  { background: rgba(96,107,133,.15);  color: var(--text3); border: 1px solid var(--border); }
+  .badge-admin  { background: rgba(230,168,23,.15); color: var(--gold); border: 1px solid rgba(230,168,23,.35); }
+  .badge-user   { background: rgba(96,107,133,.15);  color: var(--text3); border: 1px solid var(--border); }
+  .badge-booster { background: rgba(255,107,107,.15); color: var(--red2); border: 1px solid rgba(230,71,71,.4); }
+
+  .boosty-sel {
+    background: #0e1525;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: .78rem;
+    padding: 3px 6px;
+    width: 52px;
+    outline: none;
+    cursor: pointer;
+    text-align: center;
+  }
+  .boosty-sel:focus { border-color: var(--red); }
+  .boosty-sel.active { border-color: var(--red2); color: var(--red2); }
 
   /* ── Users table ────────────────── */
   .table-wrap {
@@ -528,6 +545,7 @@
           <tr>
             <th>Email</th>
             <th>Роль</th>
+            <th>Boosty</th>
             <th>Персонажей</th>
             <th>Лимит</th>
             <th>Последняя активность</th>
@@ -544,14 +562,22 @@
   <div class="tab-panel" id="tab-settings">
     <div class="info-box">
       Индивидуальный лимит на пользователя задаётся во вкладке <strong>Пользователи</strong>.<br>
-      Здесь можно изменить глобальный дефолт — применяется ко всем, у кого нет индивидуального.
+      Здесь можно изменить глобальные дефолты — для обычных пользователей и для бустеров.
     </div>
     <div class="settings-card">
-      <h3>Глобальный лимит персонажей</h3>
-      <p>Применяется к пользователям без индивидуального лимита. Текущее значение по умолчанию: 30.</p>
+      <h3>Лимит для обычных пользователей</h3>
+      <p>Применяется ко всем, у кого нет индивидуального лимита и Boosty-статуса.</p>
       <div class="input-row">
         <input type="number" class="w-80" id="global-limit-inp" min="1" max="9999" value="30">
-        <button class="btn btn-primary" onclick="saveGlobalLimit()">Сохранить</button>
+        <button class="btn btn-primary" onclick="saveGlobalLimit('default')">Сохранить</button>
+      </div>
+    </div>
+    <div class="settings-card" style="border-left: 3px solid var(--red);">
+      <h3 style="color:var(--red2)">🔥 Лимит для бустеров</h3>
+      <p>Применяется к пользователям с Boosty-статусом &gt; 0 (если не задан индивидуальный).</p>
+      <div class="input-row">
+        <input type="number" class="w-80" id="booster-limit-inp" min="1" max="9999" value="100">
+        <button class="btn btn-danger" onclick="saveGlobalLimit('booster')">Сохранить</button>
       </div>
     </div>
   </div>
@@ -564,6 +590,7 @@
 // ── State ─────────────────────────────────────────────────────────────────────
 let _users = [];
 let _defaultLimit = 30;
+let _boosterLimit = 100;
 
 // ── Tabs ──────────────────────────────────────────────────────────────────────
 document.querySelectorAll('.nav-tab').forEach(tab => {
@@ -608,7 +635,6 @@ async function loadStats() {
   const data = await api('/api/admin/stats');
   document.getElementById('stats-loading').style.display = 'none';
   document.getElementById('stats-content').style.display = '';
-
   const cards = [
     { val: data.total_users,         lbl: 'Пользователей',      cls: '' },
     { val: data.total_chars,         lbl: 'Всего персонажей',   cls: '' },
@@ -617,15 +643,10 @@ async function loadStats() {
     { val: data.total_stats_tracked, lbl: 'Со статистикой',     cls: '' },
   ];
   document.getElementById('stat-cards').innerHTML = cards.map(c =>
-    `<div class="stat-card ${c.cls}">
-       <div class="val">${c.val}</div>
-       <div class="lbl">${c.lbl}</div>
-     </div>`
+    `<div class="stat-card ${c.cls}"><div class="val">${c.val}</div><div class="lbl">${c.lbl}</div></div>`
   ).join('');
-
   renderDailyChart(data.daily_created);
   renderTopLists(data);
-
   if (data.longest_name) {
     document.getElementById('longest-name-wrap').innerHTML =
       `<div class="section-label">Рекорды</div>
@@ -640,26 +661,21 @@ async function loadStats() {
 function renderDailyChart(daily) {
   const wrap = document.getElementById('daily-chart');
   if (!daily || !daily.length) {
-    wrap.innerHTML = '<span style="color:var(--text3);font-size:.78rem;font-family:var(--font)">Нет данных за последние 30 дней</span>';
+    wrap.innerHTML = '<span style="color:var(--text3);font-size:.78rem">Нет данных за последние 30 дней</span>';
     return;
   }
   const max = Math.max(...daily.map(d => d.count), 1);
   wrap.innerHTML = daily.map(d => {
     const h = Math.max(3, Math.round((d.count / max) * 72));
-    return `<div class="bar-col">
-      <div class="bar" style="height:${h}px">
-        <div class="bar-tooltip">${d.day}: ${d.count}</div>
-      </div>
-      <div class="bar-label">${d.day.slice(5)}</div>
-    </div>`;
+    return `<div class="bar-col"><div class="bar" style="height:${h}px"><div class="bar-tooltip">${d.day}: ${d.count}</div></div><div class="bar-label">${d.day.slice(5)}</div></div>`;
   }).join('');
 }
 
 function renderTopLists(data) {
   const sections = [
-    { title: '🧝 Популярные расы',    items: data.top_races },
-    { title: '⚔️ Популярные классы',  items: data.top_classes },
-    { title: '🔮 Редкие подклассы',   items: data.rare_subclasses },
+    { title: '🧝 Популярные расы',   items: data.top_races },
+    { title: '⚔️ Популярные классы', items: data.top_classes },
+    { title: '🔮 Редкие подклассы',  items: data.rare_subclasses },
   ];
   document.getElementById('top-lists').innerHTML = sections.map(s => {
     if (!s.items || !s.items.length) return '';
@@ -668,14 +684,7 @@ function renderTopLists(data) {
       <div class="section-label" style="margin-bottom:.6rem">${s.title}</div>
       ${s.items.map((item, idx) => {
         const pct = Math.round((item.count / maxCnt) * 100);
-        return `<div class="top-item">
-          <span class="rank">${idx + 1}</span>
-          <div class="top-item-inner">
-            <div class="top-bar-bg" style="width:${pct}%"></div>
-            <span class="name">${esc(item.name)}</span>
-            <span class="count">${item.count}</span>
-          </div>
-        </div>`;
+        return `<div class="top-item"><span class="rank">${idx+1}</span><div class="top-item-inner"><div class="top-bar-bg" style="width:${pct}%"></div><span class="name">${esc(item.name)}</span><span class="count">${item.count}</span></div></div>`;
       }).join('')}
     </div>`;
   }).join('');
@@ -686,27 +695,42 @@ async function loadUsers() {
   const data = await api('/api/admin/users');
   _users = data.users;
   _defaultLimit = data.default_limit;
+  _boosterLimit = data.booster_limit ?? 100;
   document.getElementById('global-limit-inp').value = _defaultLimit;
+  document.getElementById('booster-limit-inp').value = _boosterLimit;
   document.getElementById('users-loading').style.display = 'none';
   document.getElementById('users-table-wrap').style.display = '';
   renderUsers(_users);
 }
 
 function renderUsers(users) {
-  document.getElementById('users-tbody').innerHTML = users.map(u => `
-    <tr>
+  document.getElementById('users-tbody').innerHTML = users.map(u => {
+    const isBooster = u.boosty_status > 0;
+    const limitSource = u.char_limit !== null ? 'индивид.' : (isBooster ? 'бустер' : 'дефолт');
+    return `<tr>
       <td class="email-cell">${esc(u.email)}</td>
       <td><span class="badge ${u.is_admin ? 'badge-admin' : 'badge-user'}">${u.is_admin ? 'Админ' : 'Юзер'}</span></td>
-      <td>${u.char_count} / ${u.effective_limit}</td>
+      <td>
+        <select class="boosty-sel ${isBooster ? 'active' : ''}"
+                title="Boosty-статус (0 = обычный, 1–5 = бустер)"
+                onchange="setBoostyStatus('${u.id}', this)">
+          <option value="0" ${u.boosty_status===0?'selected':''}>0</option>
+          <option value="1" ${u.boosty_status===1?'selected':''}>1 ★</option>
+          <option value="2" ${u.boosty_status===2?'selected':''}>2 ★★</option>
+          <option value="3" ${u.boosty_status===3?'selected':''}>3 ★★★</option>
+          <option value="4" ${u.boosty_status===4?'selected':''}>4 ★★★★</option>
+          <option value="5" ${u.boosty_status===5?'selected':''}>5 ★★★★★</option>
+        </select>
+      </td>
+      <td title="${u.effective_limit} (${limitSource})">${u.char_count} / ${u.effective_limit}</td>
       <td>
         <div class="limit-cell">
           <input class="limit-inp" type="number" min="0" max="9999"
                  value="${u.char_limit !== null ? u.char_limit : ''}"
-                 placeholder="${_defaultLimit}"
+                 placeholder="${isBooster ? _boosterLimit : _defaultLimit}"
+                 title="Индивидуальный лимит (переопределяет дефолт)"
                  onchange="setUserLimit('${u.id}', this)">
-          ${u.char_limit !== null
-            ? `<span class="limit-reset" onclick="resetUserLimit('${u.id}')">сброс</span>`
-            : ''}
+          ${u.char_limit !== null ? `<span class="limit-reset" onclick="resetUserLimit('${u.id}')">сброс</span>` : ''}
         </div>
       </td>
       <td>${fmtDate(u.last_active)}</td>
@@ -716,8 +740,8 @@ function renderUsers(users) {
           ${u.is_admin ? 'Снять права' : 'Сделать админом'}
         </button>
       </td>
-    </tr>
-  `).join('');
+    </tr>`;
+  }).join('');
 }
 
 document.getElementById('user-search').addEventListener('input', function() {
@@ -750,14 +774,30 @@ async function toggleAdmin(uid, isAdmin) {
   loadUsers();
 }
 
+async function setBoostyStatus(uid, sel) {
+  const status = parseInt(sel.value);
+  const res = await api(`/api/admin/users/${uid}/boosty_status`, 'POST', { status });
+  if (res.error) {
+    toast(res.error, 'err');
+    sel.value = _users.find(u => u.id === uid)?.boosty_status || 0;
+    return;
+  }
+  sel.classList.toggle('active', status > 0);
+  toast(status > 0 ? `✓ Boosty-статус: ${status}` : '✓ Boosty-статус снят');
+  loadUsers();
+}
+
 // ── SETTINGS ──────────────────────────────────────────────────────────────────
-async function saveGlobalLimit() {
-  const val = parseInt(document.getElementById('global-limit-inp').value);
+async function saveGlobalLimit(type) {
+  const inp = type === 'booster'
+    ? document.getElementById('booster-limit-inp')
+    : document.getElementById('global-limit-inp');
+  const val = parseInt(inp.value);
   if (isNaN(val) || val < 1) { toast('Некорректное значение', 'err'); return; }
-  const res = await api('/api/admin/settings/char_limit', 'POST', { limit: val });
+  const res = await api('/api/admin/settings/char_limit', 'POST', { limit: val, type });
   if (res.error) { toast(res.error, 'err'); return; }
-  _defaultLimit = val;
-  toast('✓ Глобальный лимит сохранён');
+  if (type === 'booster') _boosterLimit = val; else _defaultLimit = val;
+  toast(`✓ Лимит ${type === 'booster' ? 'бустеров' : 'пользователей'} сохранён`);
   loadUsers();
 }
 

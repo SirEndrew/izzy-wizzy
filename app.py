@@ -130,14 +130,18 @@ def _init_db():
         for col_sql in [
             "ALTER TABLE users ADD COLUMN is_admin INTEGER NOT NULL DEFAULT 0",
             "ALTER TABLE users ADD COLUMN char_limit INTEGER",
+            "ALTER TABLE users ADD COLUMN boosty_status INTEGER NOT NULL DEFAULT 0",
         ]:
             try:
                 conn.execute(col_sql)
             except Exception:
                 pass  # колонка уже существует
-        # Дефолтный глобальный лимит
+        # Дефолтные глобальные лимиты
         conn.execute(
             "INSERT OR IGNORE INTO app_settings (key, value) VALUES ('char_limit_default', '30')"
+        )
+        conn.execute(
+            "INSERT OR IGNORE INTO app_settings (key, value) VALUES ('char_limit_booster', '100')"
         )
     _migrate_from_files()
 
@@ -211,12 +215,19 @@ def _uid():
     return session.get("user_id")
 
 def _get_char_limit(uid=None):
-    """Возвращает лимит персонажей для пользователя (индивидуальный или глобальный дефолт)."""
+    """Возвращает лимит персонажей для пользователя.
+    Приоритет: индивидуальный > глобальный бустерский (если boosty_status>0) > глобальный дефолт."""
     with _db() as conn:
         if uid:
-            row = conn.execute("SELECT char_limit FROM users WHERE id=?", (uid,)).fetchone()
+            row = conn.execute("SELECT char_limit, boosty_status FROM users WHERE id=?", (uid,)).fetchone()
+            # Индивидуальный лимит — наивысший приоритет
             if row and row["char_limit"] is not None:
                 return int(row["char_limit"])
+            # Бустер — применяем лимит для бустеров
+            if row and row["boosty_status"] and int(row["boosty_status"]) > 0:
+                boost_row = conn.execute("SELECT value FROM app_settings WHERE key='char_limit_booster'").fetchone()
+                return int(boost_row["value"]) if boost_row else 100
+        # Обычный глобальный дефолт
         row = conn.execute("SELECT value FROM app_settings WHERE key='char_limit_default'").fetchone()
         return int(row["value"]) if row else 30
 
@@ -1116,17 +1127,11 @@ def oauth_google_callback():
                 oauth_list.append("google")
             conn.execute("UPDATE users SET oauth=?, avatar=? WHERE email=?",
                          (json.dumps(oauth_list), avatar or row["avatar"], email))
-            # Если email теперь в ADMIN_EMAILS — выдаём права (на случай если добавили позже)
-            if email in admin_emails:
-                conn.execute("UPDATE users SET is_admin=1 WHERE id=? AND is_admin=0", (uid,))
 
-    # Перечитываем is_admin из БД — учитываем и только что выданные права
-    with _db() as conn:
-        fresh = conn.execute("SELECT is_admin FROM users WHERE id=?", (uid,)).fetchone()
     session["user_id"]     = uid
     session["user_email"]  = email
     session["user_avatar"] = avatar
-    session["is_admin"]    = bool(fresh and fresh["is_admin"])
+    session["is_admin"]    = bool(email in admin_emails if not row else row["is_admin"])
     return redirect("/")
 
 def favicon():
@@ -1709,7 +1714,7 @@ def admin_users():
     if err: return err
     with _db() as conn:
         rows = conn.execute("""
-            SELECT u.id, u.email, u.is_admin, u.char_limit, u.created_at,
+            SELECT u.id, u.email, u.is_admin, u.char_limit, u.boosty_status, u.created_at,
                    COUNT(CASE WHEN c.filename NOT LIKE '%.log.json' THEN 1 END) AS char_count,
                    MAX(c.updated_at) AS last_active
             FROM users u
@@ -1718,19 +1723,30 @@ def admin_users():
             ORDER BY u.created_at DESC
         """).fetchall()
     default_limit = _get_char_limit()
+    with _db() as conn:
+        boost_row = conn.execute("SELECT value FROM app_settings WHERE key='char_limit_booster'").fetchone()
+    booster_limit = int(boost_row["value"]) if boost_row else 100
     result = []
     for r in rows:
+        is_booster = int(r["boosty_status"] or 0) > 0
+        if r["char_limit"] is not None:
+            effective = int(r["char_limit"])
+        elif is_booster:
+            effective = booster_limit
+        else:
+            effective = default_limit
         result.append({
             "id": r["id"],
             "email": r["email"],
             "is_admin": bool(r["is_admin"]),
-            "char_limit": r["char_limit"],           # None = глобальный дефолт
-            "effective_limit": r["char_limit"] if r["char_limit"] is not None else default_limit,
+            "boosty_status": int(r["boosty_status"] or 0),
+            "char_limit": r["char_limit"],
+            "effective_limit": effective,
             "char_count": r["char_count"] or 0,
             "last_active": r["last_active"] or r["created_at"],
             "created_at": r["created_at"],
         })
-    return jsonify({"users": result, "default_limit": default_limit})
+    return jsonify({"users": result, "default_limit": default_limit, "booster_limit": booster_limit})
 
 @app.route("/api/admin/users/<uid>/char_limit", methods=["POST"])
 def admin_set_char_limit(uid):
@@ -1767,21 +1783,42 @@ def admin_toggle_admin(uid):
         conn.execute("UPDATE users SET is_admin=? WHERE id=?", (new_val, uid))
     return jsonify({"status": "ok", "is_admin": bool(new_val)})
 
+@app.route("/api/admin/users/<uid>/boosty_status", methods=["POST"])
+def admin_set_boosty_status(uid):
+    err = _require_admin()
+    if err: return err
+    data = request.json or {}
+    try:
+        value = int(data.get("status", 0))
+        if value < 0 or value > 5:
+            raise ValueError
+    except (ValueError, TypeError):
+        return jsonify({"error": "Значение должно быть от 0 до 5"}), 400
+    with _db() as conn:
+        row = conn.execute("SELECT id FROM users WHERE id=?", (uid,)).fetchone()
+        if not row:
+            return jsonify({"error": "Пользователь не найден"}), 404
+        conn.execute("UPDATE users SET boosty_status=? WHERE id=?", (value, uid))
+    return jsonify({"status": "ok", "boosty_status": value})
+
 @app.route("/api/admin/settings/char_limit", methods=["POST"])
 def admin_set_global_limit():
     err = _require_admin()
     if err: return err
     data = request.json or {}
+    limit_type = data.get("type", "default")  # "default" или "booster"
+    if limit_type not in ("default", "booster"):
+        return jsonify({"error": "Неверный тип лимита"}), 400
     try:
         value = int(data.get("limit", 30))
         if value < 1 or value > 9999:
             raise ValueError
     except (ValueError, TypeError):
         return jsonify({"error": "Лимит должен быть числом от 1 до 9999"}), 400
+    key = "char_limit_default" if limit_type == "default" else "char_limit_booster"
     with _db() as conn:
-        conn.execute("INSERT OR REPLACE INTO app_settings (key, value) VALUES ('char_limit_default', ?)",
-                     (str(value),))
-    return jsonify({"status": "ok", "limit": value})
+        conn.execute("INSERT OR REPLACE INTO app_settings (key, value) VALUES (?, ?)", (key, str(value)))
+    return jsonify({"status": "ok", "type": limit_type, "limit": value})
 
 @app.route("/api/admin/stats")
 def admin_stats():
