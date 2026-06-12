@@ -50,6 +50,37 @@ const WARLOCK_PACT_TABLE = {
   16:[3,5], 17:[4,5], 18:[4,5], 19:[4,5], 20:[4,5],
 };
 
+// Мистический рыцарь — таблица ячеек [1й,2й,3й,4й уровень заклинаний]
+const EK_SLOT_TABLE = {
+   1:[0,0,0,0],  2:[0,0,0,0],
+   3:[2,0,0,0],  4:[3,0,0,0],  5:[3,0,0,0],  6:[3,0,0,0],
+   7:[4,2,0,0],  8:[4,2,0,0],  9:[4,2,0,0], 10:[4,3,0,0],
+  11:[4,3,0,0], 12:[4,3,0,0], 13:[4,3,2,0], 14:[4,3,2,0],
+  15:[4,3,2,0], 16:[4,3,3,0], 17:[4,3,3,0], 18:[4,3,3,0],
+  19:[4,3,3,1], 20:[4,3,3,1],
+};
+const EK_KNOWN_CANTRIPS = [0,0,2,2,2,2,2,2,2,2,3,3,3,3,3,3,3,3,3,3,3];
+const EK_KNOWN_SPELLS   = [0,0,3,4,4,4,5,6,6,6,7,8,8,9,10,10,11,11,11,12,13];
+
+function _ekSpellcasting(level) {
+  return {
+    ability: 'ИНТ',
+    type: 'third',
+    cantrips: EK_KNOWN_CANTRIPS[level] || 2,
+    cantripsByLevel: EK_KNOWN_CANTRIPS.slice(1),
+    spellsByLevel: EK_KNOWN_SPELLS.slice(1),
+    spells1: 3,
+  };
+}
+
+function isEldritchKnightChar(char) {
+  const sub = (char?.subclass || '').toLowerCase();
+  const cls = (char?.className || char?.class || '').toLowerCase();
+  return sub.includes('мистический рыцарь') ||
+         sub.includes('eldritch knight') ||
+         (sub.includes('мист') && cls.includes('воин'));
+}
+
 // Возвращает true если персонаж — колдун (Магия Договора)
 function isWarlockChar(char) {
   const cls = (char?.className || char?.class || '').toLowerCase();
@@ -4176,14 +4207,16 @@ function renderStep6Spells() {
   const cls = wiz.cls;
   const c   = document.getElementById('wpage-6');
   if (!c) return;
-  if (!cls?.spellcasting) {
+  const isEK = isEldritchKnightChar({ subclass: wiz.subclass||'', className: cls?.name||'', class: cls?.id||'' });
+  const effectiveSC = cls?.spellcasting || (isEK ? _ekSpellcasting(wiz.level||1) : null);
+  if (!effectiveSC) {
     c.innerHTML = `<div class="section-title lg">🔮 7. Заклинания</div>
       <div class="info-box"><b>${cls?.name||'Этот класс'}</b> не является заклинателем.</div>
       <p class="note-text" style="margin-top:.5rem">Заклинания недоступны для данного класса.</p>`;
     return;
   }
 
-  const sc    = cls.spellcasting;
+  const sc    = effectiveSC;
   const level = wiz.level||1;
   const pb    = profBonus(level);
   const abilVal = (wiz.abilities[sc.ability]||10) + ((wiz.racialBonuses||{})[sc.ability]||0);
@@ -4205,7 +4238,6 @@ function renderStep6Spells() {
   let isPrepared = false;
   if (sc.spellsByLevel === 'prepared') {
     isPrepared = true;
-    // Подготавливаемых = мод хар-ки + уровень (или ½ уровня)
     const halfLevel = (sc.type==='half'||sc.type==='half_up') ? Math.ceil(level/2) : level;
     spellCount = Math.max(1, spellMod + halfLevel);
   } else if (Array.isArray(sc.spellsByLevel)) {
@@ -4215,8 +4247,12 @@ function renderStep6Spells() {
   }
 
   // Все заклинания для данного класса из включённых источников
+  // МР использует список волшебника
   const classKey = cls.id;
-  const allSpells = (window.SPELLS||[]).filter(s => s.classes?.includes(classKey) && enabledSources.has(s.source||'PH14'));
+  const spellKeys = isEK ? [classKey, 'wizard'] : [classKey];
+  const allSpells = (window.SPELLS||[]).filter(s =>
+    spellKeys.some(k => s.classes?.includes(k)) && enabledSources.has(s.source||'PH14')
+  );
 
   // Подкласс из wiz (нормализуем к нижнему регистру для сравнения)
   const subclassName     = (wiz.subclass || '').toLowerCase().trim();
@@ -5242,7 +5278,11 @@ function createCharacter() {
       const _allLangs = [..._realLangs, ...(_freeLabel ? [_freeLabel] : [])];
       return _allLangs.filter((v,i,a) => a.indexOf(v) === i); // дедупликация фиксированных
     })(),
-    spellAbility:wiz.cls?.spellcasting?.ability||null,
+    spellAbility:(()=>{
+      if (wiz.cls?.spellcasting?.ability) return wiz.cls.spellcasting.ability;
+      if (isEldritchKnightChar({subclass:wiz.subclass||'',className:wiz.cls?.name||'',class:wiz.cls?.id||''})) return 'ИНТ';
+      return null;
+    })(),
     spells: allSelectedSpells,
     usedSpellSlots:{},
     weapons:wiz.weapons, inventory: inventoryItems, currency:{...wiz.currency, gp: finalGold},
@@ -5952,17 +5992,20 @@ async function loadCharList() {
   }
   // Сортировка
   const sortKey = localStorage.getItem('charListSort') || 'updated';
+  const sortDir = localStorage.getItem('charListSortDir') || 'desc';
   const sortedChars = [...chars].sort((a, b) => {
-    if (sortKey === 'name')    return (a.name||'').localeCompare(b.name||'', 'ru');
-    if (sortKey === 'level')   return (b.level||0) - (a.level||0);
-    if (sortKey === 'updated') return (b.updatedAt||b.updated_at||'') > (a.updatedAt||a.updated_at||'') ? 1 : -1;
-    return 0;
+    let cmp = 0;
+    if (sortKey === 'name')    cmp = (a.name||'').localeCompare(b.name||'', 'ru');
+    if (sortKey === 'level')   cmp = (a.level||0) - (b.level||0);
+    if (sortKey === 'updated') cmp = (a.updatedAt||a.updated_at||'') > (b.updatedAt||b.updated_at||'') ? 1 : -1;
+    return sortDir === 'asc' ? cmp : -cmp;
   });
 
+  const sortArrow = d => d === 'asc' ? ' ↑' : ' ↓';
   const sortBar = `<div style="display:flex;align-items:center;gap:.6rem;margin-bottom:.75rem;flex-wrap:wrap">
     <span style="font-size:.72rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.06em">Сортировка:</span>
     ${[['updated','По дате'],['name','По имени'],['level','По уровню']].map(([k,l])=>`
-      <button onclick="setCharListSort('${k}')" style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:0;border:none;background:transparent;color:${sortKey===k?'#fff':'var(--text3)'};cursor:pointer;transition:color .15s">${l}</button>
+      <button onclick="setCharListSort('${k}')" style="font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:0;border:none;background:transparent;color:${sortKey===k?'#fff':'var(--text3)'};cursor:pointer;transition:color .15s">${l}${sortKey===k?sortArrow(sortDir):''}</button>
     `).join('')}
   </div>`;
 
@@ -6203,7 +6246,8 @@ async function createBlankChar() {
   let existingNames = [];
   try {
     const res = await fetch('/api/characters');
-    const chars = await res.json();
+    const _raw2 = await res.json();
+    const chars = Array.isArray(_raw2) ? _raw2 : (_raw2.chars || []);
     existingNames = chars.map(c => c.name || '');
   } catch(e) { /* если не загрузилось — просто создаём */ }
 
@@ -7238,7 +7282,9 @@ function getSpellAbility(char) {
 }
 function renderSpellsSheet(char, pb) {
   if (!getSpellAbility(char)) {
-    document.getElementById('s-spell-meta').innerHTML='<p class="note-text" style="margin-bottom:.4rem">Нет характеристики заклинателя — слоты недоступны. Особые способности и заклинания можно добавить вручную.</p>';
+    document.getElementById('s-spell-meta').innerHTML =
+      '<p class="note-text" style="margin-bottom:.75rem">Нет характеристики заклинателя — слоты недоступны. Особые способности и заклинания можно добавить вручную.</p>' +
+      '<button class="btn btn-secondary" style="font-size:.78rem;padding:.3rem .9rem;margin-bottom:.4rem" onclick="enableSpellcasting()">🔮 Сделать заклинателем</button>';
     document.getElementById('s-spell-slots').innerHTML='';
     // Still render spells list for non-casters (homebrew / racial spells)
     const spells = char.spells || [];
@@ -7292,6 +7338,26 @@ function renderSpellsSheet(char, pb) {
             `<div class="slot-pip ${j<used?'used':''}" onclick="toggleSlot(${pactLvl},${j},${pactCount})">${pactLvl}</div>`
           ).join('')}</div>
         </div>` +
+        '</div>';
+    } else if (isEldritchKnightChar(char)) {
+      const ekSlots = EK_SLOT_TABLE[char.level||1] || [0,0,0,0];
+      const _slotOvs = char._slotOverrides || {};
+      const html = ekSlots.map((baseMax, i) => {
+        const lvl = i + 1;
+        const ov = _slotOvs[lvl] || {};
+        const max = ov.override != null ? ov.override : baseMax + (ov.bonus||0);
+        if (!max) return '';
+        const used = sheetUsedSlots[lvl] || 0;
+        return `<div class="spell-slot-box">
+          <div class="slot-level">${lvl}</div>
+          <div class="slot-pips">${Array.from({length:max},(_,j)=>
+            `<div class="slot-pip ${j<used?'used':''}" onclick="toggleSlot(${lvl},${j})">${lvl}</div>`
+          ).join('')}</div>
+        </div>`;
+      }).join('');
+      document.getElementById('s-spell-slots').innerHTML =
+        '<div class="spell-slot-grid" oncontextmenu="openSlotCtxMenu(event)">' +
+        (html || '<span style="color:var(--text3);font-size:.8rem">Ячейки появятся с 3 уровня</span>') +
         '</div>';
     } else {
       const slots=SLOT_TABLE[char.level||1]||SLOT_TABLE[1];
@@ -8675,8 +8741,9 @@ function _randomTools() {
 // ── Случайные заклинания (с enabledSources и правильным подсчётом) ──
 function _randomSpells() {
   const cls = wiz.cls;
-  if (!cls?.spellcasting) return;
-  const sc    = cls.spellcasting;
+  const isEK = isEldritchKnightChar({ subclass: wiz.subclass||'', className: cls?.name||'', class: cls?.id||'' });
+  const sc = cls?.spellcasting || (isEK ? _ekSpellcasting(wiz.level||1) : null);
+  if (!sc) return;
   const level = wiz.level || 1;
 
   // Правильный подсчёт заговоров по уровню
@@ -8689,9 +8756,7 @@ function _randomSpells() {
   const abilVal  = (wiz.abilities[sc.ability]||10) + ((wiz.racialBonuses||{})[sc.ability]||0);
   const spellMod = getMod(abilVal);
   let spellCount = 0;
-  let isPrepared = false;
   if (sc.spellsByLevel === 'prepared') {
-    isPrepared = true;
     const halfLevel = (sc.type==='half'||sc.type==='half_up') ? Math.ceil(level/2) : level;
     spellCount = Math.max(1, spellMod + halfLevel);
   } else if (Array.isArray(sc.spellsByLevel)) {
@@ -8705,16 +8770,18 @@ function _randomSpells() {
   const maxSpellLevel = levelTable[level] || 1;
 
   // Пул заклинаний с учётом enabledSources
+  // МР использует список волшебника
   const classKey  = cls.id;
+  const spellKeys = isEK ? [classKey, 'wizard'] : [classKey];
   const subclassNameRnd = (wiz.subclass || '').toLowerCase().trim();
   const allSpells = (window.SPELLS || []).filter(s =>
-    s.classes?.includes(classKey) && enabledSources.has(s.source || 'PH14')
+    spellKeys.some(k => s.classes?.includes(k)) && enabledSources.has(s.source || 'PH14')
   );
 
-  // Добавляем заклинания подкласса из spells.subclasses[], которых нет в classes[] класса
+  // Добавляем заклинания подкласса из spells.subclasses[], которых нет в основном пуле
   const subclassExtra = subclassNameRnd
     ? (window.SPELLS || []).filter(s =>
-        !s.classes?.includes(classKey) &&
+        !spellKeys.some(k => s.classes?.includes(k)) &&
         enabledSources.has(s.source || 'PH14') &&
         Array.isArray(s.subclasses) &&
         s.subclasses.some(sc => sc.class === classKey && sc.name.toLowerCase().trim() === subclassNameRnd)
@@ -9063,7 +9130,11 @@ function _buildAndSave() {
         ...(wiz.langChoices||[]).filter(Boolean),
       ].filter((v,i,a)=>a.indexOf(v)===i);
     })(),
-    spellAbility:wiz.cls?.spellcasting?.ability||null,
+    spellAbility:(()=>{
+      if (wiz.cls?.spellcasting?.ability) return wiz.cls.spellcasting.ability;
+      if (isEldritchKnightChar({subclass:wiz.subclass||'',className:wiz.cls?.name||'',class:wiz.cls?.id||''})) return 'ИНТ';
+      return null;
+    })(),
     spells:allSpells, usedSpellSlots:{},
     weapons:[], inventory:inventoryItems,
     currency:(()=>{
@@ -9146,7 +9217,7 @@ function openSpellBrowser() {
   // Default class to current char class if available
   const sbClsSel = document.getElementById('sb-class');
   if (sbClsSel) {
-    const charCls = currentChar?.class || '';
+    const charCls = isEldritchKnightChar(currentChar) ? 'wizard' : (currentChar?.class || '');
     sbClsSel.value = charCls && [...sbClsSel.options].some(o=>o.value===charCls) ? charCls : '';
   }
   // Deselect all sources
@@ -12576,6 +12647,16 @@ function closeSpellViewDialog() {
   document.getElementById('spell-view-overlay').classList.add('hidden');
 }
 
+function enableSpellcasting() {
+  if (!currentChar) return;
+  if (!currentChar.spellAbility) currentChar.spellAbility = 'ИНТ';
+  if (!currentChar._spellAbilityOverride) currentChar._spellAbilityOverride = currentChar.spellAbility;
+  const pb = currentChar.proficiencyBonus || profBonus(currentChar.level||1);
+  renderSpellsSheet(currentChar, pb);
+  openSpellMetaDialog();
+  autoSave();
+}
+
 function openSpellMetaDialog() {
   if (!currentChar) return;
   const c = currentChar;
@@ -12686,8 +12767,11 @@ function openSlotDialog() {
   if (!currentChar) return;
   const char = currentChar;
   const isWarlock = isWarlockChar(char);
+  const isEK = isEldritchKnightChar(char);
   const baseSlots = isWarlock
     ? (() => { const [cnt,lvl]=WARLOCK_PACT_TABLE[char.level||1]||[1,1]; const o={}; o[lvl]=cnt; return o; })()
+    : isEK
+    ? (EK_SLOT_TABLE[char.level||1]||[0,0,0,0]).reduce((o,v,i)=>{ if(v) o[i+1]=v; return o; }, {})
     : (SLOT_TABLE[char.level||1]||SLOT_TABLE[1]).reduce((o,v,i)=>{ if(v) o[i+1]=v; return o; }, {});
 
   const overrides = char._slotOverrides || {};
@@ -12726,7 +12810,14 @@ function saveSlotOverrides() {
 }
 
 function setCharListSort(key) {
-  localStorage.setItem('charListSort', key);
+  const prev    = localStorage.getItem('charListSort') || 'updated';
+  const prevDir = localStorage.getItem('charListSortDir') || 'desc';
+  if (prev === key) {
+    localStorage.setItem('charListSortDir', prevDir === 'asc' ? 'desc' : 'asc');
+  } else {
+    localStorage.setItem('charListSort', key);
+    localStorage.setItem('charListSortDir', key === 'name' ? 'asc' : 'desc');
+  }
   loadCharList();
 }
 
