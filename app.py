@@ -1712,41 +1712,44 @@ def admin_page():
 def admin_users():
     err = _require_admin()
     if err: return err
-    with _db() as conn:
-        rows = conn.execute("""
-            SELECT u.id, u.email, u.is_admin, u.char_limit, u.boosty_status, u.created_at,
-                   COUNT(CASE WHEN c.filename NOT LIKE '%.log.json' THEN 1 END) AS char_count,
-                   MAX(c.updated_at) AS last_active
-            FROM users u
-            LEFT JOIN characters c ON c.user_id = u.id
-            GROUP BY u.id
-            ORDER BY u.created_at DESC
-        """).fetchall()
-    default_limit = _get_char_limit()
-    with _db() as conn:
-        boost_row = conn.execute("SELECT value FROM app_settings WHERE key='char_limit_booster'").fetchone()
-    booster_limit = int(boost_row["value"]) if boost_row else 100
-    result = []
-    for r in rows:
-        is_booster = int(r["boosty_status"] or 0) > 0
-        if r["char_limit"] is not None:
-            effective = int(r["char_limit"])
-        elif is_booster:
-            effective = booster_limit
-        else:
-            effective = default_limit
-        result.append({
-            "id": r["id"],
-            "email": r["email"],
-            "is_admin": bool(r["is_admin"]),
-            "boosty_status": int(r["boosty_status"] or 0),
-            "char_limit": r["char_limit"],
-            "effective_limit": effective,
-            "char_count": r["char_count"] or 0,
-            "last_active": r["last_active"] or r["created_at"],
-            "created_at": r["created_at"],
-        })
-    return jsonify({"users": result, "default_limit": default_limit, "booster_limit": booster_limit})
+    try:
+        with _db() as conn:
+            rows = conn.execute("""
+                SELECT u.id, u.email, u.is_admin, u.char_limit, u.boosty_status, u.created_at,
+                       COUNT(CASE WHEN c.filename NOT LIKE '%.log.json' THEN 1 END) AS char_count,
+                       MAX(c.updated_at) AS last_active
+                FROM users u
+                LEFT JOIN characters c ON c.user_id = u.id
+                GROUP BY u.id
+                ORDER BY u.created_at DESC
+            """).fetchall()
+        default_limit = _get_char_limit()
+        with _db() as conn:
+            boost_row = conn.execute("SELECT value FROM app_settings WHERE key='char_limit_booster'").fetchone()
+        booster_limit = int(boost_row["value"]) if boost_row else 100
+        result = []
+        for r in rows:
+            is_booster = int(r["boosty_status"] or 0) > 0
+            if r["char_limit"] is not None:
+                effective = int(r["char_limit"])
+            elif is_booster:
+                effective = booster_limit
+            else:
+                effective = default_limit
+            result.append({
+                "id": r["id"],
+                "email": r["email"],
+                "is_admin": bool(r["is_admin"]),
+                "boosty_status": int(r["boosty_status"] or 0),
+                "char_limit": r["char_limit"],
+                "effective_limit": effective,
+                "char_count": r["char_count"] or 0,
+                "last_active": r["last_active"] or r["created_at"],
+                "created_at": r["created_at"],
+            })
+        return jsonify({"users": result, "default_limit": default_limit, "booster_limit": booster_limit})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route("/api/admin/users/<uid>/char_limit", methods=["POST"])
 def admin_set_char_limit(uid):
@@ -1824,80 +1827,83 @@ def admin_set_global_limit():
 def admin_stats():
     err = _require_admin()
     if err: return err
-    with _db() as conn:
-        # Общие числа
-        total_users = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
-        total_chars = conn.execute(
-            "SELECT COUNT(*) FROM characters WHERE filename NOT LIKE '%.log.json'"
-        ).fetchone()[0]
+    try:
+        with _db() as conn:
+            # Убеждаемся что таблицы существуют
+            conn.execute("""CREATE TABLE IF NOT EXISTS stats_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                event_type TEXT NOT NULL DEFAULT 'character_created',
+                race TEXT NOT NULL DEFAULT '',
+                class TEXT NOT NULL DEFAULT '',
+                subclass TEXT NOT NULL DEFAULT '',
+                name_len INTEGER NOT NULL DEFAULT 0,
+                char_name TEXT NOT NULL DEFAULT '',
+                user_id TEXT NOT NULL DEFAULT '',
+                created_at TEXT NOT NULL DEFAULT (datetime('now'))
+            )""")
+            conn.execute("""CREATE TABLE IF NOT EXISTS app_settings (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL DEFAULT ''
+            )""")
 
-        # Активные за последние 7 дней (персонажи обновлялись)
-        active_7d = conn.execute("""
-            SELECT COUNT(DISTINCT user_id) FROM characters
-            WHERE updated_at >= datetime('now', '-7 days')
-        """).fetchone()[0]
+            total_users = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+            total_chars = conn.execute(
+                "SELECT COUNT(*) FROM characters WHERE filename NOT LIKE '%.log.json'"
+            ).fetchone()[0]
+            active_7d = conn.execute("""
+                SELECT COUNT(DISTINCT user_id) FROM characters
+                WHERE updated_at >= datetime('now', '-7 days')
+            """).fetchone()[0]
+            created_7d = conn.execute("""
+                SELECT COUNT(*) FROM stats_events
+                WHERE event_type='character_created'
+                  AND created_at >= datetime('now', '-7 days')
+            """).fetchone()[0]
+            top_races = conn.execute("""
+                SELECT race, COUNT(*) AS cnt FROM stats_events
+                WHERE event_type='character_created' AND race != ''
+                GROUP BY race ORDER BY cnt DESC LIMIT 5
+            """).fetchall()
+            top_classes = conn.execute("""
+                SELECT class, COUNT(*) AS cnt FROM stats_events
+                WHERE event_type='character_created' AND class != ''
+                GROUP BY class ORDER BY cnt DESC LIMIT 5
+            """).fetchall()
+            rare_subclasses = conn.execute("""
+                SELECT subclass, COUNT(*) AS cnt FROM stats_events
+                WHERE event_type='character_created' AND subclass != ''
+                GROUP BY subclass ORDER BY cnt ASC LIMIT 5
+            """).fetchall()
+            longest_name = conn.execute("""
+                SELECT char_name, name_len FROM stats_events
+                WHERE event_type='character_created'
+                ORDER BY name_len DESC LIMIT 1
+            """).fetchone()
+            daily = conn.execute("""
+                SELECT date(created_at) AS day, COUNT(*) AS cnt
+                FROM stats_events
+                WHERE event_type='character_created'
+                  AND created_at >= datetime('now', '-30 days')
+                GROUP BY day ORDER BY day ASC
+            """).fetchall()
+            total_stats = conn.execute(
+                "SELECT COUNT(*) FROM stats_events WHERE event_type='character_created'"
+            ).fetchone()[0]
 
-        # Создано за последние 7 дней (из stats_events)
-        created_7d = conn.execute("""
-            SELECT COUNT(*) FROM stats_events
-            WHERE event_type='character_created'
-              AND created_at >= datetime('now', '-7 days')
-        """).fetchone()[0]
-
-        # Топ рас
-        top_races = conn.execute("""
-            SELECT race, COUNT(*) AS cnt FROM stats_events
-            WHERE event_type='character_created' AND race != ''
-            GROUP BY race ORDER BY cnt DESC LIMIT 5
-        """).fetchall()
-
-        # Топ классов
-        top_classes = conn.execute("""
-            SELECT class, COUNT(*) AS cnt FROM stats_events
-            WHERE event_type='character_created' AND class != ''
-            GROUP BY class ORDER BY cnt DESC LIMIT 5
-        """).fetchall()
-
-        # Непопулярные подклассы (у кого всего 1 персонаж)
-        rare_subclasses = conn.execute("""
-            SELECT subclass, COUNT(*) AS cnt FROM stats_events
-            WHERE event_type='character_created' AND subclass != ''
-            GROUP BY subclass ORDER BY cnt ASC LIMIT 5
-        """).fetchall()
-
-        # Самое длинное имя
-        longest_name = conn.execute("""
-            SELECT char_name, name_len FROM stats_events
-            WHERE event_type='character_created'
-            ORDER BY name_len DESC LIMIT 1
-        """).fetchone()
-
-        # Персонажей по дням за последние 30 дней
-        daily = conn.execute("""
-            SELECT date(created_at) AS day, COUNT(*) AS cnt
-            FROM stats_events
-            WHERE event_type='character_created'
-              AND created_at >= datetime('now', '-30 days')
-            GROUP BY day ORDER BY day ASC
-        """).fetchall()
-
-        # Всего stats_events (всего персонажей со статистикой)
-        total_stats = conn.execute(
-            "SELECT COUNT(*) FROM stats_events WHERE event_type='character_created'"
-        ).fetchone()[0]
-
-    return jsonify({
-        "total_users": total_users,
-        "total_chars": total_chars,
-        "active_7d": active_7d,
-        "created_7d": created_7d,
-        "total_stats_tracked": total_stats,
-        "top_races": [{"name": r["race"], "count": r["cnt"]} for r in top_races],
-        "top_classes": [{"name": r["class"], "count": r["cnt"]} for r in top_classes],
-        "rare_subclasses": [{"name": r["subclass"], "count": r["cnt"]} for r in rare_subclasses],
-        "longest_name": {"name": longest_name["char_name"], "len": longest_name["name_len"]} if longest_name else None,
-        "daily_created": [{"day": r["day"], "count": r["cnt"]} for r in daily],
-    })
+        return jsonify({
+            "total_users": total_users,
+            "total_chars": total_chars,
+            "active_7d": active_7d,
+            "created_7d": created_7d,
+            "total_stats_tracked": total_stats,
+            "top_races": [{"name": r["race"], "count": r["cnt"]} for r in top_races],
+            "top_classes": [{"name": r["class"], "count": r["cnt"]} for r in top_classes],
+            "rare_subclasses": [{"name": r["subclass"], "count": r["cnt"]} for r in rare_subclasses],
+            "longest_name": {"name": longest_name["char_name"], "len": longest_name["name_len"]} if longest_name else None,
+            "daily_created": [{"day": r["day"], "count": r["cnt"]} for r in daily],
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 if __name__ == "__main__":
