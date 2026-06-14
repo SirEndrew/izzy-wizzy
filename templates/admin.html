@@ -730,12 +730,18 @@ async function api(url, method = 'GET', body = null) {
   const opts = { method, headers: { 'Content-Type': 'application/json' } };
   if (body) opts.body = JSON.stringify(body);
   const r = await fetch(url, opts);
+  const text = await r.text();
+  console.log(`[API] ${method} ${url} → ${r.status}:`, text.slice(0, 300));
   if (!r.ok) {
     let msg = `HTTP ${r.status}`;
-    try { const j = await r.json(); msg = j.error || msg; } catch(_) {}
+    try { msg = JSON.parse(text).error || msg; } catch(_) { msg = text.slice(0, 200) || msg; }
     throw new Error(msg);
   }
-  return r.json();
+  try {
+    return JSON.parse(text);
+  } catch(e) {
+    throw new Error('Ответ сервера не является JSON: ' + text.slice(0, 150));
+  }
 }
 
 function fmtDate(s) {
