@@ -48,51 +48,144 @@
   ::-webkit-scrollbar-thumb { background: #606b85; border-radius: 3px }
   ::-webkit-scrollbar-thumb:hover { background: var(--accent) }
 
-  /* ── Header ─────────────────────── */
+  /* ════════ SHARED NAVBAR (Notion style) ════════ */
   .site-header {
-    background: var(--surface);
-    border-bottom: 1px solid var(--border2);
-    padding: .6rem 1.4rem;
+    background: var(--bg);
+    border-bottom: none;
+    padding: 0 2rem;
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    height: 54px;
+    z-index: 1000;
     position: sticky;
     top: 0;
-    z-index: 100;
   }
   .site-logo {
-    font-size: 1.05rem;
+    font-family: var(--font);
+    font-size: 1rem;
     font-weight: 800;
     color: var(--text);
-    letter-spacing: .02em;
+    letter-spacing: .01em;
+    white-space: nowrap;
     display: flex;
     align-items: center;
     gap: .4rem;
-  }
-  .site-logo span {
-    color: var(--text3);
-    font-weight: 400;
-    font-size: .78rem;
-    margin-left: .3rem;
-    vertical-align: middle;
-  }
-  .header-back {
-    font-family: var(--font);
-    font-size: .78rem;
-    font-weight: 700;
-    padding: .35rem .9rem;
-    background: transparent;
-    border: 1px solid var(--border2);
-    color: var(--text2);
-    cursor: pointer;
-    border-radius: var(--radius);
-    transition: all .15s;
-    white-space: nowrap;
-    text-transform: uppercase;
-    letter-spacing: .03em;
+    flex-shrink: 0;
     text-decoration: none;
   }
-  .header-back:hover { background: var(--hover); color: var(--text); }
+  .nav-center { display:flex;align-items:center;gap:.1rem;margin:0 auto; }
+  .nav-item {
+    font-family: var(--font);
+    font-size: .875rem;
+    font-weight: 500;
+    color: #fff;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: .38rem .7rem;
+    border-radius: 6px;
+    transition: background .12s;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: .3rem;
+    text-decoration: none;
+    line-height: 1.4;
+  }
+  .nav-item:hover { background: rgba(255,255,255,.09); }
+  .nav-item.active { background: rgba(255,255,255,.09); }
+  .nav-right { display:flex;align-items:center;gap:.35rem;flex-shrink:0; }
+  .boosty-btn {
+    display: inline-flex;
+    align-items: center;
+    padding: .35rem .9rem;
+    border-radius: 6px;
+    font-size: .82rem;
+    font-weight: 600;
+    color: #fff;
+    text-decoration: none;
+    white-space: nowrap;
+    background: #f4600c;
+    border: none;
+    transition: background .15s;
+    flex-shrink: 0;
+  }
+  .boosty-btn:hover { background: #e0560a; }
+  .nav-user-wrap { position: relative; }
+  .nav-user-btn {
+    display: none;
+    align-items: center;
+    gap: .4rem;
+    padding: .3rem .55rem;
+    background: transparent;
+    border: none;
+    color: rgba(255,255,255,.75);
+    cursor: pointer;
+    border-radius: 6px;
+    transition: background .12s, color .12s;
+    font-family: var(--font);
+    font-size: .875rem;
+    font-weight: 500;
+    max-width: 170px;
+  }
+  .nav-user-btn:hover,
+  .nav-user-wrap:hover .nav-user-btn { background: rgba(255,255,255,.09); color: #fff; }
+  .nav-user-btn img { width:22px;height:22px;border-radius:50%;object-fit:cover;flex-shrink:0;display:none; }
+  .nav-user-btn .nav-user-email { overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+  .nav-user-btn .nu-chev { font-size:.5rem;opacity:.4; }
+  .nav-login-btn {
+    font-family: var(--font);
+    font-size: .875rem;
+    font-weight: 500;
+    color: #fff;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: .38rem .7rem;
+    border-radius: 6px;
+    transition: background .12s;
+    white-space: nowrap;
+  }
+  .nav-login-btn:hover { background: rgba(255,255,255,.09); }
+  .nav-dropdown {
+    display: none;
+    position: absolute;
+    top: calc(100% + 4px);
+    right: 0;
+    background: #1c1f2e;
+    border: 1px solid rgba(255,255,255,.1);
+    border-radius: 12px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.75);
+    min-width: 160px;
+    z-index: 10000;
+    padding: 8px 0;
+    overflow: hidden;
+  }
+  .nav-user-wrap:hover .nav-dropdown { display: block; }
+  .nav-dd-item {
+    font-family: var(--font);
+    font-size: .875rem;
+    font-weight: 400;
+    color: rgba(255,255,255,.8);
+    display: flex;
+    align-items: baseline;
+    gap: .6rem;
+    width: 100%;
+    padding: .65rem 1.1rem;
+    background: none;
+    border: none;
+    cursor: pointer;
+    text-align: left;
+    transition: background .1s, color .1s;
+    white-space: nowrap;
+    line-height: 1.4;
+    text-decoration: none;
+    box-sizing: border-box;
+  }
+  .nav-dd-item::before { content:'·';font-size:1.3rem;line-height:0;color:rgba(255,255,255,.25);flex-shrink:0;position:relative;top:1px;transition:color .1s; }
+  .nav-dd-item:hover { background: rgba(255,255,255,.07); color: #fff; }
+  .nav-dd-item:hover::before { color: rgba(255,255,255,.6); }
+  /* ════════ END SHARED NAVBAR ════════ */
 
   /* ── Layout ─────────────────────── */
   .main { max-width: 1140px; margin: 0 auto; padding: 28px 20px 64px; }
@@ -497,12 +590,32 @@
 <body>
 
 <header class="site-header">
-  <div class="site-logo">
-    <img src="/static/img/icon.svg" alt="" style="width:24px;height:24px;vertical-align:middle">
-    Izzy Wizzy<span>Панель администратора</span>
+  <a class="site-logo" href="/">
+    <img src="/static/img/icon.svg" alt="" style="width:24px;height:24px">
+    Izzy Wizzy
+  </a>
+
+  <nav class="nav-center">
+    <a class="nav-item" href="/">Персонажи</a>
+    <a class="nav-item active" href="/admin">Админка</a>
+  </nav>
+
+  <div class="nav-right">
+    <a href="https://boosty.to/izzywizzy" target="_blank" rel="noopener" class="boosty-btn">Поддержать</a>
+    <div class="nav-user-wrap">
+      <button class="nav-user-btn" id="header-user-email">
+        <img id="header-user-avatar" src="" alt="">
+        <span class="nav-user-email" id="header-user-email-text"></span>
+        <span class="nu-chev">▾</span>
+      </button>
+      <div class="nav-dropdown">
+        <button class="nav-dd-item" onclick="fetch('/api/auth/logout',{method:'POST'}).then(()=>location.href='/')">Выйти</button>
+      </div>
+    </div>
+    <button class="nav-login-btn" id="header-login-btn" style="display:none" onclick="location.href='/?auth=1'">Войти</button>
   </div>
-  <a class="header-back" href="/">← К приложению</a>
 </header>
+
 
 <main class="main">
 
@@ -802,8 +915,26 @@ async function saveGlobalLimit(type) {
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────────
-loadStats();
-loadUsers();
+// ── Auth init ─────────────────────────────────────────────────────────────────
+(async function() {
+  try {
+    const r = await fetch('/api/auth/me');
+    const d = await r.json();
+    const emailBtn  = document.getElementById('header-user-email');
+    const emailText = document.getElementById('header-user-email-text');
+    const avatarEl  = document.getElementById('header-user-avatar');
+    const loginBtn  = document.getElementById('header-login-btn');
+    if (d.loggedIn) {
+      if (emailText) emailText.textContent = d.email || '';
+      if (avatarEl && d.avatar) { avatarEl.src = d.avatar; avatarEl.style.display = 'inline-block'; }
+      if (emailBtn) emailBtn.style.display = 'flex';
+      if (loginBtn) loginBtn.style.display = 'none';
+    } else {
+      if (emailBtn) emailBtn.style.display = 'none';
+      if (loginBtn) loginBtn.style.display = '';
+    }
+  } catch(e) {}
+})();
 </script>
 </body>
 </html>

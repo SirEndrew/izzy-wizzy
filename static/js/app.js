@@ -918,28 +918,41 @@ function rebuildCurrentStep() {
 // НАВИГАЦИЯ
 // ══════════════════════════════════════════════════════════
 function showView(v) {
-  // При переходе к созданию нового персонажа сбрасываем текущий
   if (v === 'create' || v === 'wizard' || v === 'list') {
     if (v !== 'list') _resetCurrentChar();
   }
   document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
   document.getElementById('view-' + v).classList.add('active');
-  // Немедленно скрываем тултип при смене страницы
   clearTimeout(window._tooltipShowTimer); clearTimeout(window._tooltipTimer);
   if (window._tooltipEl) { window._tooltipEl.style.opacity='0'; window._tooltipEl.remove(); window._tooltipEl=null; }
+
+  // Переключаем активный пункт меню (десктоп)
   ['list','create','sheet'].forEach(name => {
-    document.getElementById('nav-' + name)?.classList.toggle('active', name === v);
+    const btn = document.getElementById('nav-' + name);
+    if (btn) btn.classList.toggle('active', name === v);
   });
+
+  // Мобильное меню — активный пункт и секция экспорта
+  ['list','sheet'].forEach(name => {
+    const btn = document.getElementById('nmm-' + name);
+    if (btn) btn.classList.toggle('active', name === v);
+  });
+  const nmmExport = document.getElementById('nmm-export-section');
+  if (nmmExport) nmmExport.style.display = v === 'sheet' ? '' : 'none';
+
   if (v === 'create') { /* buildSourceFilters и initWizard — ниже */ }
   else { const bar = document.getElementById('source-bar'); if (bar) bar.style.display = 'none'; }
-  // Show sheet actions in navbar only when sheet is active
-  const sheetAct = document.getElementById('nav-sheet-actions');
+
+  // Экспорт и шестерёнка — только на листе
+  const exportWrap = document.getElementById('nav-export-wrap');
+  const sheetAct   = document.getElementById('nav-sheet-actions'); // legacy
   const gearSheetItems = document.getElementById('gear-sheet-items');
   const gear = document.getElementById('nav-sheet-gear');
-  if (sheetAct) { sheetAct.style.display = v === 'sheet' ? 'flex' : 'none'; }
-  if (gearSheetItems) { gearSheetItems.style.display = v === 'sheet' ? '' : 'none'; }
-  // Gear pushes right only when sheet-actions are hidden
-  if (gear) { gear.style.marginLeft = v === 'sheet' ? '0' : 'auto'; }
+  if (exportWrap) exportWrap.style.display = v === 'sheet' ? '' : 'none';
+  if (sheetAct)   sheetAct.style.display   = 'none'; // legacy всегда скрыт
+  if (gearSheetItems) gearSheetItems.style.display = v === 'sheet' ? '' : 'none';
+  if (gear) gear.style.display = v === 'sheet' ? '' : 'none';
+
   if (v === 'list')   { _logTextFlush(); loadCharList(); window.scrollTo({ top: 0, behavior: 'instant' }); }
   if (v === 'create') { _logTextFlush(); initWizard(); }
   if (v === 'sheet' && !currentChar) { showView('list'); return; }
@@ -1940,10 +1953,10 @@ function getRaceAsiPreview(r) {
   }
   if (r.asiMode === 'partial') {
     // asi — фиксированная часть, asiChoice — выбор
-    const fixed = Object.entries(r.asi||{}).map(([k,v])=>`${k}+${v}`).join(', ');
+    const fixed = Object.entries(r.asi||{}).map(([k,v])=>`${k} +${v}`).join(', ');
     const ch = r.asiChoice;
     const choiceStr = ch ? (ch.any ? `+${ch.bonus||1} к любой` : `+${ch.bonus||1} к ${(ch.from||[]).join('/')}`) : '';
-    return [fixed, choiceStr].filter(Boolean).join(' + ');
+    return [fixed, choiceStr].filter(Boolean).join(', ');
   }
   if (r.asiMode === 'multi-choice') return 'Составной выбор ASI';
   return Object.entries(r.asi||{}).filter(([k])=>!k.includes('выбор'))
@@ -5354,7 +5367,7 @@ async function saveCharacter(char) {
     wiz.portraitCrop = null;
   }
 
-  document.getElementById('nav-sheet').style.display='inline-block';
+  document.getElementById('nav-sheet').style.display='inline-block'; document.getElementById('nmm-sheet') && (document.getElementById('nmm-sheet').style.display='');
   toast('✅ Персонаж создан!','success');
   _normalizeXpLevel(char);
   renderSheet(char);
@@ -5967,17 +5980,50 @@ function _globalSheetChange(e) {
 
 async function loadCharList() {
   const res  = await fetch('/api/characters');
+  const viewList = document.getElementById('view-list');
   if (res.status === 401) {
     const c=document.getElementById('char-list-container');
-    c.innerHTML=`<div style="max-width:860px;margin:1.5rem auto;padding:1rem">
-      <div class="empty-state">
-        <span class="big-icon">🔒</span>
-        Войдите, чтобы увидеть своих персонажей
-        <br><br>
-        <button class="btn btn-primary" onclick="openAuthDialog('login')" style="margin-top:.5rem">Войти / Зарегистрироваться</button>
-      </div></div>`;
+    if (viewList) viewList.classList.add('landing-mode');
+    c.innerHTML=`
+<div class="landing-wrap">
+  <div class="landing-inner">
+
+    <!-- Левая колонка: видео -->
+    <div class="landing-video-col">
+      <video class="landing-video" src="/static/video/Gandalf.mp4"
+        autoplay loop muted playsinline>
+      </video>
+    </div>
+
+    <!-- Правая колонка: текст + буллиты + кнопки -->
+    <div class="landing-text-col">
+      <div class="landing-eyebrow">D&amp;D 5e · Русский язык</div>
+      <h1 class="landing-title">Умный лист персонажа</h1>
+      <p class="landing-sub">Создавай персонажей, бросай кости, экспортируй в PDF — всё в одном месте.</p>
+
+      <ul class="landing-bullets">
+        <li>Пошаговый визард создания за 5 минут</li>
+        <li>Автоматический расчёт всех характеристик</li>
+        <li>Броски с историей и Discord-интеграцией</li>
+        <li>Экспорт в PDF для распечатки</li>
+        <li>Облачное хранение — доступ с любого устройства</li>
+      </ul>
+
+      <div class="landing-actions">
+        <button class="landing-btn-primary" onclick="openAuthDialog('reg')">
+          Создать аккаунт — бесплатно
+        </button>
+        <button class="landing-btn-secondary" onclick="openAuthDialog('login')">
+          Уже есть аккаунт? Войти
+        </button>
+      </div>
+    </div>
+
+  </div>
+</div>`;
     return;
   }
+  if (viewList) viewList.classList.remove('landing-mode');
   const _raw = await res.json();
   // WEB_MODE возвращает {chars, limit}, десктоп — просто массив
   const chars = Array.isArray(_raw) ? _raw : (_raw.chars || []);
@@ -6088,7 +6134,7 @@ async function loadChar(filename) {
   currentFilename=char.filename || filename;
   currentCharId=char._id || null;
   delete currentChar._id;
-  document.getElementById('nav-sheet').style.display='inline-block';
+  document.getElementById('nav-sheet').style.display='inline-block'; document.getElementById('nmm-sheet') && (document.getElementById('nmm-sheet').style.display='');
   renderSheet(char);
   charLogInit(char);
   showView('sheet');
@@ -6234,7 +6280,7 @@ async function deleteChar(filename) {
   await fetch('/api/characters/'+encodeURIComponent(key),{method:'DELETE'});
   if (currentFilename===filename) {
     _resetCurrentChar();
-    document.getElementById('nav-sheet').style.display='none';
+    document.getElementById('nav-sheet').style.display='none'; document.getElementById('nmm-sheet') && (document.getElementById('nmm-sheet').style.display='none');
   }
   loadCharList();
   toast('🗑️ Персонаж удалён');

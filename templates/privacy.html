@@ -4,50 +4,168 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Политика конфиденциальности — Izzy Wizzy</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+    :root {
+      --bg:   #20222c;
+      --text: #e8eaf0;
+      --text2: #9aabb8;
+      --text3: #606b85;
+      --gold: #e6a817;
+      --font: 'Open Sans', sans-serif;
+    }
+
     body {
-      background: #1a1a2e;
-      color: #c8c0b8;
-      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text2);
+      font-family: var(--font);
       font-size: 15px;
       line-height: 1.7;
       min-height: 100vh;
     }
 
-    header {
-      background: #272e43;
-      border-bottom: 1px solid #606b85;
-      padding: .6rem 1.4rem;
+    /* ════════ SHARED NAVBAR (Notion style) ════════ */
+    .site-header {
+      background: var(--bg);
+      border-bottom: none;
+      padding: 0 2rem;
       display: flex;
       align-items: center;
-      gap: .8rem;
+      height: 54px;
+      z-index: 1000;
       position: sticky;
       top: 0;
-      z-index: 10;
     }
-
-    header a {
-      color: #c9a84c;
+    .site-logo {
+      font-family: var(--font);
+      font-size: 1rem;
+      font-weight: 800;
+      color: var(--text);
+      letter-spacing: .01em;
+      white-space: nowrap;
+      display: flex;
+      align-items: center;
+      gap: .4rem;
+      flex-shrink: 0;
       text-decoration: none;
-      font-size: .85rem;
+    }
+    .nav-center { display:flex;align-items:center;gap:.1rem;margin:0 auto; }
+    .nav-item {
+      font-family: var(--font);
+      font-size: .875rem;
+      font-weight: 500;
+      color: #fff;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      padding: .38rem .7rem;
+      border-radius: 6px;
+      transition: background .12s;
+      white-space: nowrap;
       display: flex;
       align-items: center;
       gap: .3rem;
-      opacity: .8;
-      transition: opacity .15s;
+      text-decoration: none;
+      line-height: 1.4;
     }
-    header a:hover { opacity: 1; }
-
-    header .logo {
-      font-weight: 800;
-      font-size: 1rem;
-      color: #e0d8cc;
-      letter-spacing: .02em;
+    .nav-item:hover { background: rgba(255,255,255,.09); }
+    .nav-item.active { background: rgba(255,255,255,.09); }
+    .nav-right { display:flex;align-items:center;gap:.35rem;flex-shrink:0; }
+    .boosty-btn {
+      display: inline-flex;
+      align-items: center;
+      padding: .35rem .9rem;
+      border-radius: 6px;
+      font-size: .82rem;
+      font-weight: 600;
+      color: #fff;
+      text-decoration: none;
+      white-space: nowrap;
+      background: #f4600c;
+      border: none;
+      transition: background .15s;
+      flex-shrink: 0;
     }
-
-    .sep { color: #606b85; }
+    .boosty-btn:hover { background: #e0560a; }
+    .nav-user-wrap { position: relative; }
+    .nav-user-btn {
+      display: none;
+      align-items: center;
+      gap: .4rem;
+      padding: .3rem .55rem;
+      background: transparent;
+      border: none;
+      color: rgba(255,255,255,.75);
+      cursor: pointer;
+      border-radius: 6px;
+      transition: background .12s, color .12s;
+      font-family: var(--font);
+      font-size: .875rem;
+      font-weight: 500;
+      max-width: 170px;
+    }
+    .nav-user-btn:hover,
+    .nav-user-wrap:hover .nav-user-btn { background: rgba(255,255,255,.09); color: #fff; }
+    .nav-user-btn img { width:22px;height:22px;border-radius:50%;object-fit:cover;flex-shrink:0;display:none; }
+    .nav-user-btn .nav-user-email { overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+    .nav-user-btn .nu-chev { font-size:.5rem;opacity:.4; }
+    .nav-login-btn {
+      font-family: var(--font);
+      font-size: .875rem;
+      font-weight: 500;
+      color: #fff;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      padding: .38rem .7rem;
+      border-radius: 6px;
+      transition: background .12s;
+      white-space: nowrap;
+    }
+    .nav-login-btn:hover { background: rgba(255,255,255,.09); }
+    .nav-dropdown {
+      display: none;
+      position: absolute;
+      top: calc(100% + 4px);
+      right: 0;
+      background: #1c1f2e;
+      border: 1px solid rgba(255,255,255,.1);
+      border-radius: 12px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.75);
+      min-width: 160px;
+      z-index: 10000;
+      padding: 8px 0;
+      overflow: hidden;
+    }
+    .nav-user-wrap:hover .nav-dropdown { display: block; }
+    .nav-dd-item {
+      font-family: var(--font);
+      font-size: .875rem;
+      font-weight: 400;
+      color: rgba(255,255,255,.8);
+      display: flex;
+      align-items: baseline;
+      gap: .6rem;
+      width: 100%;
+      padding: .65rem 1.1rem;
+      background: none;
+      border: none;
+      cursor: pointer;
+      text-align: left;
+      transition: background .1s, color .1s;
+      white-space: nowrap;
+      line-height: 1.4;
+      text-decoration: none;
+      box-sizing: border-box;
+    }
+    .nav-dd-item::before { content:'·';font-size:1.3rem;line-height:0;color:rgba(255,255,255,.25);flex-shrink:0;position:relative;top:1px;transition:color .1s; }
+    .nav-dd-item:hover { background: rgba(255,255,255,.07); color: #fff; }
+    .nav-dd-item:hover::before { color: rgba(255,255,255,.6); }
+    /* ════════ END SHARED NAVBAR ════════ */
 
     main {
       max-width: 780px;
@@ -58,53 +176,69 @@
     h1 {
       font-size: 1.6rem;
       font-weight: 800;
-      color: #e0d8cc;
+      color: var(--text);
       margin-bottom: .4rem;
     }
 
     .meta {
       font-size: .8rem;
-      color: #8888aa;
+      color: var(--text3);
       margin-bottom: 2rem;
     }
 
     h2 {
       font-size: 1rem;
       font-weight: 700;
-      color: #c9a84c;
+      color: var(--gold);
       margin: 2rem 0 .6rem;
       padding-bottom: .3rem;
-      border-bottom: 1px solid #2d3561;
+      border-bottom: 1px solid rgba(255,255,255,.07);
     }
 
-    p { margin-bottom: .8rem; color: #b8b0a8; }
-
-    ul {
-      margin: .4rem 0 .8rem 1.2rem;
-      color: #b8b0a8;
-    }
+    p { margin-bottom: .8rem; }
+    ul { margin: .4rem 0 .8rem 1.2rem; }
     ul li { margin-bottom: .3rem; }
-
-    a { color: #c9a84c; }
+    a { color: var(--gold); }
     a:hover { text-decoration: underline; }
 
     .contact-block {
-      background: #16213e;
-      border: 1px solid #2d3561;
+      background: rgba(255,255,255,.04);
+      border: 1px solid rgba(255,255,255,.08);
       border-radius: 10px;
       padding: 1rem 1.2rem;
       margin-top: 2rem;
       font-size: .88rem;
     }
-    .contact-block strong { color: #e0d8cc; }
+    .contact-block strong { color: var(--text); }
   </style>
 </head>
 <body>
 
-<header>
-  <a href="/"><img src="/static/img/icon.svg" alt="" style="width:24px;height:24px"> <span class="logo">Izzy Wizzy</span></a>
-  <span class="sep">/</span>
-  <span style="color:#8888aa;font-size:.85rem">Политика конфиденциальности</span>
+<header class="site-header">
+  <a class="site-logo" href="/">
+    <img src="/static/img/icon.svg" alt="" style="width:24px;height:24px">
+    Izzy Wizzy
+  </a>
+
+  <nav class="nav-center">
+    <a class="nav-item" href="/">Персонажи</a>
+    <a class="nav-item active" href="/privacy">Конфиденциальность</a>
+  </nav>
+
+  <div class="nav-right">
+    <a href="https://boosty.to/izzywizzy" target="_blank" rel="noopener" class="boosty-btn">Поддержать</a>
+    <div class="nav-user-wrap">
+      <button class="nav-user-btn" id="header-user-email">
+        <img id="header-user-avatar" src="" alt="">
+        <span class="nav-user-email" id="header-user-email-text"></span>
+        <span class="nu-chev">▾</span>
+      </button>
+      <div class="nav-dropdown">
+        <button class="nav-dd-item" onclick="fetch('/api/auth/logout',{method:'POST'}).then(()=>location.href='/')">Выйти</button>
+      </div>
+    </div>
+    <button class="nav-login-btn" id="header-login-btn" style="display:none" onclick="location.href='/?auth=1'">Войти</button>
+  </div>
 </header>
 
 <main>
@@ -112,7 +246,7 @@
   <div class="meta">Дата утверждения: 01.05.2026 &nbsp;·&nbsp; Последнее обновление: 01.05.2026</div>
 
   <h2>1. Общие положения</h2>
-  <p>Настоящая политика обработки персональных данных составлена в соответствии с требованиями Федерального закона от 27.07.2006 №152-ФЗ «О персональных данных» и определяет порядок обработки персональных данных и меры по обеспечению их безопасности, предпринимаемые Вислоуховым Евгением Павловичем (далее — «Оператор»), зарегистрированным в реестре операторов персональных данных Роскомнадзора под номером 100271168.</p>
+  <p>Настоящая политика обработки персональных данных составлена в соответствии с требованиями Федерального закона от 27.07.2006 №152-ФЗ «О персональных данных» и определяет порядок обработки персональных данных и меры по обеспечению их безопасности, предпринимаемые Семочкиным Андреем Анатольевичем (далее — «Оператор»), зарегистрированным в реестре операторов персональных данных Роскомнадзора под номером 100318257.</p>
   <p>Оператор ставит своей важнейшей целью соблюдение прав и свобод человека при обработке его персональных данных, в том числе защиты прав на неприкосновенность частной жизни.</p>
   <p>Настоящая политика применяется ко всей информации, которую Оператор может получить о посетителях веб-сайта <a href="https://izzywizzy.ru">https://izzywizzy.ru</a>.</p>
 
@@ -168,5 +302,27 @@
   </div>
 </main>
 
+
+<script>
+(async function() {
+  try {
+    const r = await fetch('/api/auth/me');
+    const d = await r.json();
+    const emailBtn  = document.getElementById('header-user-email');
+    const emailText = document.getElementById('header-user-email-text');
+    const avatarEl  = document.getElementById('header-user-avatar');
+    const loginBtn  = document.getElementById('header-login-btn');
+    if (d.loggedIn) {
+      if (emailText) emailText.textContent = d.email || '';
+      if (avatarEl && d.avatar) { avatarEl.src = d.avatar; avatarEl.style.display = 'inline-block'; }
+      if (emailBtn) emailBtn.style.display = 'flex';
+      if (loginBtn) loginBtn.style.display = 'none';
+    } else {
+      if (emailBtn) emailBtn.style.display = 'none';
+      if (loginBtn) loginBtn.style.display = '';
+    }
+  } catch(e) {}
+})();
+</script>
 </body>
 </html>
