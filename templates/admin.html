@@ -745,29 +745,34 @@ function esc(s) {
 
 // ── STATS ─────────────────────────────────────────────────────────────────────
 async function loadStats() {
-  const data = await api('/api/admin/stats');
-  document.getElementById('stats-loading').style.display = 'none';
-  document.getElementById('stats-content').style.display = '';
-  const cards = [
-    { val: data.total_users,         lbl: 'Пользователей',      cls: '' },
-    { val: data.total_chars,         lbl: 'Всего персонажей',   cls: '' },
-    { val: data.active_7d,           lbl: 'Активных за 7 дней', cls: 'accent-green' },
-    { val: data.created_7d,          lbl: 'Создано за 7 дней',  cls: 'accent-blue' },
-    { val: data.total_stats_tracked, lbl: 'Со статистикой',     cls: '' },
-  ];
-  document.getElementById('stat-cards').innerHTML = cards.map(c =>
-    `<div class="stat-card ${c.cls}"><div class="val">${c.val}</div><div class="lbl">${c.lbl}</div></div>`
-  ).join('');
-  renderDailyChart(data.daily_created);
-  renderTopLists(data);
-  if (data.longest_name) {
-    document.getElementById('longest-name-wrap').innerHTML =
-      `<div class="section-label">Рекорды</div>
-       <div class="longest-name-card">
-         <div class="lbl">Самое длинное имя персонажа</div>
-         <div class="name">${esc(data.longest_name.name)}</div>
-         <div class="len">${data.longest_name.len} символов</div>
-       </div>`;
+  try {
+    const data = await api('/api/admin/stats');
+    if (data.error) throw new Error(data.error);
+    document.getElementById('stats-loading').style.display = 'none';
+    document.getElementById('stats-content').style.display = '';
+    const cards = [
+      { val: data.total_users,         lbl: 'Пользователей',      cls: '' },
+      { val: data.total_chars,         lbl: 'Всего персонажей',   cls: '' },
+      { val: data.active_7d,           lbl: 'Активных за 7 дней', cls: 'accent-green' },
+      { val: data.created_7d,          lbl: 'Создано за 7 дней',  cls: 'accent-blue' },
+      { val: data.total_stats_tracked, lbl: 'Со статистикой',     cls: '' },
+    ];
+    document.getElementById('stat-cards').innerHTML = cards.map(c =>
+      `<div class="stat-card ${c.cls}"><div class="val">${c.val}</div><div class="lbl">${c.lbl}</div></div>`
+    ).join('');
+    renderDailyChart(data.daily_created);
+    renderTopLists(data);
+    if (data.longest_name) {
+      document.getElementById('longest-name-wrap').innerHTML =
+        `<div class="section-label">Рекорды</div>
+         <div class="longest-name-card">
+           <div class="lbl">Самое длинное имя персонажа</div>
+           <div class="name">${esc(data.longest_name.name)}</div>
+           <div class="len">${data.longest_name.len} символов</div>
+         </div>`;
+    }
+  } catch(e) {
+    document.getElementById('stats-loading').textContent = 'Ошибка загрузки: ' + e.message;
   }
 }
 
@@ -805,15 +810,20 @@ function renderTopLists(data) {
 
 // ── USERS ─────────────────────────────────────────────────────────────────────
 async function loadUsers() {
-  const data = await api('/api/admin/users');
-  _users = data.users;
-  _defaultLimit = data.default_limit;
-  _boosterLimit = data.booster_limit ?? 100;
-  document.getElementById('global-limit-inp').value = _defaultLimit;
-  document.getElementById('booster-limit-inp').value = _boosterLimit;
-  document.getElementById('users-loading').style.display = 'none';
-  document.getElementById('users-table-wrap').style.display = '';
-  renderUsers(_users);
+  try {
+    const data = await api('/api/admin/users');
+    if (data.error) throw new Error(data.error);
+    _users = data.users;
+    _defaultLimit = data.default_limit;
+    _boosterLimit = data.booster_limit ?? 100;
+    document.getElementById('global-limit-inp').value = _defaultLimit;
+    document.getElementById('booster-limit-inp').value = _boosterLimit;
+    document.getElementById('users-loading').style.display = 'none';
+    document.getElementById('users-table-wrap').style.display = '';
+    renderUsers(_users);
+  } catch(e) {
+    document.getElementById('users-loading').textContent = 'Ошибка загрузки: ' + e.message;
+  }
 }
 
 function renderUsers(users) {
