@@ -9,10 +9,10 @@
 <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg:           #20222c;
-    --bg2:          #20222c;
-    --bg3:          #283351;
-    --surface:      #272e43;
+    --bg:           #12131a;
+    --bg2:          #12131a;
+    --bg3:          #1e2235;
+    --surface:      #1a1d2a;
     --border:       #4a5570;
     --border2:      #606b85;
     --accent:       #4776e6;
@@ -730,6 +730,11 @@ async function api(url, method = 'GET', body = null) {
   const opts = { method, headers: { 'Content-Type': 'application/json' } };
   if (body) opts.body = JSON.stringify(body);
   const r = await fetch(url, opts);
+  if (!r.ok) {
+    let msg = `HTTP ${r.status}`;
+    try { const j = await r.json(); msg = j.error || msg; } catch(_) {}
+    throw new Error(msg);
+  }
   return r.json();
 }
 
@@ -772,7 +777,8 @@ async function loadStats() {
          </div>`;
     }
   } catch(e) {
-    document.getElementById('stats-loading').textContent = 'Ошибка загрузки: ' + e.message;
+    console.error('loadStats error:', e);
+    document.getElementById('stats-loading').textContent = '⚠ Ошибка: ' + e.message;
   }
 }
 
@@ -822,7 +828,8 @@ async function loadUsers() {
     document.getElementById('users-table-wrap').style.display = '';
     renderUsers(_users);
   } catch(e) {
-    document.getElementById('users-loading').textContent = 'Ошибка загрузки: ' + e.message;
+    console.error('loadUsers error:', e);
+    document.getElementById('users-loading').textContent = '⚠ Ошибка: ' + e.message;
   }
 }
 
