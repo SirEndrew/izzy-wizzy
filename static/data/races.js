@@ -414,7 +414,7 @@ window.RACES = [
       { id: 'lightfoot',     name: 'Легконогий',            source: 'PH14', asiMode: 'fixed', asi: {ХАР: 1}, traits: 'Природная скрытность' },
       { id: 'stout',         name: 'Коренастый',            source: 'PH14', asiMode: 'fixed', asi: {ТЕЛ: 1}, traits: 'Крепкость (преимущество яд, устойчивость к яду)' },
       { id: 'ghostwise',     name: 'Призрачный',            source: 'SCAG', asiMode: 'fixed', asi: {МДР: 1}, traits: 'Безмолвная речь (телепатия 30 фут.)' },
-      { id: 'halfling_egw',  name: 'Полурослик (EGW)',      source: 'EGtW',  asiMode: 'fixed', asi: {МДР: 1}, traits: 'Дитя леса, Блуждание по лесу' },
+      { id: 'halfling_egw',  name: 'Полурослик (EGW)',      source: 'EGtW', asiMode: 'fixed', asi: {МДР: 1}, traits: 'Дитя леса, Блуждание по лесу' },
       { id: 'hillmark_rlw',  name: 'Метка исцеления (RLW)', source: 'RLW',  asiMode: 'fixed', asi: {МДР: 1}, traits: 'Врачебная интуиция, Исцеляющее прикосновение, Заклинания метки' },
       { id: 'guestmark_rlw', name: 'Метка исцеления (RLW)', source: 'RLW',  asiMode: 'fixed', asi: {ХАР: 1}, traits: 'Всегда гостеприимен, Магия трактирщика, Заклинания метки' },
     ]
@@ -429,8 +429,8 @@ window.RACES = [
     languages: ['Общий', 'Эльфийский', 'на выбор'],
     subraces: [
       { id: 'faeroon',       name: 'Полуэльф Фаэруна (SCAG)', source: 'SCAG', traits: '' },
-      { id: 'lookmark_rlw',  name: 'Метка обнаружения (RLW)', source: 'RLW',  asiMode: 'partial', asiMode: 'partial', asiOverride: true, asi: {МДР: 2}, asiChoice: {count: 1, any: true, exclude: ['МДР']}, traits: 'Дедуктивная интуиция, Магическое обнаружение, Заклинания метки' },
-      { id: 'stormmark_rlw', name: 'Метка бури (RLW)',        source: 'RLW',  asiMode: 'fixed', asiOverride: true, asi: {ХАР:2, ЛОВ:1},                                                                     traits: 'Интуиция ветродела, Благословение бури, Встречные ветра, Заклинания метки' },
+      { id: 'lookmark_rlw',  name: 'Метка обнаружения (RLW)', source: 'RLW',  asiMode: 'partial', asiOverride: true, asi: {МДР: 2}, asiChoice: {count: 1, any: true, exclude: ['МДР']}, traits: 'Дедуктивная интуиция, Магическое обнаружение, Заклинания метки' },
+      { id: 'stormmark_rlw', name: 'Метка бури (RLW)',        source: 'RLW',  asiMode: 'fixed',   asiOverride: true, asi: {ХАР:2, ЛОВ:1},                                               traits: 'Интуиция ветродела, Благословение бури, Встречные ветра, Заклинания метки' },
     ]
   },
   {
